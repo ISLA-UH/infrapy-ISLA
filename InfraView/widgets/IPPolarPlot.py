@@ -49,7 +49,7 @@ class IPSlownessSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         main_layout = QHBoxLayout()
         main_layout.addLayout(form1_layout)
         main_layout.addLayout(form2_layout)
-
+        main_layout.addStretch()
         main_layout.addWidget(self.update_button)
         self.setLayout(main_layout)
 

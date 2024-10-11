@@ -2,8 +2,10 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QWidget, QColorDialog, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, 
                              QLineEdit, QVBoxLayout, QCheckBox, QComboBox, QLabel, QPushButton, QDoubleSpinBox)
 from PyQt5.QtCore import QRect, QSize, Qt, pyqtSlot, pyqtSignal, QSettings
+from PyQt5.QtGui import QPainter, QPaintEvent, QColor, QPalette
 
-from PyQt5.QtGui import QPainter, QPaintEvent, QColor
+
+from InfraView.widgets import IPBaseWidgets
 
 import matplotlib
 
@@ -814,15 +816,19 @@ class IPMapSettingsWidget(IPBaseWidgets.IPSettingsWidget):
     land_color = QColor(222, 222, 222)
 
     def __init__(self, parent=None):
-        super(IPMapSettingsWidget, self).__init__(parent)
+        super().__init__(parent)
         self.parent = parent
         self.setWindowTitle("InfraView: Map Settings")
 
         self.buildUI()
 
+        pal = self.palette()
+        pal.setColor(QPalette.WindowText, QColor(255,0,0))
+        self.setPalette(pal)
+
     def buildUI(self):
         ###   feature settings   ###
-        features_gb = QGroupBox("Features")
+        features_gb = IPBaseWidgets.IPSettingsGroupBox("Features")
         self.borders_checkbox = QCheckBox('Countries  ')
         self.states_checkbox = QCheckBox('States and Provinces  ')
         self.lakes_checkbox = QCheckBox('Lakes  ')
@@ -839,7 +845,7 @@ class IPMapSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         features_gb.setLayout(features_layout)
 
         ###   color settings   ###
-        colors_gb = QGroupBox("Colors")
+        colors_gb = IPBaseWidgets.IPSettingsGroupBox("Colors")
         ocean_color_label = QLabel("Oceans: ")
         self.ocean_color_button = IPColorButton(self.ocean_color)
         land_color_label = QLabel("Land: ")
@@ -898,7 +904,7 @@ class IPMapSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         offline_layout.addWidget(self.offline_directory_label)
         offline_layout.addWidget(self.offline_directory_select_button)
 
-        options_gb = QGroupBox("Options")
+        options_gb = IPBaseWidgets.IPSettingsGroupBox("Options")
         options_layout = QVBoxLayout()
         options_layout.addLayout(resolution_layout)
         options_layout.addWidget(self.backgroud_image_checkbox)

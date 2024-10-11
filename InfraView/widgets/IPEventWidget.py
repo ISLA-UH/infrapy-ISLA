@@ -13,7 +13,7 @@ from obspy.core import UTCDateTime
 import pyproj
 
 
-class IPEventWidget(IPBaseWidgets.IPSettingsWidget):
+class IPEventWidget(QWidget):
 
     sigEventWidgetChanged = pyqtSignal(dict)
     sigEventCleared = pyqtSignal()

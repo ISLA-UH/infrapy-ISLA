@@ -469,7 +469,7 @@ class IPLocationWidget(QWidget):
         settings.endGroup()
 
 
-class BISLSettings(IPBaseWidgets.IPSettingsWidget):
+class BISLSettings(QWidget):
 
     earth_radius = 6378.1   # km
 
