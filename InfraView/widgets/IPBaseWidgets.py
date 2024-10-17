@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QGroupBox
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QGroupBox, QMenu
 from PyQt5.QtGui import QPalette, QColor
 
 class IPSettingsWidget(QWidget):
@@ -11,19 +11,28 @@ class IPSettingsWidget(QWidget):
         fontsize = font.pointSize()
         if fontsize > 10:
             font.setPointSize(fontsize-2)
-        # font.setFamily("monospace")
         self.setFont(font)
 
-        pal = self.palette()
-        pal.setColor(QPalette.Window, QColor(64,64,64))
-        pal.setColor(QPalette.WindowText, QColor(255, 255, 255))
         self.setAutoFillBackground(True)
+        pal = self.palette()
+        pal.setColor(QPalette.Window, QColor('#f0f0f0'))
         self.setPalette(pal)
+
+        self.active = True
+        self.setVisible(self.active)
+
+    def is_active(self):
+        return self.active
+    
+    def set_active(self, active):
+        # active is a bool
+        self.active = active
 
 class IPSettingsGroupBox(QGroupBox):
     def __init__(self, title, parent=None):
         super().__init__(title, parent)
 
-        pal = self.palette()
-        pal.setColor(QPalette.WindowText, QColor(255, 255, 255))
-        self.setPalette(pal)
+class IPMenu(QMenu):
+    def __init__(self, parent):
+        super().__init__(parent)
+

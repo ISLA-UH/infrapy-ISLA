@@ -1,9 +1,8 @@
 import pyqtgraph as pg
-import platform
-import os, sys
+import numpy as np
+import os
 from pathlib import Path
 
-import numpy as np
 
 # obspy includes
 from obspy.core import read as obsRead
@@ -12,26 +11,29 @@ from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from obspy.core.stream import Stream
 
 # PyQt5 includes
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtGui import QKeySequence, QPixmap
+from PyQt5 import QtWidgets
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QSettings, QSize, QPoint, QDir
-from PyQt5.QtWidgets import (QAction, QDialog, QFileDialog, QTabWidget, QGridLayout,
+from PyQt5.QtWidgets import (QDialog, QFileDialog, QTabWidget, QStackedWidget,
                              QFormLayout, QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                              QDialog, QDialogButtonBox, QDoubleSpinBox, QLineEdit)
 
 # Infrapy includes
 
 # Application includes
-from InfraView.widgets import IPDisplaySettingsWidget
 from InfraView.widgets import IPBeamformingWidget
-from InfraView.widgets import IPProject
+from InfraView.widgets import IPDatabaseWidget
+from InfraView.widgets import IPDisplaySettingsWidget
 from InfraView.widgets import IPFDSNDialog
 from InfraView.widgets import IPLocationWidget
+from InfraView.widgets import IPMainMenu
+from InfraView.widgets import IPProject
 from InfraView.widgets import IPSaveAllDialog
-from InfraView.widgets import IPWaveformWidget
-from InfraView.widgets import IPDatabaseWidget
+from InfraView.widgets import IPSettingsManager
 from InfraView.widgets import IPSingleSensorWidget
 from InfraView.widgets import IPUtils
+from InfraView.widgets import IPWaveformWidget
+
 
 # multiprocessing modules
 import pathos.multiprocessing as mp
@@ -41,13 +43,14 @@ from multiprocessing import cpu_count
 import warnings
 
 
-
 class IPApplicationWindow(QtWidgets.QMainWindow):
 
     warnings.filterwarnings('ignore', message='Item already added to PlotItem, ignoring')
     
     sig_stream_changed = pyqtSignal(Stream)
     sig_inventory_changed = pyqtSignal(Inventory, str)
+    # this tab will emit the tabtext of the clicked tab 
+    sig_tab_changed = pyqtSignal(str)
 
     # variable to hold the reference of the loaded project object (if any)
     project = None
@@ -82,10 +85,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     def buildUI(self):
 
         self.main_widget = QWidget(self)
-        mainLayout = QGridLayout(self.main_widget)
-
-        # All menu items should be located in makeMenuBar method
-        self.makeMenuBar()
 
         # Create the display settings widget
         self.displaySettingsWidget = IPDisplaySettingsWidget.IPDisplaySettingsWidget()
@@ -96,8 +95,16 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.waveformWidget = IPWaveformWidget.IPWaveformWidget(self, self.mp_pool)
         self.locationWidget = IPLocationWidget.IPLocationWidget(self, self.mp_pool)
         self.databaseWidget = IPDatabaseWidget.IPDatabaseWidget(self)
-        
 
+        # to keep things simple, have the keys be lower case strings of the Tab Names
+        self.widget_dict = {'waveforms': self.waveformWidget,
+                            'beamforming': self.beamformingWidget,
+                            'location': self.locationWidget,
+                            'database': self.databaseWidget,
+                            'spectral': self.singleSensorWidget,
+                            'app_window': self}
+    
+                               
         # add the main widgets to the application tabs
         self.mainTabs = QTabWidget()
         self.mainTabs.addTab(self.waveformWidget, 'Waveforms')
@@ -106,7 +113,17 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.mainTabs.addTab(self.databaseWidget, 'Database')
         self.mainTabs.addTab(self.singleSensorWidget, 'Spectral')
 
+        # Create the settings manager
+        self.settings_manager = IPSettingsManager.IPSettingsManager(self, self.widget_dict)
+
+        # Put the settings above the tabs
+        mainLayout = QVBoxLayout(self.main_widget)
+        mainLayout.addWidget(self.settings_manager)
         mainLayout.addWidget(self.mainTabs)
+
+        # All menu items should be located in makeMenuBar method
+        self.menuBar = IPMainMenu.IPMainMenuBar(self, self.widget_dict)
+        self.setMenuBar(self.menuBar)
 
         # Create Dialogs
         self.fdsnDialog = IPFDSNDialog.IPFDSNDialog(self)
@@ -128,46 +145,13 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         pyqtRemoveInputHook()
         set_trace()
 
-    def makeMenuBar(self):
-        main_menu_bar = self.menuBar()
-
-        if platform.system() == 'Darwin':
-            main_menu_bar.setNativeMenuBar(False)  # This is because I couldn't get the normal mac menu to work...
-
-        self.file_menu = QtWidgets.QMenu('&File', self)
-        self.file_menu.addAction(self.tr(' New Project...'), self.filemenu_NewProject)
-        self.file_menu.addAction(self.tr(' Load Project...'), self.filemenu_LoadProject)
-        self.file_menu.addAction(self.tr(' Close Project'), self.filemenu_CloseProject)
-
-        self.file_menu.addSeparator()
-
-        self.file_menu.addAction(self.tr(' Load Waveform File(s)...'), self.filemenu_Open)
-        self.file_menu.addAction(self.tr(' Import from FDSN...'), self.filemenu_import)
-        self.file_menu.addAction(self.tr(' Clear Waveform(s)'), self.filemenu_ClearWaveforms)
-        self.file_menu.addAction(self.tr(' Save Waveform(s)...'), self.filemenu_saveAllWaveforms)
-
-        self.file_menu.addSeparator()
-
-        self.file_menu.addAction(self.tr(' &Exit'), self.filemenu_Quit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
-
-        action_show_fullscreen = QAction(self.tr('Toggle Fullscreen'), self)
-        action_show_fullscreen.setShortcut(QKeySequence.FullScreen)
-        action_show_fullscreen.triggered.connect(self.view_menu_toggle_fullscreen)
-
-        self.view_menu = QtWidgets.QMenu('View', self)
-        self.view_menu.addAction(action_show_fullscreen)
-
-        self.help_menu = QtWidgets.QMenu('&Help', self)
-        self.help_menu.addAction(self.tr("You're on your own buddy"))
-        self.help_menu.addAction('&About', self.about)
-
-        main_menu_bar.addMenu(self.file_menu)
-        main_menu_bar.addMenu(self.view_menu)
-        main_menu_bar.addSeparator()
-        main_menu_bar.addMenu(self.help_menu)
+    @pyqtSlot(int)
+    def emit_tab_text(self, idx):
+        # the QTabWidget clicked signal send the index of the current tab.  It's more
+        # useful to have the text
+        self.sig_tab_changed.emit(self.mainTabs.tabText(idx))
 
     def connectSignalsAndSlots(self):
-
         self.fdsnDialog.fdsnWidget.sigTracesAppended.connect(self.waveformWidget.appendTraces)
         self.fdsnDialog.fdsnWidget.sigTracesReplaced.connect(self.waveformWidget.replaceTraces)
 
@@ -175,13 +159,20 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.sig_stream_changed.connect(self.waveformWidget.update_streams)
         self.sig_inventory_changed.connect(self.waveformWidget.stationViewer.merge_new_inventory)
 
-        #self.beamformingWidget.waveformPlot.sigXRangeChanged.connect(self.waveformWidget.plotViewer.pl_widget.adjustSignalRegionRange)
         self.beamformingWidget.detectionWidget.signal_detections_changed.connect(self.locationWidget.update_detections)
         self.beamformingWidget.detectionWidget.signal_detections_cleared.connect(self.locationWidget.detections_cleared)
 
         self.databaseWidget.ipdatabase_query_results_table.signal_new_stream_from_db.connect(self.database_add_streams)
 
         self.databaseWidget.ipevent_query_results_table.sig_origin_changed.connect(self.locationWidget.showgroundtruth.eventChanged)
+
+        # connect tabs to the menubar so that when they are clicked the menu can adjust itself
+        self.mainTabs.currentChanged.connect(self.emit_tab_text)
+        self.sig_tab_changed.connect(self.menuBar.update_tab)
+
+        # connect tabs to the settings manager so it can adjust when tabs are clicked
+        self.sig_tab_changed.connect(self.settings_manager.tabs_changed)
+        
 
     def setStatus(self, s, ms=0):
         self.statusBar().showMessage(s, ms)
@@ -333,45 +324,11 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         if self.fdsnDialog.exec_():
             self.mainTabs.setCurrentIndex(0)
 
-    @pyqtSlot(Stream, bool)
-    def database_add_streams(self, new_stream, append):
-        current_trace_names = []
-        new_inventory = None
-        if self.waveformWidget._sts:
-            for trace in self.waveformWidget._sts:
-                current_trace_names.append(trace.id)
-        for trace in new_stream:
-            trace_name = trace.id
-            if trace_name in current_trace_names:
-                # redundant trace!
-                _, staid, _, _ = self.parseTraceName(trace_name)
-                self.redundant_trace_dialog.exec_(trace_name)
-
-                if  self.redundant_trace_dialog.get_result():
-                    # if accepted, they want to use the new trace so first remove the old one
-                    self.waveformWidget.remove_from_inventory(staid)
-                else:
-                    # if rejected, they want to keep the old trace, and ignore this one
-                    #so remove the trace from new_stream, and continue to the next trace
-                    new_stream.remove(trace)
-                    continue
-            # do our best to generate new inventory from the new stream
-            if new_inventory is None:
-                new_inventory = self.trace_to_inventory(trace)
-            else:
-                new_inventory += self.trace_to_inventory(trace)
-
-            # for now we will remove dc offset when loading the file.  Maybe should be an option?
-            trace.data = trace.data - np.mean(trace.data)
-        
-        if append:
-            self.waveformWidget.appendTraces(new_stream, new_inventory)
-        else: # Replace
-            self.waveformWidget.replaceTraces(new_stream, new_inventory)
-
-    def parseTraceName(self, trace_name):
-        bits = trace_name.split('.')
-        return bits[0], bits[1], bits[2], bits[3]
+    def filemenu_ClearWaveforms(self):
+        self.beamformingWidget.clearWaveformPlot()
+        self.waveformWidget.clearWaveforms()
+        self.singleSensorWidget.clearWaveformPlots()
+        self.waveformWidget.stationViewer.clear_all()
 
     def filemenu_saveAllWaveforms(self):
         if self.waveformWidget._sts is None:
@@ -417,7 +374,49 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         return
 
-    def view_menu_toggle_fullscreen(self):
+    @pyqtSlot(Stream, bool)
+    def database_add_streams(self, new_stream, append):
+        current_trace_names = []
+        new_inventory = None
+        if self.waveformWidget._sts:
+            for trace in self.waveformWidget._sts:
+                current_trace_names.append(trace.id)
+        for trace in new_stream:
+            trace_name = trace.id
+            if trace_name in current_trace_names:
+                # redundant trace!
+                _, staid, _, _ = self.parseTraceName(trace_name)
+                self.redundant_trace_dialog.exec_(trace_name)
+
+                if  self.redundant_trace_dialog.get_result():
+                    # if accepted, they want to use the new trace so first remove the old one
+                    self.waveformWidget.remove_from_inventory(staid)
+                else:
+                    # if rejected, they want to keep the old trace, and ignore this one
+                    #so remove the trace from new_stream, and continue to the next trace
+                    new_stream.remove(trace)
+                    continue
+            # do our best to generate new inventory from the new stream
+            if new_inventory is None:
+                new_inventory = self.trace_to_inventory(trace)
+            else:
+                new_inventory += self.trace_to_inventory(trace)
+
+            # for now we will remove dc offset when loading the file.  Maybe should be an option?
+            trace.data = trace.data - np.mean(trace.data)
+        
+        if append:
+            self.waveformWidget.appendTraces(new_stream, new_inventory)
+        else: # Replace
+            self.waveformWidget.replaceTraces(new_stream, new_inventory)
+
+    def parseTraceName(self, trace_name):
+        bits = trace_name.split('.')
+        return bits[0], bits[1], bits[2], bits[3]
+
+
+
+    def viewmenu_toggle_fullscreen(self):
 
         if self.is_fullscreen:
             self.showNormal()
@@ -425,13 +424,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         else:
             self.showFullScreen()
             self.is_fullscreen = True
-
-    def filemenu_ClearWaveforms(self):
-
-        self.beamformingWidget.clearWaveformPlot()
-        self.waveformWidget.clearWaveforms()
-        self.singleSensorWidget.clearWaveformPlots()
-        self.waveformWidget.stationViewer.clear_all()
                 
     def trace_to_inventory(self, trace):
         # if sac files are opened, it's useful to extract inventory from their streams so that we can populate the 
@@ -587,7 +579,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     # -------------------------------------------------------
     # Obligatory about
 
-    def about(self):
+    def helpmenu_about(self):
         self.aboutDialog.exec_()
         #QtWidgets.QMessageBox.about(self, "About", self.progname + "   " + self.progversion + "\n" + "Copyright 2018\nLos Alamos National Laboratory")
 

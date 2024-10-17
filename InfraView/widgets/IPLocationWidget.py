@@ -138,8 +138,6 @@ class IPLocationWidget(QWidget):
         main_layout.addWidget(self.mainSplitter)
         self.setLayout(main_layout)
 
-        self.make_toolbar()
-        main_layout.setMenuBar(self.toolbar)
         self.connectSignalsAndSlots()
 
         # Create threads for the distancematrix calculation, BISL, and clustering
@@ -147,41 +145,28 @@ class IPLocationWidget(QWidget):
         self.bislThread = QThread()
         self.clusterThread = QThread()
 
-    def make_toolbar(self):
-        self.toolbar = QToolBar()
-        # self.toolbar.setStyleSheet("QToolButton:!hover { padding-left:5px; padding-right:5px; padding-top:2px; padding-bottom:2px} QToolBar {background-color: rgb(0,107,166)}")
-        # self.toolbar.setStyleSheet("QToolButton:!hover {background-color:blue} QToolButton:hover { background-color: lightgray }")
+    # def make_toolbar(self):
+    #     self.toolbar = QToolBar()
 
-        self.toolButton_settings = QToolButton()
-        self.map_settings_act = QAction("Map Settings...", self)
-        self.map_settings_act.triggered.connect(self.mapWidget.showhide_map_settings_widget)
-        self.toolButton_settings.setDefaultAction(self.map_settings_act)
 
-        self.toolButton_extent = QToolButton()
-        self.map_extent_act = QAction("Map Extent...", self)
-        self.map_extent_act.triggered.connect(self.mapWidget.showhide_extent_widget)
-        self.toolButton_extent.setDefaultAction(self.map_extent_act)
+    #     # The export option has a dropdown menu to select what to export
+    #     self.toolButton_export = QToolButton()
+    #     self.toolButton_export.setText("Export")
+    #     self.toolButton_export.setPopupMode(QToolButton.InstantPopup)
 
-        # The export option has a dropdown menu to select what to export
-        self.toolButton_export = QToolButton()
-        self.toolButton_export.setText("Export")
-        self.toolButton_export.setPopupMode(QToolButton.InstantPopup)
+    #     self.export_menu = QMenu()
+    #     self.export_map_act = QAction("Map", self)
+    #     self.export_map_act.triggered.connect(self.mapWidget.map_export_dialog.exec_)
+    #     self.export_assoc_act = QAction("Associations")
+    #     self.export_dm_act = QAction("Distance Matrix")
+    #     self.export_menu.addAction(self.export_map_act)
+    #     #self.export_menu.addAction(self.export_assoc_act)
+    #     #self.export_menu.addAction(self.export_dm_act)
+    #     self.toolButton_export.setMenu(self.export_menu)
+    #     #self.export_act.triggered.connect()
 
-        self.export_menu = QMenu()
-        self.export_map_act = QAction("Map", self)
-        self.export_map_act.triggered.connect(self.mapWidget.map_export_dialog.exec_)
-        self.export_assoc_act = QAction("Associations")
-        self.export_dm_act = QAction("Distance Matrix")
-        self.export_menu.addAction(self.export_map_act)
-        #self.export_menu.addAction(self.export_assoc_act)
-        #self.export_menu.addAction(self.export_dm_act)
-        self.toolButton_export.setMenu(self.export_menu)
-        #self.export_act.triggered.connect()
-
-        self.toolbar.addWidget(self.toolButton_settings)
-        self.toolbar.addWidget(self.toolButton_extent)
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(self.toolButton_export)
+    #     self.toolbar.addSeparator()
+    #     self.toolbar.addWidget(self.toolButton_export)
         
 
     def connectSignalsAndSlots(self):

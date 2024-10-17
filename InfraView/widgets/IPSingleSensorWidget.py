@@ -52,13 +52,8 @@ class IPSingleSensorWidget(QWidget):
         self.tool_runDetector_button.setText("Run Detector")
         self.tool_runDetector_button.clicked.connect(self.run_spectral_detector)
 
-        self.tool_settings_button = QToolButton()
-        self.tool_settings_button.setText("Settings...")
-        self.tool_settings_button.clicked.connect(self.show_hide_spectrogram_settings)
-
-
         self.toolbar.addWidget(self.tool_runDetector_button)
-        self.toolbar.addWidget(self.tool_settings_button)
+
 
         ##### SETTINGS WIDGET
         self.spectrogram_settings_widget = IPSpectrogramSettingsWidget(self)
@@ -69,24 +64,10 @@ class IPSingleSensorWidget(QWidget):
         self.waveformPlot.setLabel('left', 'Amplitude')
         self.waveformPlot.hideButtons()
         self.waveformPlot.setPlotLabel("Signal Waveform")
-        # self.waveformPlot.setVisible(self.spectrogram_settings_widget.show_signal_waveform_cb.isChecked())
-
-        # self.noisePlot = IPPlotItem.IPPlotItem(mode='waveform', est=None, lris=False)
-        # self.noisePlot.setLabel('left', 'Amplitude')
-        # self.noisePlot.hideButtons()
-        # self.noisePlot.setPlotLabel("Background Waveform")
-        # self.noisePlot.setVisible(self.spectrogram_settings_widget.show_noise_waveform_cb.isChecked())
 
         ##### SPECTROGRAM PLOTS
         self.signalSpecWidget = IPSpectrogramWidget(self)
         self.signalSpecWidget.setPlotLabel('Signal')
-        #self.signalSpecWidget.sig_fmax_changed.connect(self.spectrogram_settings_widget.fmax_spin.setValue)
-        #self.signalSpecWidget.sig_fmax_changed.connect(self.spectrogram_settings_widget.fmax_spin.setMaximum)
-        # self.signalSpecWidget.setVisible(self.spectrogram_settings_widget.show_signal_spectrogram_cb.isChecked())
-
-        # self.noiseSpecWidget = IPSpectrogramWidget(self)
-        # self.noiseSpecWidget.setPlotLabel("Background")
-        # self.noiseSpecWidget.setVisible(self.spectrogram_settings_widget.show_noise_spectrogram_cb.isChecked())
 
         ##### DETECTION PLOT
         self.detectionPlot = IPDetectionPlotItem(self, start_time=None)
@@ -94,7 +75,6 @@ class IPSingleSensorWidget(QWidget):
 
         # link all the plot x-axes so that when they rescale together
         self.signalSpecWidget.setXLink(self.waveformPlot)
-        # self.noiseSpecWidget.setXLink(self.noisePlot)
         self.detectionPlot.setXLink(self.waveformPlot)
 
         ##### LAYOUT
@@ -103,10 +83,6 @@ class IPSingleSensorWidget(QWidget):
         glWidget.nextRow()
         glWidget.addItem(self.signalSpecWidget)
         glWidget.nextRow()
-        # glWidget.addItem(self.noisePlot)
-        # glWidget.nextRow()
-        # glWidget.addItem(self.noiseSpecWidget)
-        # glWidget.nextRow()
         glWidget.addItem(self.detectionPlot)
 
         main_layout.setMenuBar(self.toolbar)
@@ -117,9 +93,6 @@ class IPSingleSensorWidget(QWidget):
 
     @pyqtSlot(float)
     def update_values(self):
-        # self.nperseg = 2048
-        # self.noverlap = self.nperseg * self.spec_overlap
-        # self.nfft = self.nperseg
 
         new_fmin = self.spectrogram_settings_widget.fmin_spin.value()
         self.spec_overlap = 0.8
@@ -133,7 +106,8 @@ class IPSingleSensorWidget(QWidget):
         self.nfft = self.nperseg
 
     def show_hide_spectrogram_settings(self):
-        self.spectrogram_settings_widget.setVisible(self.spectrogram_settings_widget.isHidden())
+        # self.spectrogram_settings_widget.setVisible(self.spectrogram_settings_widget.isHidden())
+        pass
 
     def get_earliest_start_time(self):
         return self.appWidget.waveformWidget.get_earliest_start_time()
@@ -169,7 +143,7 @@ class IPSingleSensorWidget(QWidget):
         adaptive_window_step = adaptive_window_length/2
 
         signal_t_range = self.signalSpecWidget.get_xrange()
-
+        print(t_s, signal_t_range[0])
         signal_window_mask = np.logical_and(signal_t_range[0] <= t_s, t_s <= signal_t_range[1])
         signal_t_window = t_s[signal_window_mask]
         signal_Sxx_window = Sxx_log[:, signal_window_mask]
@@ -330,74 +304,13 @@ class IPSingleSensorWidget(QWidget):
                                                   morlet_o=self.spectrogram_settings_widget.omega0_spin.value())
             self.signalSpecWidget.set_start_time(self.get_earliest_start_time())
 
-    # @pyqtSlot(pg.PlotDataItem, tuple, str)
-    # def setNoiseWaveform(self, plotLine, region, plot_label=None):
-    #     initial = False
-    #     if self.noise_data_item is not None:
-    #         self.noise_data_item.clear()
-    #     else:
-    #         self.noise_data_item = pg.PlotDataItem()
-    #         initial = True
-
-    #     # bringing in a new waveform, we might have a new earliest_start_time, so update that in the 
-    #     # plots so that the x-axes will be correct
-    #     # self.noisePlot.setEarliestStartTime(self.get_earliest_start_time())
-
-    #     # need to make a copy of the currently active plot and give it to the beamformingwidget for display
-    #     self.noise_data_item.setData(plotLine.xData, plotLine.yData)
-    #     self.noise_data_item.setPen(pg.mkPen(color=(100, 100, 100), width=1))
-    #     self.noisePlot.enableAutoRange(axis=pg.ViewBox.YAxis)
-
-    #     # calculate the sampling frequency
-    #     self.fs = 1.0/(plotLine.xData[1] - plotLine.xData[0])
-
-    #     if initial:
-    #         # only need to add the item if it wasn't already added
-    #         self.noisePlot.addItem(self.noise_data_item)
-    #     if plot_label is not None:
-    #         self.noisePlot.setPlotLabel(plot_label)
-
-    #     self.noisePlot.setXRange(region[0], region[1], padding=0)
-
-    #     self.updateNoiseSpectrogram()
-
-
-    # @pyqtSlot(tuple)
-    # def updateNoiseRange(self, new_range):
-    #     self.noisePlot.setXRange(new_range[0], new_range[1], padding=0)
-    #     # we want to set the title of the plot to reflect the current start time of the view
-    #     self.start_time = self.get_earliest_start_time() + new_range[0]
-    #     self.noisePlot.setTitle(str(self.start_time) + " (Background)")
-
-    #     self.noiseSpecWidget.set_xaxis(new_range)
-    #     self.noiseSpecWidget.auto_scale_yaxis()
-
-    # def updateNoiseSpectrogram(self):
-    #     if self.noise_data_item is not None:
-    #         self.noiseSpecWidget.calc_spectrogram(self.noise_data_item.getOriginalDataset(), 
-    #                                               Fs=self.fs, 
-    #                                               nfft=self.nfft,
-    #                                               nperseg=self.nperseg,
-    #                                               noverlap=self.noverlap,
-    #                                               spec_type=self.spectrogram_settings_widget.spec_type_cb.currentText(),
-    #                                               morlet_o=self.spectrogram_settings_widget.omega0_spin.value())
-
-    #         self.noiseSpecWidget.set_start_time(self.get_earliest_start_time())
-
+    
     @pyqtSlot()
     def updateSpectrograms(self):
         if self.spectrogram_settings_widget.spec_type_cb.currentText() != self.spectrogram_settings_widget.last_spec_type:
             self.spectrogram_settings_widget.last_spec_type = self.spectrogram_settings_widget.spec_type_cb.currentText()
             self.detectionPlot.spi.clear()
         self.updateSignalSpectrogram()
-        # self.updateNoiseSpectrogram()
-
-    # @pyqtSlot()
-    # def updateVisibilities(self):
-    #     self.waveformPlot.setVisible(self.spectrogram_settings_widget.show_signal_waveform_cb.isChecked())
-    #     self.signalSpecWidget.setVisible(self.spectrogram_settings_widget.show_signal_spectrogram_cb.isChecked())
-    #     self.noisePlot.setVisible(self.spectrogram_settings_widget.show_noise_waveform_cb.isChecked())
-    #     self.noiseSpecWidget.setVisible(self.spectrogram_settings_widget.show_noise_spectrogram_cb.isChecked())
         
     def clearWaveformPlots(self):
         self.waveform_data_item = None
@@ -405,15 +318,8 @@ class IPSingleSensorWidget(QWidget):
         self.waveformPlot.setTitle("")
         self.waveformPlot.clearPlotLabel()
         self.waveformPlot.setYRange(0, 1, padding=0)
-        
-        # self.noise_data_item = None
-        # self.noisePlot.clear()
-        # self.noisePlot.setTitle("")
-        # self.noisePlot.clearPlotLabel()
-        # self.noisePlot.setYRange(0,1,padding=0)
 
         self.signalSpecWidget.clear_spectrogram()
-        # self.noiseSpecWidget.clear_spectrogram()
         self.detectionPlot.clear()
 
         self.detectionPlot.spi.clear()
@@ -598,7 +504,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.update_button.setMaximumWidth(100)
         self.update_button.setEnabled(False)
         self.update_button.clicked.connect(self.deactivate_update_button)
-        self.update_button.clicked.connect(self.singleStationWidget.updateSpectrograms)
+        # self.update_button.clicked.connect(self.singleStationWidget.updateSpectrograms)
         # self.update_button.clicked.connect(self.singleStationWidget.updateVisibilities)
 
         self.spec_type_cb = QComboBox(self)
@@ -639,23 +545,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         spec_layout.addLayout(form1_layout)
         spec_gb.setLayout(spec_layout)
 
-        # #######################
-        # color_scale_gb = QGroupBox("Scale")
-        # color_scale_layout = QVBoxLayout()
-        # self.none_rb = QRadioButton('None ')
-        # self.none_rb.setChecked(True)
-        # self.none_rb.clicked.connect(self.activate_update_button)
-        # self.hist_rb = QRadioButton('Histogram ')
-        # self.hist_rb.clicked.connect(self.activate_update_button)
-        # self.colorbar_rb = QRadioButton('Color Bar ')
-        # self.colorbar_rb.clicked.connect(self.activate_update_button)
-    
-        # #color_scale_layout.addWidget(self.hist_rb)
-        # color_scale_layout.addWidget(self.colorbar_rb)
-        # color_scale_layout.addWidget(self.none_rb)
-        # color_scale_gb.setLayout(color_scale_layout)
-
-        #######################
         self.detector_gb = QGroupBox("Spectrogram Detector")
 
         pval_label = QLabel('pval: ')
@@ -823,31 +712,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.cwt_detector_gb.setLayout(cwt_det_layout)
 
-        # #####SHOW HIDE
-        # showhide_gb = QGroupBox("Show/Hide")
-        # self.show_signal_waveform_cb = QCheckBox("Signal Waveform: ")
-        # self.show_signal_waveform_cb.setChecked(True)
-        # self.show_signal_waveform_cb.clicked.connect(self.activate_update_button)
-
-        # self.show_signal_spectrogram_cb = QCheckBox("Signal Spectrogram: ")
-        # self.show_signal_spectrogram_cb.setChecked(True)
-        # self.show_signal_spectrogram_cb.clicked.connect(self.activate_update_button)
-
-        # self.show_noise_waveform_cb = QCheckBox("Background Waveform: ")
-        # self.show_noise_waveform_cb.setChecked(False)
-        # self.show_noise_waveform_cb.clicked.connect(self.activate_update_button)
-
-        # self.show_noise_spectrogram_cb = QCheckBox("Background Spectrogram")
-        # self.show_noise_spectrogram_cb.setChecked(False)
-        # self.show_noise_spectrogram_cb.clicked.connect(self.activate_update_button)
-
-        # showhide_layout = QVBoxLayout()
-        # showhide_layout.addWidget(self.show_signal_waveform_cb)
-        # showhide_layout.addWidget(self.show_signal_spectrogram_cb)
-        # showhide_layout.addWidget(self.show_noise_waveform_cb)
-        # showhide_layout.addWidget(self.show_noise_spectrogram_cb)
-        # showhide_gb.setLayout(showhide_layout)
-
         self.hide_button = QPushButton("Hide")
         self.hide_button.setMaximumWidth(60)
         self.hide_button.clicked.connect(self.hide)
@@ -856,11 +720,8 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         h_layout.addWidget(self.detector_gb)       
         h_layout.addWidget(self.cwt_detector_gb) 
         h_layout.addWidget(spec_gb)
-        # h_layout.addWidget(color_scale_gb)
-        # h_layout.addWidget(showhide_gb)
         h_layout.addWidget(self.update_button)
         h_layout.addStretch()
-        h_layout.addWidget(self.hide_button)
         h_layout.setContentsMargins(0,0,0,0)
         self.setLayout(h_layout) 
 

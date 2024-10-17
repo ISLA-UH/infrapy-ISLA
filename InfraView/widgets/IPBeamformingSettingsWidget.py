@@ -1,8 +1,9 @@
-from PyQt5.QtWidgets import (QWidget, QComboBox, QCheckBox, QLabel, QDoubleSpinBox, QSpinBox,
+from PyQt5.QtWidgets import (QGroupBox, QComboBox, QCheckBox, QLabel, QDoubleSpinBox, QSpinBox,
                              QHBoxLayout, QFormLayout, QFrame, QPushButton)
 from PyQt5 import QtCore
 
 from InfraView.widgets import IPBaseWidgets
+from InfraView.widgets import IPDetectorSettingsWidget
 
 class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
@@ -12,7 +13,7 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.buildUI()
 
     def buildUI(self):
-    
+
         self.windowLength_spin = QDoubleSpinBox()
         self.windowLength_spin.setMaximumWidth(60)
         self.windowLength_spin.setSuffix(' s')
@@ -107,7 +108,26 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         sub_win_layout.addWidget(self.subWinLength_spin)
         sub_win_layout.addWidget(self.subwindow_cb)
         formlayout_col2.addRow("Subwindow Length: ", sub_win_layout)
+        formlayout_col2.addRow("Method: ", self.method_cb)
 
+        formlayout_col6 = QFormLayout()
+        formlayout_col6.addRow("Back Azimuth Resolution: ", self.backaz_resol_spin)
+        formlayout_col6.addRow("Back Azimuth Start Angle: ", self.backaz_start_spin)
+        formlayout_col6.addRow("Back Azimuth End Angle: ", self.backaz_end_spin)
+
+        formlayout_col7 = QFormLayout()
+        formlayout_col7.addRow("Trace Vel. Resolution: ", self.tracev_resol_spin)
+        formlayout_col7.addRow("Trace Vel Min: ", self.tracev_min_spin)
+        formlayout_col7.addRow("Trace Vel Max: ", self.tracev_max_spin)
+        formlayout_col7.addRow("", self.reset_button)
+
+        horizLayoutA = QHBoxLayout()
+        horizLayoutA.addLayout(formlayout_col2)
+        horizLayoutA.addLayout(formlayout_col6)
+        horizLayoutA.addLayout(formlayout_col7)
+
+        analysis_gb = QGroupBox('Analysis Settings')
+        analysis_gb.setLayout(horizLayoutA)
         # removed col3
 
         formlayout_col4 = QFormLayout()
@@ -120,30 +140,22 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         formlayout_col5.addRow("Duration: ", self.noiseDuration_label)
         formlayout_col5.addRow("Duration: ", self.sigDuration_label)
 
-        formlayout_col6 = QFormLayout()
-        formlayout_col6.addRow("Back Azimuth Resolution: ", self.backaz_resol_spin)
-        formlayout_col6.addRow("Back Azimuth Start Angle: ", self.backaz_start_spin)
-        formlayout_col6.addRow("Back Azimuth End Angle: ", self.backaz_end_spin)
+        horizLayoutB = QHBoxLayout()
+        horizLayoutB.addLayout(formlayout_col4)
+        horizLayoutB.addLayout(formlayout_col5)
 
-        formlayout_col7 = QFormLayout()
-        formlayout_col7.addRow("Trace Vel. Resolution: ", self.tracev_resol_spin)
-        formlayout_col7.addRow("Trace Vel Min: ", self.tracev_min_spin)
-        formlayout_col7.addRow("Trace Vel Max: ", self.tracev_max_spin)
+        values_gb = QGroupBox("Current Values")
+        values_gb.setLayout(horizLayoutB)
 
-        formlayout_col8 = QFormLayout()
-        formlayout_col8.addRow("Method: ", self.method_cb)
-        formlayout_col8.addRow("", self.reset_button)
+        self.detectorSettings = IPDetectorSettingsWidget.IPDetectorSettingsWidget(self)
 
-        horizLayout = QHBoxLayout()
-        horizLayout.addLayout(formlayout_col2)
-        horizLayout.addLayout(formlayout_col4)
-        horizLayout.addLayout(formlayout_col5)
-        horizLayout.addLayout(formlayout_col6)
-        horizLayout.addLayout(formlayout_col7)
-        horizLayout.addLayout(formlayout_col8)
-        horizLayout.addStretch()
+        main_layout = QHBoxLayout()
+        main_layout.addWidget(analysis_gb)
+        # main_layout.addWidget(values_gb)
+        main_layout.addWidget(self.detectorSettings)
+        main_layout.addStretch()
 
-        self.setLayout(horizLayout)
+        self.setLayout(main_layout)
 
     def set_defaults(self):
         default_settings = {'winlen_spin': 10.0,

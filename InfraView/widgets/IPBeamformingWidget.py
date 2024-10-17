@@ -308,12 +308,7 @@ class IPBeamformingWidget(QWidget):
         toolButton_start = QToolButton()
         toolButton_stop = QToolButton()
         toolButton_clear = QToolButton()
-        toolButton_export = QToolButton()
-        self.toolButton_bfsettings = QToolButton()
-        self.toolButton_detsettings = QToolButton()
-        self.toolButton_slowsettings = QToolButton()
         toolButton_runDetector = QToolButton()
-        toolButton_resetZoom = QToolButton()
 
         self.runAct = QAction(QIcon.fromTheme("media-playback-start"), "Run Beamforming", self)
         self.runAct.triggered.connect(self.runBeamforming)
@@ -330,84 +325,38 @@ class IPBeamformingWidget(QWidget):
         toolButton_clear.setToolButtonStyle(Qt.ToolButtonTextOnly)
         toolButton_clear.setDefaultAction(self.clearAct)
 
-        self.exportAct = QAction(QIcon.fromTheme("document-save-as"), 'Export Results', self)
-        self.exportAct.triggered.connect(self.exportResults)
-        toolButton_export.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        toolButton_export.setDefaultAction(self.exportAct)
-
-        self.beamformSettingsAct = QAction("Beamformer Settings", self)
-        self.beamformSettingsAct.triggered.connect(self.showhide_bfsettings)
-        self.toolButton_bfsettings.setDefaultAction(self.beamformSettingsAct)
-
-        self.detectorSettingsAct = QAction("Detector Settings", self)
-        self.detectorSettingsAct.triggered.connect(self.showhide_detsettings)
-        self.toolButton_detsettings.setDefaultAction(self.detectorSettingsAct)
-
         self.runDetectorAct = QAction("Run Detector")
         self.runDetectorAct.triggered.connect(self.run_detector)
         toolButton_runDetector.setDefaultAction(self.runDetectorAct)
         toolButton_runDetector.setToolTip("Run/Rerun Detector")
 
-        self.resetZoomAct = QAction("Reset Zoom")
-        self.resetZoomAct.triggered.connect(self.reset_zoom)
-        toolButton_resetZoom.setDefaultAction(self.resetZoomAct)
-
-        self.slownessSettingsAct = QAction("Slowness Settings", self)
-        self.slownessSettingsAct.triggered.connect(self.showhide_slownessSettings)
-        self.toolButton_slowsettings.setDefaultAction(self.slownessSettingsAct)
-
         self.toolbar.addWidget(toolButton_start)
         self.toolbar.addWidget(toolButton_stop)
         self.toolbar.addWidget(toolButton_clear)
-        self.toolbar.addWidget(self.toolButton_bfsettings)
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(self.toolButton_detsettings)
         self.toolbar.addWidget(toolButton_runDetector)
 
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(toolButton_resetZoom)
-        self.toolbar.addWidget(toolButton_export)
 
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(self.toolButton_slowsettings)
 
     def showhide_slownessSettings(self):
         self.detector_settings.setVisible(False)
-        self.toolButton_detsettings.setStyleSheet("color: rgba(20,20,20,255);")
         self.bottomSettings.setVisible(False)
-        self.toolButton_bfsettings.setStyleSheet("color: rgba(20,20,20,255);")
 
         self.slownessSettings.setVisible(self.slownessSettings.isHidden())
 
-        if self.slownessSettings.isHidden():
-            self.toolButton_slowsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        else:
-            self.toolButton_slowsettings.setStyleSheet("color: rgba(0,0,180,255);")
 
     def showhide_bfsettings(self):
         self.detector_settings.setVisible(False)
-        self.toolButton_detsettings.setStyleSheet("color: rgba(20,20,20,255);")
         self.slownessSettings.setVisible(False)
-        self.toolButton_slowsettings.setStyleSheet("color: rgba(20,20,20,255);")
 
         self.bottomSettings.setVisible(self.bottomSettings.isHidden())
-        if self.bottomSettings.isHidden():
-            # change font color of button
-            self.toolButton_bfsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        else:
-            self.toolButton_bfsettings.setStyleSheet("color: rgba(0,0,180,255)")
+        
 
     def showhide_detsettings(self):
         self.detector_settings.setVisible(self.detector_settings.isHidden())
         self.bottomSettings.setVisible(False)
-        self.toolButton_slowsettings.setStyleSheet("color: rgba(20,20,20,255);")
+
         self.slownessSettings.setVisible(False)
-        self.toolButton_bfsettings.setStyleSheet("color: rgba(20,20,20,255);")
         
-        if self.detector_settings.isHidden():
-            self.toolButton_detsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        else:
-            self.toolButton_detsettings.setStyleSheet("color: rgba(0,0,180,255);")
 
     def addCrosshairs(self):
         # This adds the crosshairs that follow the mouse around, as well as the position labels which display the

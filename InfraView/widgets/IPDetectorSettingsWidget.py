@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import (QCheckBox, QDoubleSpinBox, QSpinBox,
+from PyQt5.QtWidgets import (QCheckBox, QDoubleSpinBox, QSpinBox, QGroupBox,
                              QFormLayout, QHBoxLayout, QButtonGroup)
 
 from PyQt5.QtCore import pyqtSlot
@@ -7,12 +7,13 @@ from InfraView.widgets import IPBaseWidgets
 # import infrapy modules here
 from infrapy.detection import beamforming_new
 
-class IPDetectorSettingsWidget(IPBaseWidgets.IPSettingsWidget):
+class IPDetectorSettingsWidget(QGroupBox):
 
     auto_threshold_level = None
 
     def __init__(self, parent):
         super().__init__(parent)
+        self.setTitle("Detector")
         self.buildUI()
 
     def buildUI(self):
@@ -60,27 +61,20 @@ class IPDetectorSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         form_layout_col1 = QFormLayout()
         form_layout_col2 = QFormLayout()
         form_layout_col3 = QFormLayout()
-        form_layout_col4 = QFormLayout()
 
         self.det_type_group.addButton(self.auto_checkbox)
-        self.det_type_group.addButton(self.manual_checkbox)
 
         form_layout_col1.addRow("Automatically calculate threshold: ", self.auto_checkbox)
+        form_layout_col1.addRow("Manual threshold level: ", self.manual_value)
         form_layout_col1.addRow("Detection p-value: ", self.pval_spin)
-
-        form_layout_col2.addRow("Manually set threshold: ", self.manual_checkbox)
-        form_layout_col2.addRow("Manual threshold level: ", self.manual_value)
+        form_layout_col1.addRow("Merge nearby detections", self.merge_detections_cb)
         
-        form_layout_col3.addRow("Back azimuth scatter limit: ", self.back_az_limit)
-        form_layout_col3.addRow("Minimum peak width: ", self.min_peak_width)
-
-        form_layout_col4.addRow("Merge nearby detections", self.merge_detections_cb)
+        
+        form_layout_col2.addRow("Back azimuth scatter limit: ", self.back_az_limit)
+        form_layout_col2.addRow("Minimum peak width: ", self.min_peak_width)
         
         main_layout.addLayout(form_layout_col1)
         main_layout.addLayout(form_layout_col2)
-        main_layout.addLayout(form_layout_col3)
-        main_layout.addLayout(form_layout_col4)
-        main_layout.addStretch()
 
         self.setLayout(main_layout)
 

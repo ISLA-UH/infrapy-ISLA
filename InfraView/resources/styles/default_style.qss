@@ -1,0 +1,26 @@
+QSplitterHandle{ 
+    background-color: #DDD;
+}
+
+IPSettingsWidget QGroupBox {
+    background-color: #f0f0f0;
+    color: #000;
+}
+
+IPSettingsWidget QCheckBox {
+    background-color: #f0f0f0;
+     color:#000; 
+}
+
+IPSettingsWidget QLabel {
+    background-color: #f0f0f0;
+     color:#000; 
+}
+
+IPMainMenu QAction::hover{
+    background-color: #0F0;
+}
+
+IPMainMenu QAction::selected {
+    background-color: #00F;
+}
