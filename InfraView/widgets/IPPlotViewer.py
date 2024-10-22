@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (QWidget, QDoubleSpinBox, QLabel,
                              QHBoxLayout, QVBoxLayout,
                              QScrollArea)
 
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPPlotItem
 from InfraView.widgets import IPWaveformSelectorWidget
 from InfraView.widgets import IPEventLine
@@ -17,7 +18,7 @@ from obspy.core.stream import Stream
 
 import pyproj
 
-class IPPlotViewer(IPUtils.IPSplitter):
+class IPPlotViewer(IPBaseWidgets.IPSplitter):
 
     def __init__(self, parent):
         super().__init__(orientation=Qt.Horizontal, parent=parent)
@@ -35,7 +36,6 @@ class IPPlotViewer(IPUtils.IPSplitter):
         self.lr_settings_widget = IPLinearRegionSettingsWidget(self)
         
         rhs_widget = QWidget()
-        rhs_widget.setStyleSheet("background-color:white;")
         rhs_layout = QVBoxLayout()
 
         rhs_layout.addWidget(self.title)

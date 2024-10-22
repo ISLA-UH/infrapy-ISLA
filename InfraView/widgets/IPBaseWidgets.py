@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QGroupBox, QMenu
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QGroupBox, QMenu, QSplitter
 from PyQt5.QtGui import QPalette, QColor
 
 class IPSettingsWidget(QWidget):
@@ -14,19 +14,11 @@ class IPSettingsWidget(QWidget):
         self.setFont(font)
 
         self.setAutoFillBackground(True)
-        pal = self.palette()
-        pal.setColor(QPalette.Window, QColor('#f0f0f0'))
-        self.setPalette(pal)
 
-        self.active = True
-        self.setVisible(self.active)
+        self.setVisible(False)
 
-    def is_active(self):
-        return self.active
-    
-    def set_active(self, active):
-        # active is a bool
-        self.active = active
+        self.setStyleSheet("IPSettingsWidget::border-bottom: solid;")
+
 
 class IPSettingsGroupBox(QGroupBox):
     def __init__(self, title, parent=None):
@@ -36,3 +28,12 @@ class IPMenu(QMenu):
     def __init__(self, parent):
         super().__init__(parent)
 
+class IPSplitter(QSplitter):
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+
+        pal = self.palette()
+        bt_color = pal.color(QPalette.ButtonText)
+        # handle = self.handle()
+
+        self.setStyleSheet("QSplitter::handle{ background-color: #888; width: 50; height: 1;}")

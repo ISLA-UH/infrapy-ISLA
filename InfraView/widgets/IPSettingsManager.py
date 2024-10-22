@@ -15,6 +15,8 @@ class IPSettingsManager(QStackedWidget):
         self.initialize_settings_widgets()
         self.insert_settings_widgets()
 
+        self.setVisible(False)
+
     def initialize_settings_widgets(self):
         # create instances of the settings widgets, and put them in a dictionary 
         self.spectra_settings = IPSingleSensorWidget.IPSpectrogramSettingsWidget(self)

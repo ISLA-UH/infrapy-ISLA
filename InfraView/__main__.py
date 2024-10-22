@@ -19,9 +19,9 @@ def main():
     icon_file = str(Path(__file__).parent / 'graphics' / 'icons' / 'start_64')
     qApp.setWindowIcon(QIcon(icon_file))
 
-    style_file = str(Path(__file__).parent / 'resources' / 'styles' / 'default_style.qss')
-    with open(style_file, 'r') as sf:
-        qApp.setStyleSheet(sf.read())
+    # style_file = str(Path(__file__).parent / 'resources' / 'styles' / 'default_style.qss')
+    # with open(style_file, 'r') as sf:
+    #     qApp.setStyleSheet(sf.read())
 
     my_system = platform.system()
     my_release = platform.release()

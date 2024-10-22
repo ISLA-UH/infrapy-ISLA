@@ -1,5 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt
+
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPDatabaseConnectWidget
 from InfraView.widgets import IPDatabaseQueryWidget
 from InfraView.widgets import IPDatabaseQueryResultsTable
@@ -38,7 +40,7 @@ class IPDatabaseWidget(QWidget):
         wave_layout.addWidget(self.ipdatabase_query_results_table)
         wave_widget.setLayout(wave_layout)
 
-        vertical_splitter = IPUtils.IPSplitter(Qt.Vertical)
+        vertical_splitter = IPBaseWidgets.IPSplitter(Qt.Vertical)
         vertical_splitter.addWidget(top_widget)
         vertical_splitter.addWidget(wave_widget)
 

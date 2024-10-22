@@ -17,6 +17,7 @@ import obspy
 from obspy.core.stream import Stream
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPUtils
 
 
@@ -52,15 +53,15 @@ class IPWaveformWidget(QWidget):
 
         self.plotViewer = IPPlotViewer.IPPlotViewer(self)
 
-        self.lh_splitter = IPUtils.IPSplitter(orientation=Qt.Vertical, parent=self)
+        self.lh_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Vertical, parent=self)
         self.lh_splitter.addWidget(self.plotViewer)
         self.lh_splitter.addWidget(self.info_tabs)
 
-        self.rh_splitter = IPUtils.IPSplitter(orientation=Qt.Vertical, parent=self)
+        self.rh_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Vertical, parent=self)
         self.rh_splitter.addWidget(self.spectraWidget)
         self.rh_splitter.addWidget(self.filterSettingsWidget)
 
-        self.main_splitter = IPUtils.IPSplitter(orientation=Qt.Horizontal, parent=self)
+        self.main_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Horizontal, parent=self)
         self.main_splitter.addWidget(self.lh_splitter)
         self.main_splitter.addWidget(self.rh_splitter)
 

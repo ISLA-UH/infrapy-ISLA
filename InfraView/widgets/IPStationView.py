@@ -15,6 +15,7 @@ from obspy.core.inventory import Inventory
 
 import numpy as np
 
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPStationMatchDialog
 from InfraView.widgets import IPUtils
 
@@ -88,7 +89,7 @@ class IPStationView(QWidget):
         savebuttonLayout.addWidget(self.reconcileButton)
         savebuttonLayout.addStretch()
 
-        mainHSplitter = IPUtils.IPSplitter(Qt.Horizontal,self)
+        mainHSplitter = IPBaseWidgets.IPSplitter(Qt.Horizontal,self)
 
         mainHSplitter.addWidget(self.station_TabWidget)
         mainHSplitter.addWidget(self.arrayViewWidget)

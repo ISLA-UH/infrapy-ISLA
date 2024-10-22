@@ -26,6 +26,7 @@ from obspy.core.event.origin import Origin
 from infrapy.location import bisl
 from infrapy.association import hjl
 
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPMapWidget
 from InfraView.widgets import IPEventWidget
 from InfraView.widgets import IPUtils
@@ -96,14 +97,14 @@ class IPLocationWidget(QWidget):
         assocLayout.addWidget(self.assocSettings)
         self.assocWidget.setLayout(assocLayout)
 
-        self.assoc_splitter = IPUtils.IPSplitter(Qt.Vertical, self)
+        self.assoc_splitter = IPBaseWidgets.IPSplitter(Qt.Vertical, self)
         self.assoc_splitter.addWidget(self.dm_view)
         self.assoc_splitter.addWidget(self.assocWidget)
 
         self.assoc_splitter.setSizes([1000000, 1000000])
 
         # splitter holding the map canvas and the association plots
-        self.loc_splitter = IPUtils.IPSplitter(Qt.Horizontal, self)
+        self.loc_splitter = IPBaseWidgets.IPSplitter(Qt.Horizontal, self)
         self.loc_splitter.addWidget(self.mapWidget)
         self.loc_splitter.addWidget(self.assoc_splitter)
 
@@ -129,7 +130,7 @@ class IPLocationWidget(QWidget):
         lh_layout.addWidget(self.bottomRow)
         self.lhWidget.setLayout(lh_layout)
 
-        self.mainSplitter = IPUtils.IPSplitter(Qt.Horizontal, self)
+        self.mainSplitter = IPBaseWidgets.IPSplitter(Qt.Horizontal, self)
         self.mainSplitter.addWidget(self.lhWidget)
         self.mainSplitter.addWidget(self.assoc_splitter)
 

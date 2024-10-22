@@ -18,6 +18,7 @@ import scipy.signal as scs
 from pathlib import Path
 
 # import infraview widgets here
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPDetectionWidget
 from InfraView.widgets import IPDetectorSettingsWidget
 from InfraView.widgets import IPNewDetectionDialog
@@ -263,15 +264,15 @@ class IPBeamformingWidget(QWidget):
 
         # ---------------------------------------------
 
-        self.splitterTop = IPUtils.IPSplitter(Qt.Horizontal)
+        self.splitterTop = IPBaseWidgets.IPSplitter(Qt.Horizontal)
         self.splitterTop.addWidget(self.lhWidget)
         self.splitterTop.addWidget(slownessWidget)
-        self.splitterBottom = IPUtils.IPSplitter(Qt.Horizontal)
+        self.splitterBottom = IPBaseWidgets.IPSplitter(Qt.Horizontal)
         self.splitterBottom.addWidget(bottomWidget)
 
         # ---------------------------------------------
 
-        self.main_splitter = IPUtils.IPSplitter(Qt.Vertical)
+        self.main_splitter = IPBaseWidgets.IPSplitter(Qt.Vertical)
         self.main_splitter.addWidget(self.splitterTop)
         self.main_splitter.addWidget(self.splitterBottom)
 

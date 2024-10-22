@@ -47,7 +47,6 @@ class IPSingleSensorWidget(QWidget):
         ##### TOOLBAR
         self.toolbar = QToolBar()
         
-        #self.toolbar.setStyleSheet("QToolBar { border-bottom: 1px solid; } ")
         self.tool_runDetector_button = QToolButton()
         self.tool_runDetector_button.setText("Run Detector")
         self.tool_runDetector_button.clicked.connect(self.run_spectral_detector)
@@ -57,7 +56,6 @@ class IPSingleSensorWidget(QWidget):
 
         ##### SETTINGS WIDGET
         self.spectrogram_settings_widget = IPSpectrogramSettingsWidget(self)
-        self.spectrogram_settings_widget.setVisible(False)
 
         ##### WAVEFORM PLOTS
         self.waveformPlot = IPPlotItem.IPPlotItem(mode='waveform', est=None, lris=False)

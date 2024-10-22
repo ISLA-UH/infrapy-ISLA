@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMessageBox, QSplitter
+from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QValidator
 from PyQt5.QtCore import Qt, pyqtSlot
 
@@ -43,12 +43,7 @@ def errorPopup(message, title="Oops..."):
     msgBox.setWindowTitle(title)
     msgBox.exec_()
 
-class IPSplitter(QSplitter):
 
-    def __init__(self, orientation, parent=None):
-        super().__init__(orientation, parent)
-
-        self.setStyleSheet("QSplitter::handle{ background-color: #DDD}")
 
 
 class CapsValidator(QValidator):

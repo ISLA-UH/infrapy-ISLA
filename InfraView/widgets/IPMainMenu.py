@@ -12,21 +12,6 @@ class IPMainMenuBar(QMenuBar):
     def __init__(self, parent, widget_dict):
         super().__init__(parent)
 
-        self.wave_widget = widget_dict['waveforms']
-        self.wave_actions = []
-
-        self.ss_widget = widget_dict['spectral']
-        self.ss_actions = []
-
-        self.loc_widget = widget_dict['location']
-        self.loc_actions = []
-        
-        self.beam_widget = widget_dict['beamforming']
-        self.beam_actions = []
-
-        self.db_widget = widget_dict['database']
-        self.db_actions = []
-
         self.main_window = widget_dict['app_window']
 
         if platform.system() == 'Darwin':
@@ -70,161 +55,163 @@ class IPMainMenuBar(QMenuBar):
 
         self.addMenu(self.file_menu)
         self.addMenu(self.view_menu)
+        self.addAction(self.tr('Settings'), self.main_window.toggle_settings)
         self.addMenu(self.help_menu)
 
         # Create Actions for various tabs
-        self.create_singleSensorActions()
-        self.create_locationActions()
-        self.create_beamformerActions()
+        # self.create_singleSensorActions()
+        # self.create_locationActions()
+        # self.create_beamformerActions()
 
-    @pyqtSlot(str)
-    def update_tab(self, tt):
-        # tt is the tab text
-        tt = tt.lower()
 
-        if tt == 'waveforms':
-            self.add_waveform_actions()
-        elif tt == 'spectral':
-            self.add_ss_actions()
-        elif tt == 'location':
-            self.add_loc_actions()
-        elif tt == 'beamforming':
-            self.add_beam_actions()
-        elif tt == 'database':
-            self.add_db_actions()
+    # @pyqtSlot(str)
+    # def update_tab(self, tt):
+    #     # tt is the tab text
+    #     tt = tt.lower()
 
-    def emit_settings_info(self, name):
-        # name is the name of the settings tab, should be the same as in main_window.settings_dict
-        self.sig_settings_updated.emit(name)
+    #     if tt == 'waveforms':
+    #         self.add_waveform_actions()
+    #     elif tt == 'spectral':
+    #         self.add_ss_actions()
+    #     elif tt == 'location':
+    #         self.add_loc_actions()
+    #     elif tt == 'beamforming':
+    #         self.add_beam_actions()
+    #     elif tt == 'database':
+    #         self.add_db_actions()
 
-    # Create Custom Actions for different Tabs here ###############
+    # def emit_settings_info(self, name):
+    #     # name is the name of the settings tab, should be the same as in main_window.settings_dict
+    #     self.sig_settings_updated.emit(name)
 
-    def clear_custom_actions(self):
-        # clear out whatever custom actions are visible so that we can display just the current ones
-        self.remove_ss_actions()
-        self.remove_loc_actions()
-        self.remove_beam_actions()
+    # # Create Custom Actions for different Tabs here ###############
 
-    # Waveform Tab ##################
-    def create_waveformActions(self):
-        pass
+    # def clear_custom_actions(self):
+    #     # clear out whatever custom actions are visible so that we can display just the current ones
+    #     self.remove_ss_actions()
+    #     self.remove_loc_actions()
+    #     self.remove_beam_actions()
 
-    @pyqtSlot()
-    def add_waveform_actions(self):
-        self.clear_custom_actions()
+    # # Waveform Tab ##################
+    # def create_waveformActions(self):
+    #     pass
 
-        for act in self.wave_actions:
-            self.insertAction(self.help_menu.menuAction(), act)
+    # @pyqtSlot()
+    # def add_waveform_actions(self):
+    #     self.clear_custom_actions()
 
-    @pyqtSlot()
-    def remove_waveform_actions(self):
-        for act in self.wave_actions:
-            self.removeAction(act)
+    #     for act in self.wave_actions:
+    #         self.insertAction(self.help_menu.menuAction(), act)
 
-    # Database Tab ##################
-    def create_dbActions(self):
-        pass
+    # @pyqtSlot()
+    # def remove_waveform_actions(self):
+    #     for act in self.wave_actions:
+    #         self.removeAction(act)
 
-    @pyqtSlot()
-    def add_db_actions(self):
-        self.clear_custom_actions()
+    # # Database Tab ##################
+    # def create_dbActions(self):
+    #     pass
 
-        for act in self.db_actions:
-            self.insertAction(self.help_menu.menuAction(), act)
+    # @pyqtSlot()
+    # def add_db_actions(self):
+    #     self.clear_custom_actions()
 
-    @pyqtSlot()
-    def remove_db_actions(self):
-        for act in self.db_actions:
-            self.removeAction(act)
+    #     for act in self.db_actions:
+    #         self.insertAction(self.help_menu.menuAction(), act)
 
-    # Beamforming Tab ###############
-    def create_beamformerActions(self):
-        # we create the beamformer menu actions here, once. Later, we can add them or remove them 
-        # when the beamformer tab is clicked.
-        # This should be called ONCE at init
-        action_beam_settings = QAction(self.tr(' Beamformer Settings'))
-        action_beam_settings.triggered.connect(self.beam_widget.showhide_bfsettings)
-        self.beam_actions.append(action_beam_settings)
+    # @pyqtSlot()
+    # def remove_db_actions(self):
+    #     for act in self.db_actions:
+    #         self.removeAction(act)
 
-        action_beam_detector_settings = QAction(self.tr(' Detector Settings'))
-        action_beam_detector_settings.triggered.connect(self.beam_widget.showhide_detsettings)
-        self.beam_actions.append(action_beam_detector_settings)
+    # # Beamforming Tab ###############
+    # def create_beamformerActions(self):
+    #     # we create the beamformer menu actions here, once. Later, we can add them or remove them 
+    #     # when the beamformer tab is clicked.
+    #     # This should be called ONCE at init
+    #     action_beam_settings = QAction(self.tr(' Beamformer Settings'))
+    #     action_beam_settings.triggered.connect(self.beam_widget.showhide_bfsettings)
+    #     self.beam_actions.append(action_beam_settings)
 
-        action_beam_reset_zoom = QAction(self.tr(' Reset Zoom'))
-        action_beam_reset_zoom.triggered.connect(self.beam_widget.reset_zoom)
-        self.beam_actions.append(action_beam_reset_zoom)
+    #     action_beam_detector_settings = QAction(self.tr(' Detector Settings'))
+    #     action_beam_detector_settings.triggered.connect(self.beam_widget.showhide_detsettings)
+    #     self.beam_actions.append(action_beam_detector_settings)
 
-        action_beam_export = QAction(self.tr(' Export Results'))
-        action_beam_export.triggered.connect(self.beam_widget.exportResults)
-        self.beam_actions.append(action_beam_export)
+    #     action_beam_reset_zoom = QAction(self.tr(' Reset Zoom'))
+    #     action_beam_reset_zoom.triggered.connect(self.beam_widget.reset_zoom)
+    #     self.beam_actions.append(action_beam_reset_zoom)
+
+    #     action_beam_export = QAction(self.tr(' Export Results'))
+    #     action_beam_export.triggered.connect(self.beam_widget.exportResults)
+    #     self.beam_actions.append(action_beam_export)
         
-        action_beam_slowness_settings = QAction(self.tr(' Slowness Settings'))
-        action_beam_slowness_settings.triggered.connect(self.beam_widget.showhide_slownessSettings)
-        self.beam_actions.append(action_beam_slowness_settings)
+    #     action_beam_slowness_settings = QAction(self.tr(' Slowness Settings'))
+    #     action_beam_slowness_settings.triggered.connect(self.beam_widget.showhide_slownessSettings)
+    #     self.beam_actions.append(action_beam_slowness_settings)
 
-    @pyqtSlot()
-    def add_beam_actions(self):
-        self.clear_custom_actions()
-        for act in self.beam_actions:
-            self.insertAction(self.help_menu.menuAction(), act)   
+    # @pyqtSlot()
+    # def add_beam_actions(self):
+    #     self.clear_custom_actions()
+    #     for act in self.beam_actions:
+    #         self.insertAction(self.help_menu.menuAction(), act)   
 
-    @pyqtSlot()
-    def remove_beam_actions(self):
-        for act in self.beam_actions:
-            self.removeAction(act)
+    # @pyqtSlot()
+    # def remove_beam_actions(self):
+    #     for act in self.beam_actions:
+    #         self.removeAction(act)
 
-    # Location Tab ##################
-    def create_locationActions(self):
-        # we create the single sensor menu actions here, once. Later, we can add them or remove them 
-        # when the single sensor tab is clicked.
-        # This should be called ONCE at init
-        action_loc_mapSettings = QAction(self.tr(' Map Settings'))
-        action_loc_mapSettings.triggered.connect(self.loc_widget.mapWidget.showhide_map_settings_widget)
-        self.loc_actions.append(action_loc_mapSettings)
+    # # Location Tab ##################
+    # def create_locationActions(self):
+    #     # we create the single sensor menu actions here, once. Later, we can add them or remove them 
+    #     # when the single sensor tab is clicked.
+    #     # This should be called ONCE at init
+    #     action_loc_mapSettings = QAction(self.tr(' Map Settings'))
+    #     action_loc_mapSettings.triggered.connect(self.loc_widget.mapWidget.showhide_map_settings_widget)
+    #     self.loc_actions.append(action_loc_mapSettings)
 
-        action_loc_extent = QAction(self.tr(' Map Extent'))
-        action_loc_extent.triggered.connect(self.loc_widget.mapWidget.showhide_extent_widget)
-        self.loc_actions.append(action_loc_extent)
+    #     action_loc_extent = QAction(self.tr(' Map Extent'))
+    #     action_loc_extent.triggered.connect(self.loc_widget.mapWidget.showhide_extent_widget)
+    #     self.loc_actions.append(action_loc_extent)
 
-        action_loc_export_map = QAction(self.tr('Export Map'))
-        action_loc_export_map.triggered.connect(self.loc_widget.mapWidget.map_export_dialog.exec_)
-        self.loc_actions.append(action_loc_export_map)
+    #     action_loc_export_map = QAction(self.tr('Export Map'))
+    #     action_loc_export_map.triggered.connect(self.loc_widget.mapWidget.map_export_dialog.exec_)
+    #     self.loc_actions.append(action_loc_export_map)
 
-    @pyqtSlot()
-    def add_loc_actions(self):
-        self.clear_custom_actions()
+    # @pyqtSlot()
+    # def add_loc_actions(self):
+    #     self.clear_custom_actions()
 
-        for act in self.loc_actions:
-            self.insertAction(self.help_menu.menuAction(), act)
+    #     for act in self.loc_actions:
+    #         self.insertAction(self.help_menu.menuAction(), act)
 
-    @pyqtSlot()
-    def remove_loc_actions(self):
-        for act in self.loc_actions:
-            self.removeAction(act)
+    # @pyqtSlot()
+    # def remove_loc_actions(self):
+    #     for act in self.loc_actions:
+    #         self.removeAction(act)
 
-    # Single Sensor Tab #####################
-    def create_singleSensorActions(self):
-        # we create the single sensor menu actions here, once. Later, we can add them or remove them 
-        # when the single sensor tab is clicked.
-        # This should be called ONCE at init
-        action_ss_settings = QAction(self.tr(' Spectral Settings'))
-        action_ss_settings.triggered.connect(self.show_ss_settings)
-        self.ss_actions.append(action_ss_settings)
+    # # Single Sensor Tab #####################
+    # def create_singleSensorActions(self):
+    #     # we create the single sensor menu actions here, once. Later, we can add them or remove them 
+    #     # when the single sensor tab is clicked.
+    #     # This should be called ONCE at init
+    #     action_ss_settings = QAction(self.tr(' Spectral Settings'))
+    #     action_ss_settings.triggered.connect(self.show_ss_settings)
+    #     self.ss_actions.append(action_ss_settings)
 
-    @pyqtSlot()
-    def add_ss_actions(self):
-        self.clear_custom_actions()
+    # @pyqtSlot()
+    # def add_ss_actions(self):
+    #     self.clear_custom_actions()
 
-        for act in self.ss_actions:
-            self.insertAction(self.help_menu.menuAction(), act)
+    #     for act in self.ss_actions:
+    #         self.insertAction(self.help_menu.menuAction(), act)
 
-    @pyqtSlot()
-    def remove_ss_actions(self):
-        for act in self.ss_actions:
-            self.removeAction(act)
+    # @pyqtSlot()
+    # def remove_ss_actions(self):
+    #     for act in self.ss_actions:
+    #         self.removeAction(act)
 
-    def show_ss_settings(self):
-        self.sig_settings_updated.emit('single_sensor_settings')
+    # def show_ss_settings(self):
+    #     self.sig_settings_updated.emit('single_sensor_settings')
 
     
 

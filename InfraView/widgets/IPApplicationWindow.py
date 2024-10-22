@@ -145,6 +145,10 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         pyqtRemoveInputHook()
         set_trace()
 
+    @pyqtSlot()
+    def toggle_settings(self):
+         self.settings_manager.setVisible(self.settings_manager.isHidden())
+
     @pyqtSlot(int)
     def emit_tab_text(self, idx):
         # the QTabWidget clicked signal send the index of the current tab.  It's more
@@ -168,7 +172,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         # connect tabs to the menubar so that when they are clicked the menu can adjust itself
         self.mainTabs.currentChanged.connect(self.emit_tab_text)
-        self.sig_tab_changed.connect(self.menuBar.update_tab)
 
         # connect tabs to the settings manager so it can adjust when tabs are clicked
         self.sig_tab_changed.connect(self.settings_manager.tabs_changed)
@@ -414,10 +417,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         bits = trace_name.split('.')
         return bits[0], bits[1], bits[2], bits[3]
 
-
-
     def viewmenu_toggle_fullscreen(self):
-
         if self.is_fullscreen:
             self.showNormal()
             self.is_fullscreen = False
