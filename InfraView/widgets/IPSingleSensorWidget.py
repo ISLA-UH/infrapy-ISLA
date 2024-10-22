@@ -38,6 +38,8 @@ class IPSingleSensorWidget(QWidget):
 
         self.buildUI()
 
+    def set_controlling_widget(self, cw):
+        self.spectrogram_settings_widget = cw
         self.update_values()
 
 
@@ -52,10 +54,6 @@ class IPSingleSensorWidget(QWidget):
         self.tool_runDetector_button.clicked.connect(self.run_spectral_detector)
 
         self.toolbar.addWidget(self.tool_runDetector_button)
-
-
-        ##### SETTINGS WIDGET
-        self.spectrogram_settings_widget = IPSpectrogramSettingsWidget(self)
 
         ##### WAVEFORM PLOTS
         self.waveformPlot = IPPlotItem.IPPlotItem(mode='waveform', est=None, lris=False)
@@ -84,7 +82,6 @@ class IPSingleSensorWidget(QWidget):
         glWidget.addItem(self.detectionPlot)
 
         main_layout.setMenuBar(self.toolbar)
-        main_layout.addWidget(self.spectrogram_settings_widget)
         main_layout.addWidget(glWidget)
 
         self.setLayout(main_layout)
@@ -159,82 +156,6 @@ class IPSingleSensorWidget(QWidget):
                                     [f_s[0], f_s[-1]],
                                     clustering)
         
-    def run_spectral_detector_old(self):
-        # before we do anything, pull in spectrogram data and make sure there is something to process
-        # pull in the spectrogram data
-        f_n, t_n, Sxx_log_n = self.noiseSpecWidget.get_logdata()
-        if f_n is None or t_n is None or Sxx_log_n is None:
-            IPUtils.errorPopup("You must have data loaded to run the detector.")
-            return      
-        
-        f_s, t_s, Sxx_log_s = self.signalSpecWidget.get_logdata()
-        if f_s is None or t_s is None or Sxx_log_s is None:
-            IPUtils.errorPopup("You must have signal data loaded to run the detector.")
-            return
-
-        # Pull in the detector settings
-        pval = self.spectrogram_settings_widget.pval_spin.value()
-        freq_band = [self.spectrogram_settings_widget.fmin_spin.value(), self.spectrogram_settings_widget.fmax_spin.value()] 
-        clustering_freq_scaling = self.spectrogram_settings_widget.clust_freq_scale_spin.value()
-        clustering_eps = self.spectrogram_settings_widget.clust_eps_spin.value()
-        clustering_min_samples = self.spectrogram_settings_widget.clust_min_samples_spin.value()
-
-        # do a few checks
-        if freq_band[0] >= freq_band[1]:
-            IPUtils.errorPopup("Frequency min must be less than frequency max")
-            return
-
-        noise_t_range = self.noiseSpecWidget.get_xrange()
-        noise_window_mask = np.logical_and(noise_t_range[0] <= t_n, t_n <= noise_t_range[1])
-        noise_t_window = t_n[noise_window_mask]
-        noise_Sxx_window = Sxx_log_n[:, noise_window_mask]
-
-        signal_t_range = self.signalSpecWidget.get_xrange()
-        signal_window_mask = np.logical_and(signal_t_range[0] <= t_s, t_s <= signal_t_range[1])
-        signal_t_window = t_s[signal_window_mask]
-        signal_Sxx_window = Sxx_log_s[:, signal_window_mask]
-
-        # there are way too many points, skip some
-        if self.spectrogram_settings_widget.spec_type_cb.currentText() == 'CWT':
-            t_skip = int(self.nperseg * (1.0 - self.spec_overlap))
-            signal_Sxx_window = signal_Sxx_window[:,::t_skip]
-            signal_t_window = signal_t_window[::t_skip]
-        else:
-            t_skip = 1
-            
-
-        freq_band_mask = np.logical_and(freq_band[0] < f_n, f_n < freq_band[1])
-        
-        if self.mp_pool is not None:
-            args = [[noise_Sxx_window[:,::t_skip][fn], pval] for fn in range(len(f_n))]
-            temp = self.mp_pool.map(spectral.calc_thresh_wrapper, args)
-        else:
-            temp = np.array([spectral.calc_thresh(noise_Sxx_window[:,::t_skip][fn], pval) for fn in range(len(f_n))])
-
-        threshold  = np.array(temp)[:,0]
-        
-        spec_dets = []
-        for idx, freq in enumerate(f_s):
-            if freq_band[0] < freq and freq < freq_band[1]:
-                # spec_dets = spec_dets + [[signal_t_window[tk], freq, signal_Sxx_window[idx][tk]] for tk in range(len(signal_t_window)) if signal_Sxx_window[idx][tk] >= threshold[idx]]
-                for tk in range(len(signal_t_window)):
-                    if signal_Sxx_window[idx][tk] >= threshold[idx]:
-                        spec_dets = spec_dets + [[signal_t_window[tk], freq, signal_Sxx_window[idx][tk]]]
-
-        spec_dets = np.unique(np.array(spec_dets), axis=0)
-
-        # Cluster into detections
-        spec_dets_logf = None
-        spec_dets_logf = np.stack((spec_dets[:, 0], clustering_freq_scaling * np.log10(spec_dets[:, 1]))).T
-        clustering = DBSCAN(eps=clustering_eps, min_samples=clustering_min_samples).fit(spec_dets_logf)
-        
-        self.detectionPlot.plot_data(spec_dets, 
-                                    signal_t_window[1]-signal_t_window[0], 
-                                    self.waveformPlot.get_start_time(), 
-                                    [t_s[0],t_s[-1]], 
-                                    [f_s[0], f_s[-1]],
-                                    clustering)
-
     @pyqtSlot(object)
     def signal_region_changed(self, lri):
         #print('signal region changed {}'.format(lri.getRegion()))
@@ -436,6 +357,11 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
 
     def get_start_time(self):
         return self.getAxis(name='bottom').get_start_time()
+    
+    @pyqtSlot(str)
+    def set_colormap(self, color_map_str):
+        cmap = pg.colormap.get(color_map_str, source='matplotlib')
+        self.spec_img.setColorMap(cmap)
 
     def plot_spectrogram(self, f, t, Sxx):
 
@@ -451,9 +377,7 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.spec_img.setTransform(self.transform)
 
         #####COLORMAP
-        color_map_str = self.singleStationWidget.spectrogram_settings_widget.colormap_cb.currentText()
-        cmap = pg.colormap.get(color_map_str, source='matplotlib')
-        self.spec_img.setColorMap(cmap)
+        self.set_colormap(self.singleStationWidget.spectrogram_settings_widget.colormap_cb.currentText())
 
         #####SCALE WIDGET
         scale_setting = self.singleStationWidget.spectrogram_settings_widget.get_scale_setting()
@@ -489,30 +413,27 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
   
     def __init__(self, parent):
         super().__init__(parent)
-        self.singleStationWidget = parent
+        # self.singleStationWidget = parent
         self.last_spec_type = "Spectrogram"
         self.buildUI()
 
     def buildUI(self):
-
+        ############ Spectrogram settings ##############
         spec_gb = QGroupBox("Spectrogram ")
         spec_layout = QHBoxLayout()
 
         self.update_button = QPushButton("Update")
         self.update_button.setMaximumWidth(100)
         self.update_button.setEnabled(False)
-        self.update_button.clicked.connect(self.deactivate_update_button)
-        # self.update_button.clicked.connect(self.singleStationWidget.updateSpectrograms)
-        # self.update_button.clicked.connect(self.singleStationWidget.updateVisibilities)
 
         self.spec_type_cb = QComboBox(self)
-        spec_type_label = QLabel("    Spectrogram type:")
+        spec_type_label = QLabel("Spectrogram type:")
         self.spec_type_cb.addItem("Spectrogram")
         self.spec_type_cb.addItem("STFT")
         self.spec_type_cb.addItem("CWT")
-        self.spec_type_cb.currentTextChanged.connect(self.activate_update_button)
-        self.spec_type_cb.currentTextChanged.connect(self.detector_selector)
 
+        #TODO Are we going to hardcode this value or what?
+        # Currently it's hidden
         self.omega0_label = QLabel("    omega0")
         self.omega0_spin = QSpinBox()
         self.omega0_spin.setMaximumWidth(100)
@@ -520,19 +441,17 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.omega0_spin.setMaximum(100)
         self.omega0_spin.setValue(7)
         self.omega0_spin.setToolTip("Used by the CWT.  Number of periods in the wavelet.")
-        self.omega0_spin.valueChanged.connect(self.activate_update_button)
         self.omega0_label.setVisible(False)
         self.omega0_spin.setVisible(False)
 
-        colormap_label = QLabel("    Color Map: ")
+        colormap_label = QLabel("Color Map: ")
         self.colormap_cb = QComboBox()
         available_maps = pg.colormap.listMaps(source='matplotlib')
         self.colormap_cb.addItems(available_maps)
         self.colormap_cb.setCurrentText('jet')
-        self.colormap_cb.currentTextChanged.connect(self.activate_update_button)
 
         self.colorbar_rb = QRadioButton('')
-        self.colorbar_rb.clicked.connect(self.activate_update_button)
+        
 
         form1_layout = QFormLayout()
         form1_layout.addRow(spec_type_label, self.spec_type_cb)
@@ -543,11 +462,11 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         spec_layout.addLayout(form1_layout)
         spec_gb.setLayout(spec_layout)
 
+        ############ Detector settings ##############
         self.detector_gb = QGroupBox("Spectrogram Detector")
 
         pval_label = QLabel('pval: ')
         self.pval_spin = QDoubleSpinBox()
-        self.pval_spin.valueChanged.connect(self.activate_update_button)
         self.pval_spin.setDecimals(4)
         self.pval_spin.setMinimum(0.001)
         self.pval_spin.setMaximum(1.0)
@@ -558,7 +477,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         fmin_label = QLabel("Freq min: ")
         self.fmin_spin = QDoubleSpinBox()
-        self.fmin_spin.valueChanged.connect(self.activate_update_button)
         self.fmin_spin.setMinimum(0.001)
         self.fmin_spin.setMaximum(10000.0)
         self.fmin_spin.setValue(1.0)    
@@ -567,7 +485,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         fmax_label = QLabel("Freq max: ")
         self.fmax_spin = QDoubleSpinBox()
-        self.fmax_spin.valueChanged.connect(self.activate_update_button)
         self.fmax_spin.setMinimum(1.0)
         self.fmax_spin.setMaximum(10000.0)
         self.fmax_spin.setValue(10.0)    # this needs to be set when a spectrogram is created
@@ -576,7 +493,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         clust_freq_scale_label = QLabel("Cluster Freq. Scaling: ")
         self.clust_freq_scale_spin = QDoubleSpinBox()
-        self.clust_freq_scale_spin.valueChanged.connect(self.activate_update_button)
         self.clust_freq_scale_spin.setMinimum(1.0)
         self.clust_freq_scale_spin.setMaximum(10000.0)
         self.clust_freq_scale_spin.setValue(35.0)
@@ -585,7 +501,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         clust_eps_label = QLabel("Clustering EPS: ")
         self.clust_eps_spin = QSpinBox()
-        self.clust_eps_spin.valueChanged.connect(self.activate_update_button)
         self.clust_eps_spin.setMinimum(1.0)
         self.clust_eps_spin.setMaximum(10000.0)
         self.clust_eps_spin.setValue(10.0)
@@ -594,7 +509,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         clust_min_samples_label = QLabel("Clustering Min Samples: ")
         self.clust_min_samples_spin = QSpinBox()
-        self.clust_min_samples_spin.valueChanged.connect(self.activate_update_button)
         self.clust_min_samples_spin.setMinimum(1)
         self.clust_min_samples_spin.setMaximum(10000)
         self.clust_min_samples_spin.setValue(40)
@@ -631,7 +545,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.cwt_detector_gb.setVisible(False)
         cwt_pval_label = QLabel('pval: ')
         self.cwt_pval_spin = QDoubleSpinBox()
-        self.cwt_pval_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_pval_spin.setDecimals(4)
         self.cwt_pval_spin.setMinimum(0.001)
         self.cwt_pval_spin.setMaximum(1.0)
@@ -642,7 +555,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         cwt_fmin_label = QLabel("Freq min: ")
         self.cwt_fmin_spin = QDoubleSpinBox()
-        self.cwt_fmin_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_fmin_spin.setMinimum(0.001)
         self.cwt_fmin_spin.setMaximum(10000.0)
         self.cwt_fmin_spin.setValue(1.0)    
@@ -651,7 +563,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         cwt_fmax_label = QLabel("Freq max: ")
         self.cwt_fmax_spin = QDoubleSpinBox()
-        self.cwt_fmax_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_fmax_spin.setMinimum(1.0)
         self.cwt_fmax_spin.setMaximum(10000.0)
         self.cwt_fmax_spin.setValue(10.0)    # this needs to be set when a spectrogram is created
@@ -660,7 +571,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         cwt_clust_freq_scale_label = QLabel("Cluster Freq. Scaling: ")
         self.cwt_clust_freq_scale_spin = QDoubleSpinBox()
-        self.cwt_clust_freq_scale_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_clust_freq_scale_spin.setMinimum(1.0)
         self.cwt_clust_freq_scale_spin.setMaximum(10000.0)
         self.cwt_clust_freq_scale_spin.setValue(35.0)
@@ -669,7 +579,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         cwt_clust_eps_label = QLabel("Clustering EPS: ")
         self.cwt_clust_eps_spin = QSpinBox()
-        self.cwt_clust_eps_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_clust_eps_spin.setMinimum(1.0)
         self.cwt_clust_eps_spin.setMaximum(10000.0)
         self.cwt_clust_eps_spin.setValue(5)
@@ -678,7 +587,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         cwt_clust_min_samples_label = QLabel("Clustering Min Samples: ")
         self.cwt_clust_min_samples_spin = QSpinBox()
-        self.cwt_clust_min_samples_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_clust_min_samples_spin.setMinimum(1)
         self.cwt_clust_min_samples_spin.setMaximum(10000)
         self.cwt_clust_min_samples_spin.setValue(500)
@@ -723,8 +631,40 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         h_layout.setContentsMargins(0,0,0,0)
         self.setLayout(h_layout) 
 
-    def detector_selector(self):
-        if self.spec_type_cb.currentText() == 'CWT':
+    def set_controlled_widget(self, widget):
+        super().set_controlled_widget(widget)
+        self.connect_signals_and_slots()
+
+    def connect_signals_and_slots(self):
+        self.update_button.clicked.connect(self.deactivate_update_button)
+        # self.update_button.clicked.connect(self.singleStationWidget.updateSpectrograms)
+
+        self.spec_type_cb.currentTextChanged.connect(self.activate_update_button)
+        self.spec_type_cb.currentTextChanged.connect(self.detector_selector)
+
+        #TODO make this auto change so we dont have to hit the update button
+        self.colorbar_rb.clicked.connect(self.activate_update_button)
+
+        #TODO these should update the Run Detector button, not the update button
+        self.pval_spin.valueChanged.connect(self.activate_update_button)
+        self.fmin_spin.valueChanged.connect(self.activate_update_button)
+        self.fmax_spin.valueChanged.connect(self.activate_update_button)
+        self.clust_freq_scale_spin.valueChanged.connect(self.activate_update_button)
+        self.clust_eps_spin.valueChanged.connect(self.activate_update_button)
+        self.clust_min_samples_spin.valueChanged.connect(self.activate_update_button)
+
+        #TODO CWT should also update the Run Detector button
+        self.cwt_pval_spin.valueChanged.connect(self.activate_update_button)
+        self.cwt_fmin_spin.valueChanged.connect(self.activate_update_button)
+        self.cwt_fmax_spin.valueChanged.connect(self.activate_update_button)
+        self.cwt_clust_freq_scale_spin.valueChanged.connect(self.activate_update_button)
+        self.cwt_clust_eps_spin.valueChanged.connect(self.activate_update_button)
+        self.cwt_clust_min_samples_spin.valueChanged.connect(self.activate_update_button)
+
+    @pyqtSlot(str)
+    def detector_selector(self, det_type):
+        print(det_type)
+        if det_type == 'CWT':
             self.cwt_detector_gb.setVisible(True)
             self.detector_gb.setVisible(False)
         else:
@@ -740,8 +680,8 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         
 
     def activate_update_button(self):
-        self.omega0_label.setVisible(self.spec_type_cb.currentText() == 'CWT')
-        self.omega0_spin.setVisible(self.spec_type_cb.currentText() == 'CWT')
+        # self.omega0_label.setVisible(self.spec_type_cb.currentText() == 'CWT')
+        # self.omega0_spin.setVisible(self.spec_type_cb.currentText() == 'CWT')
             
         self.update_button.setEnabled(True)
 

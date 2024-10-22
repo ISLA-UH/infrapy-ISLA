@@ -86,8 +86,10 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         self.main_widget = QWidget(self)
 
-        # Create the display settings widget
-        self.displaySettingsWidget = IPDisplaySettingsWidget.IPDisplaySettingsWidget()
+        # Create the settings manager
+        # The settings manager creates the settings widgets which are passed to the main widgets, so this needs to 
+        # be initialized first.
+        self.settings_manager = IPSettingsManager.IPSettingsManager(self)
 
         # Create the main widgets
         self.beamformingWidget = IPBeamformingWidget.IPBeamformingWidget(self, self.mp_pool)
@@ -103,6 +105,10 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                             'database': self.databaseWidget,
                             'spectral': self.singleSensorWidget,
                             'app_window': self}
+        
+        # now that we have a settings manager and settings widgets along with the actual controled widgets
+        # we need to give a reference of the controlled widgets to the respective settings widgets
+        self.settings_manager.set_controlled_widgets(self.widget_dict)
     
                                
         # add the main widgets to the application tabs
@@ -113,8 +119,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.mainTabs.addTab(self.databaseWidget, 'Database')
         self.mainTabs.addTab(self.singleSensorWidget, 'Spectral')
 
-        # Create the settings manager
-        self.settings_manager = IPSettingsManager.IPSettingsManager(self, self.widget_dict)
+        
 
         # Put the settings above the tabs
         mainLayout = QVBoxLayout(self.main_widget)
