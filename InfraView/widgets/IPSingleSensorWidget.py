@@ -40,8 +40,12 @@ class IPSingleSensorWidget(QWidget):
 
     def set_controlling_widget(self, cw):
         self.spectrogram_settings_widget = cw
+        self.connect_signals_and_slots()
         self.update_values()
 
+    def connect_signals_and_slots(self):
+        self.spectrogram_settings_widget.colormap_cb.currentTextChanged.connect(self.signalSpecWidget.set_colormap)
+        self.spectrogram_settings_widget.colorbar_rb.clicked.connect(self.signalSpecWidget.show_hide_colorbar)
 
     def buildUI(self):
         main_layout = QVBoxLayout()
@@ -97,12 +101,8 @@ class IPSingleSensorWidget(QWidget):
             self.nperseg = 512
 
         self.noverlap = int(0.8 * self.nperseg)
-
         self.nfft = self.nperseg
 
-    def show_hide_spectrogram_settings(self):
-        # self.spectrogram_settings_widget.setVisible(self.spectrogram_settings_widget.isHidden())
-        pass
 
     def get_earliest_start_time(self):
         return self.appWidget.waveformWidget.get_earliest_start_time()
@@ -257,10 +257,7 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.labi = None
         self.transform = None
         self.full_range_y = None
-        self.color_bar = None
         self.spec_img = None     # image that holds the spectrogram
-
-        self.color_bar = None
         self.histogram = None
 
         self.f = None
@@ -273,6 +270,9 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.setLabel(axis='left', text='Frequency (Hz)')
         #self.setLabel(axis='bottom', text='Time') # probably not needed, i think everyone knows what this axis is
         self.spec_img = pg.ImageItem( image=np.eye(3), levels=(0,1) ) # create example image
+        self.color_bar = pg.ColorBarItem()
+        self.color_bar.setImageItem(self.spec_img, insert_in=self)
+        self.color_bar.setVisible(False)
         self.addItem(self.spec_img)
 
         self.calc_spec_thread = QThread()
@@ -362,6 +362,12 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
     def set_colormap(self, color_map_str):
         cmap = pg.colormap.get(color_map_str, source='matplotlib')
         self.spec_img.setColorMap(cmap)
+        self.color_bar.setColorMap(cmap)
+
+    @pyqtSlot(bool)
+    def show_hide_colorbar(self, checked):
+        if self.color_bar is not None:
+            self.color_bar.setVisible(checked)
 
     def plot_spectrogram(self, f, t, Sxx):
 
@@ -377,25 +383,19 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.spec_img.setTransform(self.transform)
 
         #####COLORMAP
-        self.set_colormap(self.singleStationWidget.spectrogram_settings_widget.colormap_cb.currentText())
+        cmap = self.singleStationWidget.spectrogram_settings_widget.colormap_cb.currentText()
+        self.set_colormap(cmap)
 
         #####SCALE WIDGET
-        scale_setting = self.singleStationWidget.spectrogram_settings_widget.get_scale_setting()
         minv, maxv = np.nanmin(np.nanmin(Sxx[Sxx != -np.inf])), np.nanmax(np.nanmax(Sxx))
 
         #####BUILD THE COLORBAR
-        if scale_setting == 'cbar':
-            if self.color_bar is None:
-                self.color_bar = pg.ColorBarItem(interactive=True, label='magnitude [dB]', values=(-80,80))
-            self.color_bar.setColorMap(cmap)
-            self.color_bar.setImageItem(self.spec_img, insert_in=self)
-            self.color_bar.setLevels(low=minv, high=maxv)
-            self.color_bar.setVisible(True)
-
-        #####HIDE EVERYTHING
-        if scale_setting =='none':
-            if self.color_bar is not None:
-                self.color_bar.setVisible(False)
+        self.color_bar = pg.ColorBarItem(interactive=True, label='magnitude [dB]', values=(-80,80))
+        self.color_bar.setColorMap(cmap)
+        self.color_bar.setImageItem(self.spec_img, insert_in=self)
+        self.color_bar.setLevels(low=minv, high=maxv)
+        colorbar_visible = self.singleStationWidget.spectrogram_settings_widget.colorbar_rb.isChecked()
+        self.show_hide_colorbar(colorbar_visible)
 
         # ADD THE DATA TO MAKE THE IMAGE
         self.spec_img.setImage(Sxx)
@@ -427,7 +427,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.update_button.setEnabled(False)
 
         self.spec_type_cb = QComboBox(self)
-        spec_type_label = QLabel("Spectrogram type:")
+        spec_type_label = QLabel("Spectrogram Type:")
         self.spec_type_cb.addItem("Spectrogram")
         self.spec_type_cb.addItem("STFT")
         self.spec_type_cb.addItem("CWT")
@@ -457,13 +457,14 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         form1_layout.addRow(spec_type_label, self.spec_type_cb)
         form1_layout.addRow(self.omega0_label, self.omega0_spin)
         form1_layout.addRow(colormap_label, self.colormap_cb)
-        form1_layout.addRow("Color bar", self.colorbar_rb)
+        form1_layout.addRow("Color Bar: ", self.colorbar_rb)
+        form1_layout.addRow("", self.update_button)
         
         spec_layout.addLayout(form1_layout)
         spec_gb.setLayout(spec_layout)
 
         ############ Detector settings ##############
-        self.detector_gb = QGroupBox("Spectrogram Detector")
+        self.detector_gb = QGroupBox("Detector")
 
         pval_label = QLabel('pval: ')
         self.pval_spin = QDoubleSpinBox()
@@ -475,7 +476,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.pval_spin.setMinimumWidth(70)
         self.pval_spin.setMaximumWidth(70)
 
-        fmin_label = QLabel("Freq min: ")
+        fmin_label = QLabel("Freq Min: ")
         self.fmin_spin = QDoubleSpinBox()
         self.fmin_spin.setMinimum(0.001)
         self.fmin_spin.setMaximum(10000.0)
@@ -483,7 +484,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.fmin_spin.setMinimumWidth(70)
         self.fmin_spin.setMaximumWidth(70)
 
-        fmax_label = QLabel("Freq max: ")
+        fmax_label = QLabel("Freq Max: ")
         self.fmax_spin = QDoubleSpinBox()
         self.fmax_spin.setMinimum(1.0)
         self.fmax_spin.setMaximum(10000.0)
@@ -515,7 +516,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.clust_min_samples_spin.setMinimumWidth(70)
         self.clust_min_samples_spin.setMaximumWidth(70)
 
-        adaptive_win_len_label = QLabel("Adaptive window length (s)")
+        adaptive_win_len_label = QLabel("Adaptive Window Length (s)")
         self.adaptive_win_len_spin = QSpinBox()
         self.adaptive_win_len_spin.setMinimum(1)
         self.adaptive_win_len_spin.setMaximum(10000)
@@ -623,10 +624,9 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.hide_button.clicked.connect(self.hide)
 
         h_layout = QHBoxLayout()
+        h_layout.addWidget(spec_gb)
         h_layout.addWidget(self.detector_gb)       
         h_layout.addWidget(self.cwt_detector_gb) 
-        h_layout.addWidget(spec_gb)
-        h_layout.addWidget(self.update_button)
         h_layout.addStretch()
         h_layout.setContentsMargins(0,0,0,0)
         self.setLayout(h_layout) 
@@ -641,9 +641,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.spec_type_cb.currentTextChanged.connect(self.activate_update_button)
         self.spec_type_cb.currentTextChanged.connect(self.detector_selector)
-
-        #TODO make this auto change so we dont have to hit the update button
-        self.colorbar_rb.clicked.connect(self.activate_update_button)
 
         #TODO these should update the Run Detector button, not the update button
         self.pval_spin.valueChanged.connect(self.activate_update_button)

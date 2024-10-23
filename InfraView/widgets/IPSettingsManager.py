@@ -31,7 +31,7 @@ class IPSettingsManager(QStackedWidget):
         self.beamforming_settings = IPBeamformingSettingsWidget.IPBeamformingSettingsWidget(self)
         self.settings_widget_dict['beamforming'] = self.beamforming_settings
 
-    def set_controlled_widgets(self, widget_dict):
+    def connect_widgets_and_settings(self, widget_dict):
         # settings widgets need to have a reference to the widgets they control, and vice-versa
         for key, value in widget_dict.items():
             try:
@@ -41,9 +41,9 @@ class IPSettingsManager(QStackedWidget):
 
         for key, value in self.settings_widget_dict.items():
             try: 
-                self.widget_dict[key].set_controlling_widget(value)
+                widget_dict[key].set_controlling_widget(value)
             except AttributeError:
-                print("{} doesn't have set_controlling_widget method yet".format(key))
+                print("{} doesn't have set_controlling_widget method yet".format(type(value)))
 
     def insert_settings_widgets(self):
         for _, value in self.settings_widget_dict.items():

@@ -49,7 +49,7 @@ class IPWaveformWidget(QWidget):
         self.info_tabs.addTab(self.statsViewer, 'Trace Info')
 
         self.filterSettingsWidget = IPFilterSettingsWidget.IPFilterSettingsWidget(self)
-        self.spectraWidget = IPPSDWidget.IPPSDWidget(self)
+        self.psdWidget = IPPSDWidget.IPPSDWidget(self)
 
         self.plotViewer = IPPlotViewer.IPPlotViewer(self)
 
@@ -58,7 +58,7 @@ class IPWaveformWidget(QWidget):
         self.lh_splitter.addWidget(self.info_tabs)
 
         self.rh_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Vertical, parent=self)
-        self.rh_splitter.addWidget(self.spectraWidget)
+        self.rh_splitter.addWidget(self.psdWidget)
         self.rh_splitter.addWidget(self.filterSettingsWidget)
 
         self.main_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Horizontal, parent=self)
@@ -81,15 +81,11 @@ class IPWaveformWidget(QWidget):
         self.plotViewer.waveform_selector.sig_remove_trace_by_id.connect(self.remove_trace_by_id)
         self.plotViewer.waveform_selector.sig_remove_station_by_name.connect(self.stationViewer.remove_station_from_inv)
 
-        self.plotViewer.lr_settings_widget.noiseSpinsChanged.connect(self.parent.beamformingWidget.bottomSettings.setNoiseValues)
-        self.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.parent.beamformingWidget.bottomSettings.setSignalValues)
         self.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.parent.beamformingWidget.updateWaveformRange)
         self.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.parent.singleSensorWidget.updateSignalRange)
         self.plotViewer.pl_widget.sig_active_plot_changed.connect(self.update_widgets)
 
-        self.spectraWidget.f1_Spin.valueChanged.connect(self.parent.beamformingWidget.bottomSettings.setFmin)
-        self.spectraWidget.f2_Spin.valueChanged.connect(self.parent.beamformingWidget.bottomSettings.setFmax)
-        self.spectraWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.parent.beamformingWidget.bottomSettings.setFreqValues)
+
 
     def get_project(self):
         return self.parent.getProject()
@@ -373,13 +369,13 @@ class IPWaveformWidget(QWidget):
         # empty out the child widgets
         self.statsViewer.clear()
         self.plotViewer.clear()
-        self.spectraWidget.clearPlot()
+        self.psdWidget.clearPlot()
 
     @pyqtSlot(object)
     def update_signal_PSD(self, signal_region_item):
 
         if len(self._sts) == 0:
-            self.spectraWidget.clearPlot()
+            self.psdWidget.clearPlot()
             return
 
         signal_region = signal_region_item.getRegion()
@@ -391,13 +387,13 @@ class IPWaveformWidget(QWidget):
         start = int(signal_region[0] / dt)
         stop = int(signal_region[1] / dt)
 
-        self.spectraWidget.updateSignalPSD(self._sts[active_plot][start:stop])
+        self.psdWidget.updateSignalPSD(self._sts[active_plot][start:stop])
 
     @pyqtSlot(object)
     def update_noise_PSD(self, noise_region_item):
 
         if len(self._sts) == 0:
-            self.spectraWidget.clearPlot()
+            self.psdWidget.clearPlot()
             return
 
         noise_region = noise_region_item.getRegion()
@@ -409,18 +405,18 @@ class IPWaveformWidget(QWidget):
         start = int(noise_region[0] / dt)
         stop = int(noise_region[1] / dt)
 
-        self.spectraWidget.updateNoisePSD(self._sts[active_plot][start:stop])
+        self.psdWidget.updateNoisePSD(self._sts[active_plot][start:stop])
 
     @pyqtSlot(int, list, list, tuple, tuple)
     def update_widgets(self, index, lines, filtered_lines, signal_region, noise_region):
         # the -1 is sent if none of the plots are visible
         if len(self._sts) < 1 or index == -1:
-            self.spectraWidget.set_title('...')
-            self.spectraWidget.clearPlot()
+            self.psdWidget.set_title('...')
+            self.psdWidget.clearPlot()
 
         else:
-            self.spectraWidget.set_title(self._sts[index].id)
-            self.spectraWidget.set_fs(self._sts[index].stats.sampling_rate)
+            self.psdWidget.set_title(self._sts[index].id)
+            self.psdWidget.set_fs(self._sts[index].stats.sampling_rate)
 
             noise_region_item = self.plotViewer.pl_widget.plot_list[index].getNoiseRegion()
             noise_region_item.sigRegionChanged.emit(noise_region_item)

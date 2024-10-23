@@ -25,7 +25,6 @@ class IPSettingsWidget(QWidget):
     def set_controlled_widget(self, widget):
         self.controlled_widget = widget
 
-
 class IPSettingsGroupBox(QGroupBox):
     def __init__(self, title, parent=None):
         super().__init__(title, parent)

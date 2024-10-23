@@ -87,8 +87,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.main_widget = QWidget(self)
 
         # Create the settings manager
-        # The settings manager creates the settings widgets which are passed to the main widgets, so this needs to 
-        # be initialized first.
+        # The settings manager creates the settings widgets
         self.settings_manager = IPSettingsManager.IPSettingsManager(self)
 
         # Create the main widgets
@@ -98,7 +97,8 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.locationWidget = IPLocationWidget.IPLocationWidget(self, self.mp_pool)
         self.databaseWidget = IPDatabaseWidget.IPDatabaseWidget(self)
 
-        # to keep things simple, have the keys be lower case strings of the Tab Names
+        # For convenience, keep referencces to the widgets in a dict. 
+        # to things simple, have the keys be lower case strings of the Tab Names
         self.widget_dict = {'waveforms': self.waveformWidget,
                             'beamforming': self.beamformingWidget,
                             'location': self.locationWidget,
@@ -108,7 +108,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         
         # now that we have a settings manager and settings widgets along with the actual controled widgets
         # we need to give a reference of the controlled widgets to the respective settings widgets
-        self.settings_manager.set_controlled_widgets(self.widget_dict)
+        self.settings_manager.connect_widgets_and_settings(self.widget_dict)
     
                                
         # add the main widgets to the application tabs
@@ -180,6 +180,12 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         # connect tabs to the settings manager so it can adjust when tabs are clicked
         self.sig_tab_changed.connect(self.settings_manager.tabs_changed)
+
+        self.waveformWidget.plotViewer.lr_settings_widget.noiseSpinsChanged.connect(self.beamformingWidget.bottomSettings.setNoiseValues)
+        self.waveformWidget.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.beamformingWidget.bottomSettings.setSignalValues)
+        self.waveformWidget.psdWidget.f1_Spin.valueChanged.connect(self.beamformingWidget.bottomSettings.setFmin)
+        self.waveformWidget.psdWidget.f2_Spin.valueChanged.connect(self.beamformingWidget.bottomSettings.setFmax)
+        self.waveformWidget.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.beamformingWidget.bottomSettings.setFreqValues)
         
 
     def setStatus(self, s, ms=0):

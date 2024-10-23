@@ -1013,7 +1013,7 @@ class IPExtentSettingsWidget(QGroupBox):
 
     def buildUI(self):
 
-        ll_label = QLabel(" Lower left coordinates:")
+        ll_label = QLabel(" Lower left:")
         self.ll_lat_spin = QDoubleSpinBox()
         self.ll_lat_spin.setMaximumWidth(100)
         self.ll_lat_spin.setRange(-90.0, 90.0)
@@ -1034,7 +1034,7 @@ class IPExtentSettingsWidget(QGroupBox):
         ll_layout.addWidget(self.ll_lat_spin)
 
 
-        ur_label = QLabel(" Upper right coordinates:")
+        ur_label = QLabel(" Upper right:")
         self.ur_lat_spin = QDoubleSpinBox()
         self.ur_lat_spin.setMaximumWidth(100)
         self.ur_lat_spin.setRange(-90., 90.0)

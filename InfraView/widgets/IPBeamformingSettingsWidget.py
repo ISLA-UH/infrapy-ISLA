@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QGroupBox, QComboBox, QCheckBox, QLabel, QDoubleSpi
 from PyQt5 import QtCore
 
 from InfraView.widgets import IPBaseWidgets
+from InfraView.widgets import IPPolarPlot
 from InfraView.widgets import IPDetectorSettingsWidget
 
 class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
@@ -146,13 +147,17 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         values_gb = QGroupBox("Current Values")
         values_gb.setLayout(horizLayoutB)
+        values_gb.setVisible(False)
 
-        self.detectorSettings = IPDetectorSettingsWidget.IPDetectorSettingsWidget(self)
+        self.detector_settings = IPDetectorSettingsWidget.IPDetectorSettingsWidget(self)
+
+        self.slowness_settings = IPPolarPlot.IPSlownessSettingsWidget(self)
 
         main_layout = QHBoxLayout()
         main_layout.addWidget(analysis_gb)
-        # main_layout.addWidget(values_gb)
-        main_layout.addWidget(self.detectorSettings)
+        main_layout.addWidget(values_gb)
+        main_layout.addWidget(self.detector_settings)
+        main_layout.addWidget(self.slowness_settings)
         main_layout.addStretch()
 
         self.setLayout(main_layout)

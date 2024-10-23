@@ -55,7 +55,7 @@ class IPMainMenuBar(QMenuBar):
 
         self.addMenu(self.file_menu)
         self.addMenu(self.view_menu)
-        self.addAction(self.tr('Settings'), self.main_window.toggle_settings)
+        self.addAction(self.tr('Control Panel'), self.main_window.toggle_settings)
         self.addMenu(self.help_menu)
 
         # Create Actions for various tabs
