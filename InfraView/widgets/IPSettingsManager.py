@@ -3,8 +3,8 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPSingleSensorWidget
-from InfraView.widgets import IPMapWidget
 from InfraView.widgets import IPBeamformingSettingsWidget
+from InfraView.widgets.settings import IPLocationSettingsWidget
 
 class IPSettingsManager(QStackedWidget):
     def __init__(self, parent):
@@ -25,7 +25,7 @@ class IPSettingsManager(QStackedWidget):
         self.spectra_settings = IPSingleSensorWidget.IPSpectrogramSettingsWidget(self)
         self.settings_widget_dict['spectral'] = self.spectra_settings
 
-        self.location_settings = IPMapWidget.IPMapSettingsWidget(self)
+        self.location_settings = IPLocationSettingsWidget.IPLocationSettingsWidget(parent=self)
         self.settings_widget_dict['location'] = self.location_settings
 
         self.beamforming_settings = IPBeamformingSettingsWidget.IPBeamformingSettingsWidget(self)

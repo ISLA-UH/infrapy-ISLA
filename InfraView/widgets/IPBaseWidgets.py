@@ -1,14 +1,47 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QGroupBox, QMenu, QSplitter
-from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QGroupBox, QMenu, QSplitter, QPushButton
+from PyQt5.QtGui import QColor, QPaintEvent, QPainter
+from PyQt5.QtCore import QSize, QRect
 
-class IPWidget(QWidget):
-    def __init__(self, parent=None):
+
+class IPColorButton(QPushButton):
+    current_color = QColor(255, 0, 0)
+
+    def __init__(self, color):
+        super().__init__()
+        self.current_color = color
+        size = QSize(self.height(), self.height())
+        self.setFixedSize(QSize(26,26))
+
+    def paintEvent(self, a0: QPaintEvent) -> None:
+        super().paintEvent(a0)
+        r = QRect(0, 0, self.width() * 0.75, self.height() * 0.75)
+        r.moveTo(self.rect().center() - r.center())
+        painter = QPainter(self)
+        painter.setBrush(self.current_color)
+        painter.drawRect(r)
+
+    def set_color(self, new_color):
+        # new color should be a QColor type
+        self.current_color = new_color
+
+    def color(self):
+        return QColor(self.current_color)
+    
+
+class IPMenu(QMenu):
+    def __init__(self, parent):
         super().__init__(parent)
-        
+
+
+class IPSettingsGroupBox(QGroupBox):
+    def __init__(self, title="", parent=None):
+        super().__init__()
+        self.setTitle(title)
+
 
 class IPSettingsWidget(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__()
 
         self.setSizePolicy(QSizePolicy.Expanding,
                            QSizePolicy.Maximum)
@@ -25,16 +58,14 @@ class IPSettingsWidget(QWidget):
     def set_controlled_widget(self, widget):
         self.controlled_widget = widget
 
-class IPSettingsGroupBox(QGroupBox):
-    def __init__(self, title, parent=None):
-        super().__init__(title, parent)
-
-class IPMenu(QMenu):
-    def __init__(self, parent):
-        super().__init__(parent)
 
 class IPSplitter(QSplitter):
     def __init__(self, orientation, parent=None):
         super().__init__(orientation, parent)
 
         self.setStyleSheet("QSplitter::handle{ background-color: #888; width: 50; height: 1;}")
+
+class IPWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        

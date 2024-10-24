@@ -30,9 +30,6 @@ from InfraView.widgets import IPBaseWidgets
 
 
 class IPMapWidget(QWidget):
-
-    
-
     def __init__(self, parent):
         super().__init__()
 
@@ -70,23 +67,13 @@ class IPMapWidget(QWidget):
         self.map_export_dialog = IPMapExportDialog(self, self.fig)
         self.missing_maps_dialog = IPMissingMapsDialog(self)
 
-        self.map_settings_widget = IPMapSettingsWidget()
-        self.map_settings_widget.setVisible(False)
-
-        self.extentWidget = IPExtentSettingsWidget(self)
-        self.extentWidget.setVisible(False)
-
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.map_settings_widget)
-        main_layout.addWidget(self.extentWidget)
         main_layout.addWidget(self.mapCanvas)
 
         self.setLayout(main_layout)
 
         self.compute_figure()
-        self.draw_map()
-
-        self.connect_signals_and_slots()
+       
 
     def connect_signals_and_slots(self):
 
@@ -103,7 +90,6 @@ class IPMapWidget(QWidget):
         self.map_settings_widget.signal_background_changed.connect(self.update_map)
         self.map_settings_widget.signal_map_settings_changed.connect(self.update_map)
 
-        self.extentWidget.hide_button.clicked.connect(self.hide_extent_widget)
         self.extentWidget.sig_extent_changed.connect(self.set_map_extent)
         self.extentWidget.sig_set_to_global.connect(self.set_map_extent_to_global)
         self.extentWidget.sig_autoscale.connect(self.autoscale_plot)
@@ -482,8 +468,8 @@ class IPMapWidget(QWidget):
         self.fig.canvas.draw()  # update matlabplot
         self.repaint()          # update widget
 
-    #@pyqtSlot(float)
-    def update_range_max(self, new_range):
+
+    def update_range_max(self):
         self.update_detections(preserve_colors=True)
 
     def autoscale_plot(self):
@@ -586,6 +572,8 @@ class IPMapWidget(QWidget):
         else:
             self.end_mouse_loc = [event.xdata, event.ydata]
             print("end = {}".format(self.end_mouse_loc))
+
+
 '''
     # Matplotlib callbacks go here_____________________
 
@@ -802,312 +790,3 @@ class IPMapExportDialog(QDialog):
         time.sleep(1.2)
         self.close()
 
-class IPMapSettingsWidget(IPBaseWidgets.IPSettingsWidget):
-
-    signal_colors_changed = pyqtSignal()
-    signal_background_changed = pyqtSignal()
-    signal_offline_directory_changed = pyqtSignal()
-    signal_map_settings_changed = pyqtSignal()
-    
-    ocean_color = QColor(0, 107, 166)
-    land_color = QColor(222, 222, 222)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.parent = parent
-        self.setWindowTitle("InfraView: Map Settings")
-
-        self.buildUI()
-
-    def buildUI(self):
-        ###   feature settings   ###
-        features_gb = QGroupBox("Features")
-        self.borders_checkbox = QCheckBox('Countries  ')
-        self.states_checkbox = QCheckBox('States and Provinces  ')
-        self.lakes_checkbox = QCheckBox('Lakes  ')
-        self.rivers_checkbox = QCheckBox('Rivers  ')
-        self.coast_checkbox = QCheckBox('Coastline  ')
-
-        features_layout = QVBoxLayout()
-        features_layout.addWidget(self.borders_checkbox)
-        features_layout.addWidget(self.states_checkbox)
-        features_layout.addWidget(self.lakes_checkbox)
-        features_layout.addWidget(self.rivers_checkbox)
-        features_layout.addWidget(self.coast_checkbox)
-        
-        features_gb.setLayout(features_layout)
-
-        ###   color settings   ###
-        colors_gb = QGroupBox("Colors")
-        ocean_color_label = QLabel("Oceans: ")
-        self.ocean_color_button = IPColorButton(self.ocean_color)
-        land_color_label = QLabel("Land: ")
-        self.land_color_button = IPColorButton(self.land_color)
-
-        colors_layout = QFormLayout()
-        colors_layout.addRow(ocean_color_label, self.ocean_color_button)
-        colors_layout.addRow(land_color_label, self.land_color_button)
-
-        colors_gb.setLayout(colors_layout)
-
-        ###   grid settings
-        self.show_grid_checkbox = QCheckBox("Show Grid Lines ")
-
-        ###   resolution settings   ###
-        label_resolution = QLabel(self.tr('Resolution'))
-        self.resolution_cb = QComboBox()
-        self.resolution_cb.addItem('50m')
-        self.resolution_cb.addItem('110m')
-        self.resolution_cb.setCurrentIndex(1)
-
-        resolution_layout = QHBoxLayout()
-        resolution_layout.addWidget(label_resolution)
-        resolution_layout.addWidget(self.resolution_cb)
-
-        ### background image ##
-        self.backgroud_image_checkbox = QCheckBox('Use background image  ')
-
-        ###   offline maps settings   ###
-        self.offline_checkbox = QCheckBox('Use offline maps  ')
-        self.offline_directory_label = QLabel("Use offline maps")
-        # read in the offline_director from settings if there is one
-        settings = QSettings('LANL', 'InfraView')
-        settings.beginGroup('LocationWidget')
-        odd = settings.value('offline_maps_dir', '')
-        odd_isChecked_str = settings.value('use_offline_cb', 'False')
-        if type(odd_isChecked_str) is str:
-            odd_isChecked = odd_isChecked_str.lower() == 'true'
-        else:
-            odd_isChecked = odd_isChecked_str
-        settings.endGroup()
-
-        self.offline_directory_label.setText(odd)
-        # for now, if there is a directory in the offline_directory_label, assume they want to use that, and activate checkbox
-        self.offline_checkbox.setChecked(odd_isChecked)
-        self.offline_directory_label.setEnabled(odd_isChecked)
-
-        self.offline_directory_select_button = QPushButton("Select Folder...")
-        self.offline_directory_select_button.setEnabled(odd_isChecked)
-
-        self.offline_file_dialog = QFileDialog()
-        self.offline_file_dialog.setFileMode(QFileDialog.Directory)
-
-        offline_layout = QHBoxLayout()
-        offline_layout.addWidget(self.offline_checkbox)
-        offline_layout.addWidget(self.offline_directory_label)
-        offline_layout.addWidget(self.offline_directory_select_button)
-
-        options_gb = QGroupBox("Options")
-        options_layout = QVBoxLayout()
-        options_layout.addLayout(resolution_layout)
-        options_layout.addWidget(self.backgroud_image_checkbox)
-        options_layout.addLayout(offline_layout)
-        options_layout.addStretch()
-        options_gb.setLayout(options_layout)
-
-        ### extent ###
-        self.extent_settings = IPExtentSettingsWidget()
-
-        ###   layouts   ###
-        boxes_layout = QHBoxLayout()
-        boxes_layout.addWidget(features_gb)
-        boxes_layout.addWidget(colors_gb)
-        boxes_layout.addWidget(options_gb)
-        boxes_layout.addWidget(self.extent_settings)
-
-        main_layout = QHBoxLayout()
-        main_layout.addLayout(boxes_layout)
-        main_layout.addStretch()
-        main_layout.setContentsMargins(0,0,0,0)
-        self.setLayout(main_layout)
-
-        self.connect_signals_and_slots()
-
-    def connect_signals_and_slots(self):
-        self.offline_checkbox.clicked.connect(self.offline_directory_select_button.setEnabled)
-        self.offline_checkbox.clicked.connect(self.offline_directory_label.setEnabled)
-        self.offline_checkbox.clicked.connect(self.update_settings)
-
-        self.ocean_color_button.clicked.connect(self.update_ocean_color)
-        self.land_color_button.clicked.connect(self.update_land_color)
-
-        self.backgroud_image_checkbox.clicked.connect(self.toggle_background_image)
-        self.show_grid_checkbox.clicked.connect(self.update_grid_lines)
-        self.offline_directory_select_button.clicked.connect(self.select_offline_maps_directory)
-
-    def toggle_background_image(self):
-        self.land_color_button.setDisabled(self.backgroud_image_checkbox.isChecked())
-        self.ocean_color_button.setDisabled(self.backgroud_image_checkbox.isChecked())
-        self.signal_background_changed.emit()
-
-    def update_grid_lines(self):
-        self.signal_map_settings_changed.emit()
-
-    def update_ocean_color(self):
-        new_color = QColorDialog.getColor(self.ocean_color_button.color())
-        if new_color.isValid():
-            self.ocean_color_button.set_color(new_color)
-            self.signal_colors_changed.emit()
-
-    def update_land_color(self):
-        new_color = QColorDialog.getColor(self.land_color_button.color())
-        if new_color.isValid(): 
-            self.land_color_button.set_color(new_color)
-            self.signal_colors_changed.emit()
-
-    def select_offline_maps_directory(self):
-        curr_dir = self.offline_directory_label.text()
-        
-        new_dir = QFileDialog.getExistingDirectory()
-        
-        self.offline_directory_label.setText(new_dir) 
-        self.signal_offline_directory_changed.emit()
-        
-        settings = QSettings('LANL', 'InfraView')
-        settings.beginGroup('LocationWidget')
-        settings.setValue('offline_maps_dir', new_dir)
-        settings.endGroup()
-
-    def update_settings(self):
-        settings = QSettings('LANL', 'InfraView')
-        settings.beginGroup('LocationWidget')
-        settings.setValue('use_offline_cb', self.offline_checkbox.isChecked())
-        settings.endGroup()
-
-class IPColorButton(QPushButton):
-    current_color = QColor(255, 0, 0)
-
-    def __init__(self, color):
-        super().__init__()
-        self.current_color = color
-        size = QSize(self.height(), self.height())
-        self.setFixedSize(QSize(26,26))
-
-    def paintEvent(self, a0: QPaintEvent) -> None:
-        super().paintEvent(a0)
-        r = QRect(0, 0, self.width() * 0.75, self.height() * 0.75)
-        r.moveTo(self.rect().center() - r.center())
-        painter = QPainter(self)
-        painter.setBrush(self.current_color)
-        painter.drawRect(r)
-
-    def set_color(self, new_color):
-        # new color should be a QColor type
-        self.current_color = new_color
-
-    def color(self):
-        return QColor(self.current_color)
-
-
-class IPExtentSettingsWidget(QGroupBox):
-
-    sig_extent_changed = pyqtSignal(list)
-    sig_set_to_global = pyqtSignal()
-    sig_autoscale = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self.setTitle(self.tr("Extent"))
-        self.buildUI()
-
-    def buildUI(self):
-
-        ll_label = QLabel(" Lower left:")
-        self.ll_lat_spin = QDoubleSpinBox()
-        self.ll_lat_spin.setMaximumWidth(100)
-        self.ll_lat_spin.setRange(-90.0, 90.0)
-        self.ll_lat_spin.setValue(-90.0)
-        self.ll_lat_spin.setPrefix("Lat: ")
-        self.ll_lat_spin.valueChanged.connect(self.activate_update_button)
-
-        self.ll_lon_spin = QDoubleSpinBox()
-        self.ll_lon_spin.setMaximumWidth(100)
-        self.ll_lon_spin.setRange(-179.99, 180.0)
-        self.ll_lon_spin.setValue(-179.99)
-        self.ll_lon_spin.setPrefix("Lon: ")
-        self.ll_lon_spin.valueChanged.connect(self.activate_update_button)
-
-        ll_layout = QHBoxLayout()
-        ll_layout.addWidget(ll_label)
-        ll_layout.addWidget(self.ll_lon_spin)
-        ll_layout.addWidget(self.ll_lat_spin)
-
-
-        ur_label = QLabel(" Upper right:")
-        self.ur_lat_spin = QDoubleSpinBox()
-        self.ur_lat_spin.setMaximumWidth(100)
-        self.ur_lat_spin.setRange(-90., 90.0)
-        self.ur_lat_spin.setValue(90.0)
-        self.ur_lat_spin.setPrefix("Lat: ")
-        self.ur_lat_spin.valueChanged.connect(self.activate_update_button)
-
-        self.ur_lon_spin = QDoubleSpinBox()
-        self.ur_lon_spin.setMaximumWidth(100)
-        self.ur_lon_spin.setRange(-179.99, 180.0)
-        self.ur_lon_spin.setValue(180.0)
-        self.ur_lon_spin.setPrefix("Lon: ")
-        self.ur_lon_spin.valueChanged.connect(self.activate_update_button)
-
-        ur_layout = QHBoxLayout()
-        ur_layout.addWidget(ur_label)
-        ur_layout.addWidget(self.ur_lon_spin)
-        ur_layout.addWidget(self.ur_lat_spin)
-
-        self.update_plot_button = QPushButton("Update")
-        self.update_plot_button.setMaximumWidth(100)
-        self.update_plot_button.setEnabled(False)
-        self.update_plot_button.clicked.connect(self.deactivate_update_button)
-        self.update_plot_button.clicked.connect(self.update_map_extent)
-
-        self.set_to_global_button = QPushButton("Global")
-        self.set_to_global_button.setMaximumWidth(100)
-        self.set_to_global_button.clicked.connect(self.set_to_global)
-
-        self.autoscale_button = QPushButton("Autoscale")
-        self.autoscale_button.setMaximumWidth(100)
-        self.autoscale_button.clicked.connect(self.autoscale_map)
-
-        self.hide_button = QPushButton("Hide")
-        self.hide_button.setMaximumWidth(60)
-
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.set_to_global_button)
-        button_layout.addWidget(self.autoscale_button)
-        button_layout.addWidget(self.update_plot_button)
-        # h_layout.addStretch()
-        # h_layout.addWidget(self.hide_button)
-        # h_layout.setContentsMargins(0,0,0,0)
-
-        coord_layout = QVBoxLayout()
-        coord_layout.addLayout(ll_layout)
-        coord_layout.addLayout(ur_layout)
-        coord_layout.addLayout(button_layout)
-        coord_layout.addStretch()
-        self.setLayout(coord_layout)
-
-    def set_extent_spin_values(self, extent):
-        # ll_lon: lower left longitude
-        # ur_lat: upper right latitude
-        # etc
-
-        self.ll_lon_spin.setValue(extent[0])
-        self.ll_lat_spin.setValue(extent[2])
-        self.ur_lon_spin.setValue(extent[1])
-        self.ur_lat_spin.setValue(extent[3])
-
-    def set_to_global(self):
-        self.sig_set_to_global.emit()
-
-    def autoscale_map(self):
-        self.sig_autoscale.emit()
-
-    def activate_update_button(self):
-        self.update_plot_button.setEnabled(True)
-
-    def deactivate_update_button(self):
-        self.update_plot_button.setEnabled(False)
-
-    def update_map_extent(self):
-        extent = [self.ll_lon_spin.value(), self.ur_lon_spin.value(), self.ll_lat_spin.value(), self.ur_lat_spin.value()]
-        self.sig_extent_changed.emit(extent)

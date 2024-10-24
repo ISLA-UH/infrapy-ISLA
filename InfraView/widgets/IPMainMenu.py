@@ -55,7 +55,14 @@ class IPMainMenuBar(QMenuBar):
 
         self.addMenu(self.file_menu)
         self.addMenu(self.view_menu)
+        self.addSeparator()
         self.addAction(self.tr('Control Panel'), self.main_window.toggle_settings)
+        self.addAction(self.tr('Waveforms'))
+        self.addAction(self.tr('Beamforming'))
+        self.addAction(self.tr('Location'))
+        self.addAction(self.tr('Database'))
+        self.addAction(self.tr('Spectral'))
+        self.addSeparator()
         self.addMenu(self.help_menu)
 
         # Create Actions for various tabs

@@ -39,9 +39,6 @@ class IPPSDWidget(QWidget):
         self.plotLayoutWidget = pg.GraphicsLayoutWidget()
         self.psdPlot = IPPlotItem(mode='PSD')
 
-        #self.psdPlot.getAxis('bottom').setRange(5, 20)
-        
-
         self.psdPlot.setLabel('bottom', 'f (Hz)')
         self.psdPlot.setLabel('left', 'Power Spectrßal Density (dB)')
         self.psdPlot.setTitle("...")

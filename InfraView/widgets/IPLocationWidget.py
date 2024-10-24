@@ -139,8 +139,6 @@ class IPLocationWidget(QWidget):
         main_layout.addWidget(self.mainSplitter)
         self.setLayout(main_layout)
 
-        self.connectSignalsAndSlots()
-
         # Create threads for the distancematrix calculation, BISL, and clustering
         self.dmThread = QThread()
         self.bislThread = QThread()
@@ -168,7 +166,19 @@ class IPLocationWidget(QWidget):
 
     #     self.toolbar.addSeparator()
     #     self.toolbar.addWidget(self.toolButton_export)
-        
+
+    def set_controlling_widget(self, widget):
+        # for this, it's the location settings widget, which contains map settings and extent settings
+        self.mapWidget.map_settings_widget = widget
+        self.mapWidget.extentWidget = widget.extent_settings
+
+        # now that we have settings widgets, we can initialize this widget
+        self.initialize()
+
+    def initialize(self):
+        self.connectSignalsAndSlots()
+        self.mapWidget.connect_signals_and_slots()
+        self.mapWidget.draw_map()
 
     def connectSignalsAndSlots(self):
 
