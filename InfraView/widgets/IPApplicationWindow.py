@@ -100,7 +100,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.databaseWidget = IPDatabaseWidget.IPDatabaseWidget(self)
 
         # For convenience, keep referencces to the widgets in a dict. 
-        # to things simple, have the keys be lower case strings of the Tab Names
+        # to make things simple, have the keys be lower case strings of the Tab Names
         self.widget_dict = {'waveforms': self.waveformWidget,
                             'beamforming': self.beamformingWidget,
                             'location': self.locationWidget,
@@ -121,6 +121,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         # self.mainTabs.addTab(self.databaseWidget, 'Database')
         # self.mainTabs.addTab(self.singleSensorWidget, 'Spectral')
 
+        # Add widgets to the main stack
         self.mainStack = QStackedWidget()
         self.mainStack.addWidget(self.widget_dict['waveforms'])
         self.mainStack.addWidget(self.widget_dict['beamforming'])

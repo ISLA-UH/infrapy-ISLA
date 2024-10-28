@@ -22,7 +22,6 @@ def main():
     style_file = str(Path(__file__).parent / 'resources' / 'styles' / 'default_style.qss')
     with open(style_file, 'r') as sf:
         stylestr = sf.read()
-        print(stylestr)
         qApp.setStyleSheet(stylestr)
 
     my_system = platform.system()

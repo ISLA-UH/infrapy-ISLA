@@ -2,8 +2,13 @@ import platform
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import QKeySequence
-from PyQt5.QtWidgets import QAction, QActionGroup, QMenuBar, QMenu
+from PyQt5.QtWidgets import QAction, QActionGroup, QWidgetAction, QMenuBar, QMenu, QLabel, QPushButton
 from PyQt5.QtCore import pyqtSlot, pyqtSignal
+
+class IPMenuLabel(QLabel):
+    def __init__(self, text, parent):
+        super().__init__(text, parent)
+
 
 class IPMainMenuBar(QMenuBar):
 
@@ -23,6 +28,12 @@ class IPMainMenuBar(QMenuBar):
         self.make_base_menu()
     
     def make_base_menu(self):
+        # l1 = IPMenuLabel("Test", self)
+        b1 = QPushButton("bob")
+        self.wa1 = QWidgetAction(self)
+        self.wa1.setDefaultWidget(b1)
+        self.addAction(self.wa1)
+
         # This is where we create the menus/actions that will be visible 
         # for all of the tabs
 

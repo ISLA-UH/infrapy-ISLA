@@ -55,8 +55,8 @@ class IPStationView(QWidget):
         self.station_TabWidget.setTabsClosable(True)
         self.station_TabWidget.tabCloseRequested.connect(self.remove_station_from_inv)
 
-        self.arrayViewWidget = IPArrayView(self)
-        self.arrayViewWidget.setMinimumSize(200, 0)
+        #self.arrayViewWidget = IPArrayView(self)
+        #self.arrayViewWidget.setMinimumSize(200, 0)
 
         self.clearButton = QPushButton('Clear')
         button_font = self.clearButton.font()
@@ -89,15 +89,15 @@ class IPStationView(QWidget):
         savebuttonLayout.addWidget(self.reconcileButton)
         savebuttonLayout.addStretch()
 
-        mainHSplitter = IPBaseWidgets.IPSplitter(Qt.Horizontal,self)
+        #mainHSplitter = IPBaseWidgets.IPSplitter(Qt.Horizontal,self)
 
-        mainHSplitter.addWidget(self.station_TabWidget)
-        mainHSplitter.addWidget(self.arrayViewWidget)
+        #mainHSplitter.addWidget(self.station_TabWidget)
+        #mainHSplitter.addWidget(self.arrayViewWidget)
 
-        mainHSplitter.setSizes([100000,100000])
+        #mainHSplitter.setSizes([100000,100000])
 
         mainLayout = QHBoxLayout()
-        mainLayout.addWidget(mainHSplitter)
+        mainLayout.addWidget(self.station_TabWidget)
         mainLayout.addLayout(savebuttonLayout)
 
         # go ahead and make an instance of the matchDialog for later use
@@ -122,8 +122,8 @@ class IPStationView(QWidget):
         self.loadButton.clicked.connect(self.loadStations)
         self.reconcileButton.clicked.connect(self.reconcileStations)
 
-        self.inventory_changed.connect(self.arrayViewWidget.set_data)
-        self.sig_inventory_cleared.connect(self.arrayViewWidget.clear)
+        # self.inventory_changed.connect(self.arrayViewWidget.set_data)
+        # self.sig_inventory_cleared.connect(self.arrayViewWidget.clear)
 
     def get_inventory(self):
         return self.inv

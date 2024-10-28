@@ -20,7 +20,6 @@ class IPDatabaseWidget(QWidget):
         self.buildUI()
 
     def buildUI(self):
-        self.ipdatabase_connect_widget = IPDatabaseConnectWidget.IPDatabaseConnectWidget2(self)
         self.ipdatabase_query_widget = IPDatabaseQueryWidget.IPDatabaseQueryWidget(self)
         self.ipevent_query_widget = IPDatabaseQueryWidget.IPEventQueryWidget(self)
         self.ipdatabase_query_results_table = IPDatabaseQueryResultsTable.IPDatabaseQueryResultsTable(self)
@@ -53,6 +52,8 @@ class IPDatabaseWidget(QWidget):
         main_layout.addWidget(vertical_splitter)
         self.setLayout(main_layout)
 
+    def set_controlling_widget(self, widget):
+        self.ipdatabase_connect_widget = widget
         self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):

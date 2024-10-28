@@ -42,13 +42,15 @@ class IPWaveformWidget(QWidget):
 
     def buildUI(self):
 
+        self.arrayViewer = IPStationView.IPArrayView(self)
+
         self.stationViewer = IPStationView.IPStationView(self)
         self.statsViewer = IPStatsView.IPStatsView(self)
         self.info_tabs = QTabWidget()
         self.info_tabs.addTab(self.stationViewer, 'Inventory')
         self.info_tabs.addTab(self.statsViewer, 'Trace Info')
 
-        self.filterSettingsWidget = IPFilterSettingsWidget.IPFilterSettingsWidget(self)
+        # self.filterSettingsWidget = IPFilterSettingsWidget.IPFilterSettingsWidget(self)
         self.psdWidget = IPPSDWidget.IPPSDWidget(self)
 
         self.plotViewer = IPPlotViewer.IPPlotViewer(self)
@@ -59,7 +61,7 @@ class IPWaveformWidget(QWidget):
 
         self.rh_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Vertical, parent=self)
         self.rh_splitter.addWidget(self.psdWidget)
-        self.rh_splitter.addWidget(self.filterSettingsWidget)
+        self.rh_splitter.addWidget(self.arrayViewer)
 
         self.main_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Horizontal, parent=self)
         self.main_splitter.addWidget(self.lh_splitter)
@@ -69,8 +71,6 @@ class IPWaveformWidget(QWidget):
         main_layout.addWidget(self.main_splitter)
 
         self.setLayout(main_layout)
-
-        self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):
         self.filterSettingsWidget.sig_filter_changed.connect(self.update_filtered_data)
@@ -85,7 +85,12 @@ class IPWaveformWidget(QWidget):
         self.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.parent.singleSensorWidget.updateSignalRange)
         self.plotViewer.pl_widget.sig_active_plot_changed.connect(self.update_widgets)
 
+        self.stationViewer.inventory_changed.connect(self.arrayViewer.set_data)
+        self.stationViewer.sig_inventory_cleared.connect(self.arrayViewer.clear)
 
+    def set_controlling_widget(self, widget):
+        self.filterSettingsWidget = widget.filterSettingsWidget
+        self.connect_signals_and_slots()
 
     def get_project(self):
         return self.parent.getProject()

@@ -6,8 +6,6 @@ from PyQt5.QtGui import QColor
 
 from InfraView.widgets import IPBaseWidgets
 
-
-
 class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
     signal_colors_changed = pyqtSignal()
@@ -39,6 +37,7 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         features_layout.addWidget(self.lakes_checkbox)
         features_layout.addWidget(self.rivers_checkbox)
         features_layout.addWidget(self.coast_checkbox)
+        features_layout.addStretch()
         
         features_gb.setLayout(features_layout)
 
