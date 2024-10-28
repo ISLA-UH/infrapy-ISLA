@@ -50,12 +50,12 @@ class IPSettingsManager(QStackedWidget):
             self.addWidget(value)
 
     @pyqtSlot(str)
-    def tabs_changed(self, tab_name):
-        # someone clicked a tab, so we need to change the settings widget to match
+    def widget_changed(self, widget_name):
+        # someone clicked a action to change the active, so we need to change the settings widget to match
         try:
-            self.setCurrentWidget(self.settings_widget_dict[tab_name.lower()])
+            self.setCurrentWidget(self.settings_widget_dict[widget_name.lower()])
         except KeyError:
-            print("{} settings not found".format(tab_name))
+            print("{} settings not found".format(widget_name))
             
     def toggle_visibility(self):
         self.setVisible(self.isHidden())

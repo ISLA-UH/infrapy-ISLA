@@ -13,15 +13,17 @@ from InfraView.widgets.IPApplicationWindow import *
 
 def main():
     progname = "InfraView"
-    progversion = "0.4.0"
+    progversion = "0.4.1"
 
     qApp = QtWidgets.QApplication(sys.argv)
     icon_file = str(Path(__file__).parent / 'graphics' / 'icons' / 'start_64')
     qApp.setWindowIcon(QIcon(icon_file))
 
-    # style_file = str(Path(__file__).parent / 'resources' / 'styles' / 'default_style.qss')
-    # with open(style_file, 'r') as sf:
-    #     qApp.setStyleSheet(sf.read())
+    style_file = str(Path(__file__).parent / 'resources' / 'styles' / 'default_style.qss')
+    with open(style_file, 'r') as sf:
+        stylestr = sf.read()
+        print(stylestr)
+        qApp.setStyleSheet(stylestr)
 
     my_system = platform.system()
     my_release = platform.release()

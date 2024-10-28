@@ -49,8 +49,10 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     
     sig_stream_changed = pyqtSignal(Stream)
     sig_inventory_changed = pyqtSignal(Inventory, str)
-    # this tab will emit the tabtext of the clicked tab 
-    sig_tab_changed = pyqtSignal(str)
+
+    # this tab will emit the name of the widget corresponding to the clicked action 
+    sig_widget_changed = pyqtSignal(str)
+
 
     # variable to hold the reference of the loaded project object (if any)
     project = None
@@ -112,19 +114,25 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     
                                
         # add the main widgets to the application tabs
-        self.mainTabs = QTabWidget()
-        self.mainTabs.addTab(self.waveformWidget, 'Waveforms')
-        self.mainTabs.addTab(self.beamformingWidget, 'Beamforming')
-        self.mainTabs.addTab(self.locationWidget, 'Location')
-        self.mainTabs.addTab(self.databaseWidget, 'Database')
-        self.mainTabs.addTab(self.singleSensorWidget, 'Spectral')
+        # self.mainTabs = QTabWidget()
+        # self.mainTabs.addTab(self.waveformWidget, 'Waveforms')
+        # self.mainTabs.addTab(self.beamformingWidget, 'Beamforming')
+        # self.mainTabs.addTab(self.locationWidget, 'Location')
+        # self.mainTabs.addTab(self.databaseWidget, 'Database')
+        # self.mainTabs.addTab(self.singleSensorWidget, 'Spectral')
 
-        
+        self.mainStack = QStackedWidget()
+        self.mainStack.addWidget(self.widget_dict['waveforms'])
+        self.mainStack.addWidget(self.widget_dict['beamforming'])
+        self.mainStack.addWidget(self.widget_dict['location'])
+        self.mainStack.addWidget(self.widget_dict['database'])
+        self.mainStack.addWidget(self.widget_dict['spectral'])
+
 
         # Put the settings above the tabs
         mainLayout = QVBoxLayout(self.main_widget)
         mainLayout.addWidget(self.settings_manager)
-        mainLayout.addWidget(self.mainTabs)
+        mainLayout.addWidget(self.mainStack)
 
         # All menu items should be located in makeMenuBar method
         self.menuBar = IPMainMenu.IPMainMenuBar(self, self.widget_dict)
@@ -154,11 +162,10 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     def toggle_settings(self):
          self.settings_manager.setVisible(self.settings_manager.isHidden())
 
-    @pyqtSlot(int)
-    def emit_tab_text(self, idx):
-        # the QTabWidget clicked signal send the index of the current tab.  It's more
-        # useful to have the text
-        self.sig_tab_changed.emit(self.mainTabs.tabText(idx))
+    @pyqtSlot(str)
+    def activate_widget(self, name):
+        self.mainStack.setCurrentWidget(self.widget_dict[name])
+        self.sig_widget_changed.emit(name)
 
     def connectSignalsAndSlots(self):
         self.fdsnDialog.fdsnWidget.sigTracesAppended.connect(self.waveformWidget.appendTraces)
@@ -175,17 +182,16 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         self.databaseWidget.ipevent_query_results_table.sig_origin_changed.connect(self.locationWidget.showgroundtruth.eventChanged)
 
-        # connect tabs to the menubar so that when they are clicked the menu can adjust itself
-        self.mainTabs.currentChanged.connect(self.emit_tab_text)
-
         # connect tabs to the settings manager so it can adjust when tabs are clicked
-        self.sig_tab_changed.connect(self.settings_manager.tabs_changed)
+        self.sig_widget_changed.connect(self.settings_manager.widget_changed)
 
         self.waveformWidget.plotViewer.lr_settings_widget.noiseSpinsChanged.connect(self.beamformingWidget.bottomSettings.setNoiseValues)
         self.waveformWidget.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.beamformingWidget.bottomSettings.setSignalValues)
         self.waveformWidget.psdWidget.f1_Spin.valueChanged.connect(self.beamformingWidget.bottomSettings.setFmin)
         self.waveformWidget.psdWidget.f2_Spin.valueChanged.connect(self.beamformingWidget.bottomSettings.setFmax)
         self.waveformWidget.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.beamformingWidget.bottomSettings.setFreqValues)
+
+        self.menuBar.sig_activate_widget.connect(self.activate_widget)
         
 
     def setStatus(self, s, ms=0):
