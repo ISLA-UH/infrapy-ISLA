@@ -336,7 +336,8 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 
                 self.sig_inventory_changed.emit(new_inventory, 'PROMPT')
 
-            self.mainTabs.setCurrentIndex(0)
+            # self.mainTabs.setCurrentIndex(0)
+            self.mainStack.setCurrentWidget(self.widget_dict['waveforms'])
 
         else:
             return

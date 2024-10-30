@@ -88,8 +88,14 @@ class IPWaveformWidget(QWidget):
         self.stationViewer.inventory_changed.connect(self.arrayViewer.set_data)
         self.stationViewer.sig_inventory_cleared.connect(self.arrayViewer.clear)
 
+        self.psdSettingsWidget.fft_N_Spin.valueChanged.connect(self.psdWidget.updatePSDs)
+        self.psdSettingsWidget.window_cb.currentIndexChanged.connect(self.psdWidget.updatePSDs)
+        self.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.parent.settings_manager.settings_widget_dict['beamforming'].setFreqValues)
+
     def set_controlling_widget(self, widget):
         self.filterSettingsWidget = widget.filterSettingsWidget
+        self.psdSettingsWidget = widget.psdSettingsWidget
+        self.psdWidget.set_controlling_widget(self.psdSettingsWidget)
         self.connect_signals_and_slots()
 
     def get_project(self):
@@ -421,7 +427,8 @@ class IPWaveformWidget(QWidget):
 
         else:
             self.psdWidget.set_title(self._sts[index].id)
-            self.psdWidget.set_fs(self._sts[index].stats.sampling_rate)
+            self.psdSettingsWidget.set_fs(self._sts[index].stats.sampling_rate)
+            self.psdSettingsWidget.set_fs(self._sts[index].stats.sampling_rate)
 
             noise_region_item = self.plotViewer.pl_widget.plot_list[index].getNoiseRegion()
             noise_region_item.sigRegionChanged.emit(noise_region_item)

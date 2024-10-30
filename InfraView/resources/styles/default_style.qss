@@ -2,27 +2,38 @@ QSplitterHandle{
     background-color: #DDD;
 }
 
-/*
-QMenuBar::item{
+QMenuBar{
     background-color: #FFF;
-    color: #000;
 }
 
+QMenuBar::item{
+/*
+    background-color: #FFF;
+    color: #000;
+    
+    border-right: 1px solid;
+    border-left: 1px solid;
+    padding-right: 10px;
+    padding-left: 10px;
+    font-weight: bold;
+*/
+}
 
 QMenuBar::item:hover{
     background-color: #0F0;
 }
 
 QMenuBar::item:selected {
-    background-color: #F00;
+    background-color: #0070C1;
+    color: #FFF
 }
 
 QMenuBar::item:pressed{
-    background-color: #F0F;
+    background-color: #E17800;
+    color: #FFF
 }
 
 
 QMenuBar::item:checked {
-    background-color: #F00
+    background-color: #0000FF
 }
-*/

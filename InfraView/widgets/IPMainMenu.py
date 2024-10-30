@@ -97,6 +97,12 @@ class IPMainMenuBar(QMenuBar):
         self.action_spectral.setCheckable(True)
         self.action_spectral.triggered.connect(self.activate_spectral)
 
+        self.action_dict = {'waveforms': self.action_waveforms,
+                            'beamforming': self.action_beamforming,
+                            'location': self.action_location,
+                            'spectral': self.action_spectral,
+                            'database': self.action_database}
+
         widget_group = QActionGroup(self)
         widget_group.addAction(self.action_waveforms)
         widget_group.addAction(self.action_beamforming)
@@ -115,6 +121,8 @@ class IPMainMenuBar(QMenuBar):
 
         self.addMenu(self.help_menu)
 
+        self.sig_activate_widget.connect(self.toggle_enable)
+
     @pyqtSlot(bool)
     def control_toggled(self, checked):
         if checked:
@@ -126,6 +134,11 @@ class IPMainMenuBar(QMenuBar):
             font = self.action_control.font()
             font.setBold(False)
             # self.action_control.setFont(font)
+
+    @pyqtSlot(str)
+    def toggle_enable(self, active_action):
+        for key, value in self.action_dict.items():
+            value.setEnabled(key != active_action)
 
     @pyqtSlot(bool)
     def activate_waveforms(self, checked):

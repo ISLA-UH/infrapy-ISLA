@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QSizePolicy
-from PyQt5.QtCore import pyqtSignal, pyqtSlot
+from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QVBoxLayout
+from PyQt5.QtCore import Qt, pyqtSlot
 
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPSingleSensorWidget
@@ -19,13 +19,19 @@ class IPSettingsManager(QWidget):
         self.settings_stack = QStackedWidget(self)
         self.insert_settings_widgets()
 
+        hide_layout = QVBoxLayout()
         self.hide_button = QPushButton('Hide')
         self.hide_button.clicked.connect(self.hide)
+        hide_layout.addWidget(self.hide_button)
+        hide_layout.addStretch()
 
         layout = QHBoxLayout()
         layout.addWidget(self.settings_stack)
         layout.addStretch()
-        layout.addWidget(self.hide_button)
+        layout.addLayout(hide_layout)
+        self.setObjectName("settingsManager")
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setStyleSheet("#settingsManager {border: 2px solid black;}")
 
         self.setLayout(layout)
         self.setVisible(False)
@@ -62,7 +68,10 @@ class IPSettingsManager(QWidget):
         for key, value in self.settings_widget_dict.items():
             try: 
                 widget_dict[key].set_controlling_widget(value)
-            except AttributeError:
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+
                 print("{} doesn't have set_controlling_widget method yet".format(type(widget_dict[key])))
 
 

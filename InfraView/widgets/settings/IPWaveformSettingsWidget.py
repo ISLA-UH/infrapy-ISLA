@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import (QCheckBox, QComboBox, QLabel, QDoubleSpinBox, QHBoxLayout,
-                             QSpinBox, QGridLayout, QGroupBox, QPushButton, QFormLayout,
-                             QVBoxLayout, QGroupBox)
+                             QSpinBox, QPushButton, QFormLayout, 
+                             QVBoxLayout, QAbstractSpinBox)
 
 from PyQt5.QtCore import pyqtSignal, QSettings, Qt
 
@@ -16,14 +16,79 @@ class IPWaveformSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
     def buildUI(self):
         self.filterSettingsWidget = IPFilterSettingsWidget(parent=self, title='Filter')
+        self.psdSettingsWidget = IPPSDSettingsWidget(title="PSD")
 
         layout = QHBoxLayout()
         layout.addWidget(self.filterSettingsWidget)
+        layout.addWidget(self.psdSettingsWidget)
         layout.addStretch()
 
         self.setLayout(layout)
 
+class IPPSDSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
 
+    def __init__(self, parent=None, title=""):
+        super().__init__()
+        self.parent=parent
+        self.setTitle(title)
+        self. windows = ['hann', 'hamming', 'boxcar', 'bartlett', 'blackman']
+        self.buildUI()
+
+    def buildUI(self):
+        label_fft_N = QLabel(self.tr('fft window (N): '))
+        label_fft_N.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.fft_N_Spin = QSpinBox()
+        self.fft_N_Spin.setMinimum(4)
+        self.fft_N_Spin.setMaximum(2**20)
+        self.fft_N_Spin.setValue(1024)
+
+        label_fs = QLabel(self.tr('Sampling Freq.: '))
+        label_fs.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.fs_Spin = QDoubleSpinBox()
+        self.fs_Spin.setMaximum(1000000.0)
+        self.fs_Spin.setMinimum(0.0)
+        self.fs_Spin.setValue(20.0)
+        self.fs_Spin.setReadOnly(True)
+        self.fs_Spin.setSuffix(' Hz')
+        self.fs_Spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        self.fs_Spin.setEnabled(False)
+
+        label_fft_time = QLabel(self.tr('fft window: '))
+        label_fft_time.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.fft_T_Spin = QDoubleSpinBox()
+        self.fft_T_Spin.setMaximum(10000.)
+        self.fft_T_Spin.setMinimum(0.1)
+        self.fft_T_Spin.setValue(1.0)
+        self.fft_T_Spin.setSuffix(' s')
+
+        self.fft_N_Spin.valueChanged.connect(self.updateFFtT)
+        self.fft_T_Spin.valueChanged.connect(self.updateFFtN)
+
+        label_window = QLabel(self.tr('Window: '))
+        label_window.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.window_cb = QComboBox()
+        for window in self.windows:
+            self.window_cb.addItem(window)
+
+        parametersLayout = QFormLayout()
+        parametersLayout.addRow(label_fs, self.fs_Spin)
+        parametersLayout.addRow(label_fft_N, self.fft_N_Spin)
+        parametersLayout.addRow(label_fft_time, self.fft_T_Spin)
+        parametersLayout.addRow(label_window, self.window_cb)
+
+        self.setLayout(parametersLayout)
+
+    def set_fs(self, fs):
+        self.fs_Spin.setValue(fs)
+        self.updateFFtT()
+
+    def updateFFtT(self):
+        self.fft_T_Spin.setValue(self.fft_N_Spin.value() / self.fs_Spin.value())
+
+    def updateFFtN(self):
+        self.fft_N_Spin.setValue(int(self.fft_T_Spin.value() * self.fs_Spin.value()))
+
+    
 
 class IPFilterSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
 
@@ -110,14 +175,12 @@ class IPFilterSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         col1_layout.addRow(self.tr('High Pass F: '), self.highpassSpin)
         col1_layout.addRow(self.tr('Low Pass F: '), self.lowpassSpin)
         col1_layout.addRow(self.tr('Order: '), self.orderSpin)
-        col1_layout.addRow("", self.update_Button)
-
-        # layout.addWidget(self.showSpect_Button, 6, 1)  # Slow as hell
 
         col2_layout = QVBoxLayout()
-        col2_layout.addWidget(self.zeroPhase_checkbox)
         col2_layout.addWidget(self.applyFilter_checkbox)
+        col2_layout.addWidget(self.zeroPhase_checkbox)
         col2_layout.addWidget(self.showUnfiltered)
+        col2_layout.addWidget(self.update_Button)
         col2_layout.addStretch()
 
         layout = QHBoxLayout()

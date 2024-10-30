@@ -57,5 +57,5 @@ class IPDatabaseWidget(QWidget):
         self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):
-        self.ipdatabase_connect_widget.sig_session_created.connect(self.ipdatabase_query_widget.set_session)
-        self.ipdatabase_connect_widget.sig_session_created.connect(self.ipevent_query_widget.set_settion)
+        self.ipdatabase_connect_widget.connect_widget.sig_session_created.connect(self.ipdatabase_query_widget.set_session)
+        self.ipdatabase_connect_widget.connect_widget.sig_session_created.connect(self.ipevent_query_widget.set_settion)                                                              

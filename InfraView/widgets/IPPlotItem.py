@@ -120,7 +120,6 @@ class IPPlotItem(pg.PlotItem):
             self.enableAutoRange(self.yaxis(), enable=True)
         
             self.setLogMode(x=True, y=False)
-            self.setXRange(np.log(1), np.log(2))
 
         else:
             super().__init__()
