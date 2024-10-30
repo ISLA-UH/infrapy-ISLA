@@ -44,24 +44,17 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
 
         self.load_config_button = QPushButton("Load Config...")
         # This will be the font we will use through the widget...
-        button_font = self.load_config_button.font()
-        button_font.setPointSize(10)
-        self.load_config_button.setFont(button_font)
 
         self.save_current_button = QPushButton("Save Config...")
-        self.save_current_button.setFont(button_font)
         self.save_current_button.setEnabled(False)
 
         self.table_dialog = IPTableDialog(self)
         self.show_tables_button = QPushButton("Tables...")
-        self.show_tables_button.setFont(button_font)
 
         self.env_vars_dialog = IPEnvVarDialog(self)
         self.show_env_vars_button = QPushButton("Env Vars...")
-        self.show_env_vars_button.setFont(button_font)
 
         self.schema_type_combo = QComboBox()
-        self.schema_type_combo.setFont(button_font)
         self.schema_type_combo.addItem("KBCore")
         self.schema_type_combo.addItem("CSS3")
 
@@ -71,13 +64,10 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         self.url_edit.setMaximumWidth(500)
 
         self.create_session_button = QPushButton("Create Session")
-        self.create_session_button.setFont(button_font)
 
         self.close_session_button = QPushButton("Clear Session")
-        self.close_session_button.setFont(button_font)
 
         self.test_connection_button = QPushButton("Test Connection")
-        self.test_connection_button.setFont(button_font)
 
         row1_layout = QHBoxLayout()
         row1_layout.addWidget(self.load_config_button)

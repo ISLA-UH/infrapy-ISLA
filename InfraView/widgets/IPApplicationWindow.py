@@ -134,6 +134,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         mainLayout = QVBoxLayout(self.main_widget)
         mainLayout.addWidget(self.settings_manager)
         mainLayout.addWidget(self.mainStack)
+        mainLayout.setContentsMargins(0,0,0,0)
 
         # All menu items should be located in makeMenuBar method
         self.menuBar = IPMainMenu.IPMainMenuBar(self, self.widget_dict)
@@ -147,6 +148,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.connectSignalsAndSlots()
 
         self.setCentralWidget(self.main_widget)
+        self.main_widget.setContentsMargins(0,0,0,0)
 
         # Instantiate dialogs here
         self.fill_sta_info_dialog = IPFillStationInfoDialog()
@@ -338,6 +340,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
             # self.mainTabs.setCurrentIndex(0)
             self.mainStack.setCurrentWidget(self.widget_dict['waveforms'])
+            self.menuBar.toggle_enable('waveforms')
 
         else:
             return

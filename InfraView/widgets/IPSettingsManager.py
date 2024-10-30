@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QVBoxLayout
+from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QFrame
 from PyQt5.QtCore import Qt, pyqtSlot
 
 from InfraView.widgets import IPBaseWidgets
@@ -8,7 +8,7 @@ from InfraView.widgets.settings import IPLocationSettingsWidget
 from InfraView.widgets.settings import IPWaveformSettingsWidget
 from InfraView.widgets.settings import IPDatabaseSettingsWidget
 
-class IPSettingsManager(QWidget):
+class IPSettingsManager(QFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -31,7 +31,7 @@ class IPSettingsManager(QWidget):
         layout.addLayout(hide_layout)
         self.setObjectName("settingsManager")
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setStyleSheet("#settingsManager {border: 2px solid black;}")
+        self.setStyleSheet("#settingsManager {border: 1px solid #777;} ")
 
         self.setLayout(layout)
         self.setVisible(False)
@@ -42,19 +42,10 @@ class IPSettingsManager(QWidget):
     def initialize_settings_widgets(self):
         
         self.settings_widget_dict['database'] = IPDatabaseSettingsWidget.IPDatabaseSettingsWidget(self)
-        
-        self.waveform_settings = IPWaveformSettingsWidget.IPWaveformSettingsWidget(self)
-        self.settings_widget_dict['waveforms'] = self.waveform_settings
-
-        # create instances of the settings widgets, and put them in a dictionary 
-        self.spectra_settings = IPSingleSensorWidget.IPSpectrogramSettingsWidget(self)
-        self.settings_widget_dict['spectral'] = self.spectra_settings
-
-        self.location_settings = IPLocationSettingsWidget.IPLocationSettingsWidget(parent=self)
-        self.settings_widget_dict['location'] = self.location_settings
-
-        self.beamforming_settings = IPBeamformingSettingsWidget.IPBeamformingSettingsWidget(self)
-        self.settings_widget_dict['beamforming'] = self.beamforming_settings
+        self.settings_widget_dict['waveforms'] = IPWaveformSettingsWidget.IPWaveformSettingsWidget(self)
+        self.settings_widget_dict['spectral'] = IPSingleSensorWidget.IPSpectrogramSettingsWidget(self)
+        self.settings_widget_dict['location'] = IPLocationSettingsWidget.IPLocationSettingsWidget(parent=self)
+        self.settings_widget_dict['beamforming'] = IPBeamformingSettingsWidget.IPBeamformingSettingsWidget(self)
 
 
     def connect_widgets_and_settings(self, widget_dict):
@@ -73,7 +64,6 @@ class IPSettingsManager(QWidget):
                 traceback.print_exc()
 
                 print("{} doesn't have set_controlling_widget method yet".format(type(widget_dict[key])))
-
 
     def insert_settings_widgets(self):
         for _, value in self.settings_widget_dict.items():

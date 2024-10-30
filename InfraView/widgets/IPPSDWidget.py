@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QLabel,  QDoubleSpinBox, QPushButton)
-from PyQt5 import QtCore
+from PyQt5.QtCore import Qt, pyqtSlot
+from PyQt5.QtGui import QPalette
 
 
 import pyqtgraph as pg
@@ -32,6 +33,10 @@ class IPPSDWidget(QWidget):
         self.show()
 
     def buildUI(self):
+        self.setAutoFillBackground(True)
+        pal = self.palette()
+        pal.setColor(QPalette.Window, Qt.white)
+        self.setPalette(pal)
 
         self.plotLayoutWidget = pg.GraphicsLayoutWidget()
         self.psdPlot = IPPlotItem(mode='PSD')
@@ -48,7 +53,7 @@ class IPPSDWidget(QWidget):
         self.plotLayoutWidget.addItem(self.psdPlot, 0, 0)
 
         label_f1 = QLabel('f1')
-        label_f1.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        label_f1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.f1_Spin = QDoubleSpinBox()
         self.f1_Spin.setDecimals(5)
         self.f1_Spin.setMinimum(0.00001)
@@ -58,7 +63,7 @@ class IPPSDWidget(QWidget):
         self.f1_Spin.setValue(10**(self.psdPlot.getFreqRegion().getRegion()[0]))
 
         label_f2 = QLabel('f2')
-        label_f2.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        label_f2.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.f2_Spin = QDoubleSpinBox()
         self.f2_Spin.setDecimals(5)
         self.f2_Spin.setMinimum(0.00002)
@@ -141,7 +146,7 @@ class IPPSDWidget(QWidget):
     def set_title(self, title):
         self.psdPlot.setTitle(title)
 
-    @QtCore.pyqtSlot(tuple)
+    @pyqtSlot(tuple)
     def updateFrequencyIndicators(self, region):
         r = region.getRegion()
         self.f1_Spin.setValue(10**r[0])

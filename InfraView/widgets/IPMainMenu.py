@@ -2,7 +2,7 @@ import platform
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import QKeySequence
-from PyQt5.QtWidgets import QAction, QActionGroup, QWidgetAction, QMenuBar, QMenu, QLabel, QPushButton
+from PyQt5.QtWidgets import QAction, QActionGroup, QMenuBar, QMenu, QLabel
 from PyQt5.QtCore import pyqtSlot, pyqtSignal
 
 class IPMenuLabel(QLabel):
@@ -22,18 +22,9 @@ class IPMainMenuBar(QMenuBar):
         if platform.system() == 'Darwin':
            self.setNativeMenuBar(False)  # This is because I couldn't get the normal mac menu to work...
 
-        # style = "QMenuBar::item:default { background: green; } QMenuBar::item:checked { background: blue; } QMenuBar::item:pressed {  background: white; }"
-        # self.setStyleSheet(style)
-
         self.make_base_menu()
     
     def make_base_menu(self):
-        # l1 = IPMenuLabel("Test", self)
-        b1 = QPushButton("bob")
-        self.wa1 = QWidgetAction(self)
-        self.wa1.setDefaultWidget(b1)
-        self.addAction(self.wa1)
-
         # This is where we create the menus/actions that will be visible 
         # for all of the tabs
 
@@ -71,7 +62,7 @@ class IPMainMenuBar(QMenuBar):
         self.addMenu(self.view_menu)
         self.addSeparator()
 
-        self.action_control = QAction(self.tr('Control Panel'), self)
+        self.action_control = QAction(self.tr('Control Panel \u2193'), self)
         self.action_control.setObjectName('fred')
         self.action_control.setCheckable(True)
         self.action_control.toggled.connect(self.main_window.toggle_settings)
@@ -102,6 +93,8 @@ class IPMainMenuBar(QMenuBar):
                             'location': self.action_location,
                             'spectral': self.action_spectral,
                             'database': self.action_database}
+        
+        self.toggle_enable('waveforms')
 
         widget_group = QActionGroup(self)
         widget_group.addAction(self.action_waveforms)
@@ -126,14 +119,9 @@ class IPMainMenuBar(QMenuBar):
     @pyqtSlot(bool)
     def control_toggled(self, checked):
         if checked:
-            font = self.action_control.font()
-            font.setBold(True)
-            # self.action_control.setText("ON")
-            self.action_control.setFont(font)
+            self.action_control.setText("Control Panel \u2191")
         else:
-            font = self.action_control.font()
-            font.setBold(False)
-            # self.action_control.setFont(font)
+            self.action_control.setText("Control Panel \u2193")
 
     @pyqtSlot(str)
     def toggle_enable(self, active_action):

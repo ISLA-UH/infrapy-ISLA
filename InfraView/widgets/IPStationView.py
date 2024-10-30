@@ -48,6 +48,11 @@ class IPStationView(QWidget):
 
     def buildUI(self):
 
+        self.setAutoFillBackground(True)
+        pal = self.palette()
+        pal.setColor(QPalette.Window, Qt.white)
+        self.setPalette(pal)
+
         self.buildIcons()
 
         self.station_TabWidget = QTabWidget()
@@ -492,6 +497,11 @@ class IPArrayView(QWidget):
 
     def __init__(self, parent):
         super().__init__(parent)
+
+        self.setAutoFillBackground(True)
+        pal = self.palette()
+        pal.setColor(QPalette.Window, Qt.white)
+        self.setPalette(pal)
 
         self.sta_spi = None
         self.chan_spi = None
