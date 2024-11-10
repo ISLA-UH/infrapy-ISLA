@@ -64,7 +64,7 @@ class IPMainMenuBar(QMenuBar):
         self.addMenu(self.view_menu)
         self.addSeparator()
 
-        self.action_control = QAction(self.tr('Control Panel \u2193'), self)
+        self.action_control = QAction(self.tr('Settings \u2193'), self)
         self.action_control.setObjectName('fred')
         self.action_control.setCheckable(True)
         self.action_control.toggled.connect(self.main_window.toggle_settings)
@@ -148,9 +148,9 @@ class IPMainMenuBar(QMenuBar):
     @pyqtSlot(bool)
     def control_toggled(self, checked):
         if checked:
-            self.action_control.setText("Control Panel \u2191")
+            self.action_control.setText("Settings \u2191") # up arrow
         else:
-            self.action_control.setText("Control Panel \u2193")
+            self.action_control.setText("Settings \u2193") # down arrow
 
     @pyqtSlot(str)
     def toggle_enable(self, active_action):

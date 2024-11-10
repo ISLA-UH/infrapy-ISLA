@@ -1,9 +1,8 @@
 from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QFrame
 from PyQt5.QtCore import Qt, pyqtSlot
 
-from InfraView.widgets import IPBaseWidgets
-from InfraView.widgets import IPSingleSensorWidget
-from InfraView.widgets import IPBeamformingSettingsWidget
+from InfraView.widgets.settings_widgets import IPBeamformingSettingsWidget
+from InfraView.widgets.settings_widgets import IPSpectrogramSettingsWidget
 from InfraView.widgets.settings_widgets import IPLocationSettingsWidget
 from InfraView.widgets.settings_widgets import IPWaveformSettingsWidget
 from InfraView.widgets.settings_widgets import IPDatabaseSettingsWidget
@@ -29,11 +28,13 @@ class IPSettingsManager(QFrame):
         layout.addWidget(self.settings_stack)
         layout.addStretch()
         layout.addLayout(hide_layout)
+
+        self.setLayout(layout)
+
         self.setObjectName("settingsManager")
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setStyleSheet("#settingsManager {border: 1px solid #777;} ")
 
-        self.setLayout(layout)
         self.setVisible(False)
 
     def hide(self):
@@ -43,7 +44,7 @@ class IPSettingsManager(QFrame):
         
         self.settings_widget_dict['database'] = IPDatabaseSettingsWidget.IPDatabaseSettingsWidget(self)
         self.settings_widget_dict['waveforms'] = IPWaveformSettingsWidget.IPWaveformSettingsWidget(self)
-        self.settings_widget_dict['spectral'] = IPSingleSensorWidget.IPSpectrogramSettingsWidget(self)
+        self.settings_widget_dict['spectral'] = IPSpectrogramSettingsWidget.IPSpectrogramSettingsWidget(self)
         self.settings_widget_dict['location'] = IPLocationSettingsWidget.IPLocationSettingsWidget(parent=self)
         self.settings_widget_dict['beamforming'] = IPBeamformingSettingsWidget.IPBeamformingSettingsWidget(self)
 

@@ -25,7 +25,6 @@ from InfraView.widgets import IPNewDetectionDialog
 from InfraView.widgets import IPPickLine
 from InfraView.widgets import IPPlotItem
 from InfraView.widgets import IPPolarPlot
-from InfraView.widgets import IPBeamformingSettingsWidget
 from InfraView.widgets import IPSaveBeamformingResultsDialog
 from InfraView.widgets import IPUtils
 
