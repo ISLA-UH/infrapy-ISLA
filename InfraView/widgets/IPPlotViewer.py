@@ -6,6 +6,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (QWidget, QDoubleSpinBox, QLabel, 
                              QHBoxLayout, QVBoxLayout,
                              QScrollArea)
+from PyQt5.QtGui import QPalette
 
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPPlotItem
@@ -27,6 +28,11 @@ class IPPlotViewer(IPBaseWidgets.IPSplitter):
         self.buildUI()
 
     def buildUI(self):
+
+        # self.setAutoFillBackground(True)
+        # pal = self.palette()
+        # pal.setColor(QPalette.Window, Qt.white)
+        # self.setPalette(pal)
 
         self.pl_widget = IPPlotLayoutWidget(self)
         self.waveform_selector = IPWaveformSelectorWidget.IPWaveformSelectorWidget(self)

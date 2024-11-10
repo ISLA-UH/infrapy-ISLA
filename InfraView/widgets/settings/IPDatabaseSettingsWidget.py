@@ -82,18 +82,20 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
 
         row3_layout = QHBoxLayout()
         row3_layout.addWidget(self.url_edit)
+        row3_layout.addWidget(self.create_session_button)
+        row3_layout.addWidget(self.test_connection_button)
         row3_layout.addStretch()
 
-        row4_layout = QHBoxLayout()
-        row4_layout.addWidget(self.create_session_button)
-        row4_layout.addWidget(self.test_connection_button)
-        row4_layout.addStretch()
+        # row4_layout = QHBoxLayout()
+        # row4_layout.addWidget(self.create_session_button)
+        # row4_layout.addWidget(self.test_connection_button)
+        # row4_layout.addStretch()
 
         main_layout = QVBoxLayout()
         main_layout.addLayout(row1_layout)
         main_layout.addLayout(row2_layout)
         main_layout.addLayout(row3_layout)
-        main_layout.addLayout(row4_layout)
+        # main_layout.addLayout(row4_layout)
         main_layout.addStretch()
 
         self.setLayout(main_layout)

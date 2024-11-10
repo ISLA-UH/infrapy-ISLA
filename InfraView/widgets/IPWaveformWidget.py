@@ -3,7 +3,7 @@ import numpy as np
 
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt, pyqtSlot, QSettings
-from PyQt5.QtWidgets import (QWidget, QGridLayout, QTabWidget)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTabWidget)
 
 from InfraView.widgets import (IPFilterSettingsWidget,
                                IPPlotViewer,
@@ -67,7 +67,7 @@ class IPWaveformWidget(QWidget):
         self.main_splitter.addWidget(self.lh_splitter)
         self.main_splitter.addWidget(self.rh_splitter)
 
-        main_layout = QGridLayout()
+        main_layout = QVBoxLayout()
         main_layout.addWidget(self.main_splitter)
 
         self.setLayout(main_layout)

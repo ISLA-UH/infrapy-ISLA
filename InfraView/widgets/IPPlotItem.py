@@ -284,7 +284,6 @@ class IPLinearRegionItem_Noise(LinearRegionItem):
         super().lineMovedFinished()
 
 
-
 class IPLinearRegionItem_Signal(LinearRegionItem):
 
     sig_IPRegion_Change_finished = pyqtSignal(tuple)

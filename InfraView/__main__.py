@@ -15,22 +15,15 @@ def main():
     progname = "InfraView"
     progversion = "0.4.1"
 
-    qApp = QtWidgets.QApplication(sys.argv)
-    icon_file = str(Path(__file__).parent / 'graphics' / 'icons' / 'start_64')
-    qApp.setWindowIcon(QIcon(icon_file))
-
-    style_file = str(Path(__file__).parent / 'resources' / 'styles' / 'default_style.qss')
-    with open(style_file, 'r') as sf:
-        stylestr = sf.read()
-        qApp.setStyleSheet(stylestr)
-
     my_system = platform.system()
     my_release = platform.release()
 
-    aw = IPApplicationWindow(qApp, progname, progversion)
+    qApp = QtWidgets.QApplication(sys.argv)
+    icon_file = str(Path(__file__).parent / 'resources' / 'graphics' / 'icons' / 'start_64')
+    qApp.setWindowIcon(QIcon(icon_file))
 
-    aw.setWindowTitle("%s" % progname)
-    aw.show()
+    aw = IPApplicationWindow(qApp, progname, progversion)
+    #aw.show()
 
     sys.exit(qApp.exec())
 

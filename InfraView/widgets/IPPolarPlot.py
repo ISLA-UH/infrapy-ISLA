@@ -13,7 +13,6 @@ class IPSlownessSettingsWidget(QGroupBox):
         self.setTitle("Slowness Plot")
         self.beamformingWidget = parent
 
-        
         self.buildUI()
 
     def buildUI(self):

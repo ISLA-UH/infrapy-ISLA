@@ -23,7 +23,6 @@ from PyQt5.QtWidgets import (QDialog, QFileDialog, QTabWidget, QStackedWidget,
 # Application includes
 from InfraView.widgets import IPBeamformingWidget
 from InfraView.widgets import IPDatabaseWidget
-from InfraView.widgets import IPDisplaySettingsWidget
 from InfraView.widgets import IPFDSNDialog
 from InfraView.widgets import IPLocationWidget
 from InfraView.widgets import IPMainMenu
@@ -129,6 +128,8 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.mainStack.addWidget(self.widget_dict['database'])
         self.mainStack.addWidget(self.widget_dict['spectral'])
 
+        self.activate_widget('waveforms')
+
 
         # Put the settings above the tabs
         mainLayout = QVBoxLayout(self.main_widget)
@@ -168,6 +169,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     @pyqtSlot(str)
     def activate_widget(self, name):
         self.mainStack.setCurrentWidget(self.widget_dict[name])
+        self.setWindowTitle(self.progname + " - " + name.title())
         self.sig_widget_changed.emit(name)
 
     def connectSignalsAndSlots(self):

@@ -33,10 +33,10 @@ class IPPSDWidget(QWidget):
         self.show()
 
     def buildUI(self):
-        self.setAutoFillBackground(True)
-        pal = self.palette()
-        pal.setColor(QPalette.Window, Qt.white)
-        self.setPalette(pal)
+        # self.setAutoFillBackground(True)
+        # pal = self.palette()
+        # pal.setColor(QPalette.Window, Qt.white)
+        # self.setPalette(pal)
 
         self.plotLayoutWidget = pg.GraphicsLayoutWidget()
         self.psdPlot = IPPlotItem(mode='PSD')

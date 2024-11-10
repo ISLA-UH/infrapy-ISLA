@@ -22,6 +22,8 @@ class IPMainMenuBar(QMenuBar):
         if platform.system() == 'Darwin':
            self.setNativeMenuBar(False)  # This is because I couldn't get the normal mac menu to work...
 
+        self.apply_stylesheet()
+
         self.make_base_menu()
     
     def make_base_menu(self):
@@ -115,6 +117,33 @@ class IPMainMenuBar(QMenuBar):
         self.addMenu(self.help_menu)
 
         self.sig_activate_widget.connect(self.toggle_enable)
+
+    def apply_stylesheet(self):
+        current_style = self.styleSheet()
+        print(current_style)
+
+        menu_style = '''
+        QMenuBar::item:hover{
+            background-color: #0F0;
+        }
+
+        QMenuBar::item:selected {
+            background-color: #0070C1;
+            color: #FFF
+        }
+
+        QMenuBar::item:pressed{
+            background-color: #E17800;
+            color: #FFF
+        }
+
+
+        QMenuBar::item:checked {
+            background-color: #0000FF
+        }'''
+
+        self.setStyleSheet(menu_style)
+
 
     @pyqtSlot(bool)
     def control_toggled(self, checked):
