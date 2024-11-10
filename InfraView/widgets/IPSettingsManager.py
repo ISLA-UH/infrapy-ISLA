@@ -4,9 +4,9 @@ from PyQt5.QtCore import Qt, pyqtSlot
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPSingleSensorWidget
 from InfraView.widgets import IPBeamformingSettingsWidget
-from InfraView.widgets.settings import IPLocationSettingsWidget
-from InfraView.widgets.settings import IPWaveformSettingsWidget
-from InfraView.widgets.settings import IPDatabaseSettingsWidget
+from InfraView.widgets.settings_widgets import IPLocationSettingsWidget
+from InfraView.widgets.settings_widgets import IPWaveformSettingsWidget
+from InfraView.widgets.settings_widgets import IPDatabaseSettingsWidget
 
 class IPSettingsManager(QFrame):
     def __init__(self, parent):

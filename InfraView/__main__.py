@@ -23,7 +23,7 @@ def main():
     qApp.setWindowIcon(QIcon(icon_file))
 
     aw = IPApplicationWindow(qApp, progname, progversion)
-    #aw.show()
+    aw.show()
 
     sys.exit(qApp.exec())
 
