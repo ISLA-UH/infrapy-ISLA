@@ -79,17 +79,24 @@ class IPSingleSensorWidget(QWidget):
         self.detectionPlot.setXLink(self.waveformPlot)
 
         ##### LAYOUT
-        glWidget = pg.GraphicsLayoutWidget()
-        glWidget.addItem(self.waveformPlot)
-        glWidget.nextRow()
-        glWidget.addItem(self.signalSpecWidget)
-        glWidget.nextRow()
-        glWidget.addItem(self.detectionPlot)
+        self.glWidget = pg.GraphicsLayoutWidget()
+        self.glWidget.addItem(self.waveformPlot)
+        self.glWidget.nextRow()
+        self.glWidget.addItem(self.signalSpecWidget)
+        self.glWidget.nextRow()
+        self.glWidget.addItem(self.detectionPlot)
 
         main_layout.setMenuBar(self.toolbar)
-        main_layout.addWidget(glWidget)
+        main_layout.addWidget(self.glWidget)
 
         self.setLayout(main_layout)
+
+    @pyqtSlot(str)
+    def update_theme(self, t):
+        if t == 'light':
+            self.glWidget.setBackground((255,255,255))
+        elif t == 'dark':
+            self.glWidget.setBackground(IPUtils.ip_dark_grey)
 
     @pyqtSlot(float)
     def update_values(self):

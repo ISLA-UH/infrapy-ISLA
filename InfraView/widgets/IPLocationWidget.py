@@ -15,6 +15,7 @@ import numpy as np
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster, set_link_color_palette
 from scipy.spatial.distance import pdist, squareform
@@ -144,28 +145,14 @@ class IPLocationWidget(QWidget):
         self.bislThread = QThread()
         self.clusterThread = QThread()
 
-    # def make_toolbar(self):
-    #     self.toolbar = QToolBar()
-
-
-    #     # The export option has a dropdown menu to select what to export
-    #     self.toolButton_export = QToolButton()
-    #     self.toolButton_export.setText("Export")
-    #     self.toolButton_export.setPopupMode(QToolButton.InstantPopup)
-
-    #     self.export_menu = QMenu()
-    #     self.export_map_act = QAction("Map", self)
-    #     self.export_map_act.triggered.connect(self.mapWidget.map_export_dialog.exec_)
-    #     self.export_assoc_act = QAction("Associations")
-    #     self.export_dm_act = QAction("Distance Matrix")
-    #     self.export_menu.addAction(self.export_map_act)
-    #     #self.export_menu.addAction(self.export_assoc_act)
-    #     #self.export_menu.addAction(self.export_dm_act)
-    #     self.toolButton_export.setMenu(self.export_menu)
-    #     #self.export_act.triggered.connect()
-
-    #     self.toolbar.addSeparator()
-    #     self.toolbar.addWidget(self.toolButton_export)
+    @pyqtSlot(str)
+    def update_theme(self, t):
+        if t == 'light':
+            self.dm_view.gl_layout.setBackground((255,255,255))
+        elif t == 'dark':
+            self.dm_view.gl_layout.setBackground(IPUtils.ip_dark_grey)
+        self.mapWidget.update_theme(t)
+        self.dendrogram.update_theme(t)
 
     def set_controlling_widget(self, widget):
         # for this, it's the location settings widget, which contains map settings and extent settings
@@ -633,13 +620,13 @@ class IPDistanceMatrixWidget(QWidget):
     def buildUI(self):
         self.dm_plotitem = IPDistanceMatrixPlot()
 
-        gl_layout = pg.GraphicsLayoutWidget()
-        gl_layout.addItem(self.dm_plotitem)
+        self.gl_layout = pg.GraphicsLayoutWidget()
+        self.gl_layout.addItem(self.dm_plotitem)
 
         instruct_label = QLabel("Click on a cluster to choose detections to run BISL on.")
 
         layout = QVBoxLayout()
-        layout.addWidget(gl_layout)
+        layout.addWidget(self.gl_layout)
         layout.addWidget(instruct_label)
         self.setLayout(layout)
 
@@ -1104,12 +1091,18 @@ class IPDendrogramWidget(QWidget):
         self.axes.set_title('Associations')
         self.axes.title.set_size(10)
 
-        self.axes.tick_params(axis='both', labelsize=8)
-
+        c = '0.6'
+        self.axes.tick_params(axis='both', labelsize=8, colors=c)
+        self.axes.title.set_color(c)
+        for spine in ['top', 'right', 'bottom', 'left']:
+            self.axes.spines[spine].set_color(c)
         self.axes.set_xlabel('Detection Number')
         self.axes.set_ylabel('Distance')
         self.axes.xaxis.label.set_size(8)
+        self.axes.xaxis.label.set_color(c)
+        self.axes.xaxis.label.set_color(c)
         self.axes.yaxis.label.set_size(8)
+        self.axes.yaxis.label.set_color(c)
 
         self.canvas = FigureCanvas(self.fig)
 
@@ -1117,6 +1110,16 @@ class IPDendrogramWidget(QWidget):
         layout.addWidget(self.canvas)
 
         self.setLayout(layout)
+
+    def update_theme(self, t):
+        #print(plt.style.available)
+        
+        if t == 'light':
+            self.fig.patch.set_facecolor('w')
+        elif t == 'dark':
+            self.fig.patch.set_facecolor(IPUtils.ip_dark_grey_hex)
+        
+        self.fig.canvas.draw()
 
     def set_data(self, links, threshold):
         self.axes.clear()

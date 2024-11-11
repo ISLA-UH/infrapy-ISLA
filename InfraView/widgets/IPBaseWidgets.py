@@ -63,7 +63,7 @@ class IPSplitter(QSplitter):
     def __init__(self, orientation, parent=None):
         super().__init__(orientation, parent)
 
-        self.setStyleSheet("QSplitter::handle{ background-color: #888; width: 50; height: 1;}")
+        self.setHandleWidth(1)
 
 class IPWidget(QWidget):
     def __init__(self, parent=None):

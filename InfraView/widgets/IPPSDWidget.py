@@ -92,6 +92,12 @@ class IPPSDWidget(QWidget):
 
         self.connectSignalsAndSlots()
 
+    def update_theme(self, t):
+        if t == 'light':
+            self.plotLayoutWidget.setBackground((255,255,255))
+        elif t == 'dark':
+            self.plotLayoutWidget.setBackground(utils.ip_dark_grey)
+
     def set_controlling_widget(self, widget):
         self.settings_widget = widget
 

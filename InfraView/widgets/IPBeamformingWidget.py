@@ -66,6 +66,7 @@ class IPBeamformingWidget(QWidget):
     _mp_pool = None
 
     lanl_blue = IPUtils.lanl_primary
+    reb_blue = IPUtils.reb_powder_blue
     lanl_light_blue = IPUtils.lanl_blue
     lanl_green = IPUtils.lanl_green
     lanl_orange = IPUtils.lanl_orange
@@ -115,7 +116,7 @@ class IPBeamformingWidget(QWidget):
         self.fstat_marker_label = pg.TextItem('', color=(150,150,150), anchor=(0,1))
         self.fstat_marker_label.setZValue(15)
         self.set_textitem_fontsize(self.fstat_marker_label, 10)
-        self.fstat_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=self.lanl_blue)
+        self.fstat_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=IPUtils.reb_powder_blue)
 
         self.threshold_line = pg.InfiniteLine(pos=0.0, angle=0.0, pen=pg.mkPen('b', width=2, moveable=True, style=QtCore.Qt.DotLine))
         self.threshold_label = pg.InfLineLabel(line=self.threshold_line, text='', movable=True, position=0.04, anchors=[(0.5,1), (0.5,1)])
@@ -189,7 +190,7 @@ class IPBeamformingWidget(QWidget):
         # --------------------------------------------
         # the slownessWidget will hold the slowness plot and the projection plot
 
-        slownessWidget = pg.GraphicsLayoutWidget()
+        self.slownessWidget = pg.GraphicsLayoutWidget()
 
         # Create the slowness plot and its dataitem
         self.slownessPlot = IPPolarPlot.IPSlownessPlot(self)
@@ -231,15 +232,15 @@ class IPBeamformingWidget(QWidget):
         self.slowness_backAz_label = pg.LabelItem('Back Azimuth (deg) = ', color=QColor(44, 44, 44))
         self.slowness_traceV_label = pg.LabelItem('Trace Velocity (m/s) = ', color=QColor(44, 44, 44))
 
-        slownessWidget.addItem(self.slownessPlot)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.slowness_time_label)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.slowness_backAz_label)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.slowness_traceV_label)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.projectionPlot)
+        self.slownessWidget.addItem(self.slownessPlot)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.slowness_time_label)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.slowness_backAz_label)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.slowness_traceV_label)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.projectionPlot)
         
 
         # ---------------------------------------------
@@ -256,7 +257,7 @@ class IPBeamformingWidget(QWidget):
 
         self.splitterTop = IPBaseWidgets.IPSplitter(Qt.Horizontal)
         self.splitterTop.addWidget(self.lhWidget)
-        self.splitterTop.addWidget(slownessWidget)
+        self.splitterTop.addWidget(self.slownessWidget)
         self.splitterBottom = IPBaseWidgets.IPSplitter(Qt.Horizontal)
         self.splitterBottom.addWidget(bottomWidget)
 
@@ -295,6 +296,15 @@ class IPBeamformingWidget(QWidget):
 
         self.bottomSettings.slowness_settings.colormap_cb.currentTextChanged.connect(self.slownessPlot.set_colormap)
 
+    @pyqtSlot(str)
+    def update_theme(self, t):
+    
+        if t == 'light':
+            self.lhWidget.setBackground((255,255,255))
+            self.slownessWidget.setBackground((255,255,255))
+        elif t == 'dark':
+            self.lhWidget.setBackground(IPUtils.ip_dark_grey)
+            self.slownessWidget.setBackground(IPUtils.ip_dark_grey)
 
     def make_toolbar(self):
         self.toolbar = QToolBar()
@@ -811,7 +821,7 @@ class IPBeamformingWidget(QWidget):
         method = self.bottomSettings.getMethod()
         if method == 'bartlett':
             symb = 'o'
-            fcolor = self.lanl_blue
+            fcolor = self.reb_blue
             tcolor = self.lanl_green
             bcolor = self.lanl_orange
         elif method == 'gls':

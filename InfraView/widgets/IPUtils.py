@@ -9,7 +9,8 @@ import pyqtgraph as pg
 
 # Define some useful colors here
 reb_blue = pg.mkColor(80, 159, 250)
-reb_red = pg.mkColor(255, 71, 71)   
+reb_red = pg.mkColor(255, 71, 71)  
+reb_powder_blue = pg.mkColor(0, 107, 166) 
 
 lanl_primary = pg.mkColor("#000F7E")
 lanl_gradient = pg.mkColor("#090238")
@@ -28,6 +29,9 @@ lanl_orange = pg.mkColor("#E17800")
 lanl_orange_tint = pg.mkColor("#FF9129")
 lanl_green = pg.mkColor("#00AA64")
 lanl_green_tint = pg.mkColor("#2CC486")
+
+ip_dark_grey = pg.mkColor("#303030")
+ip_dark_grey_hex = "#303030"
 
 # arrays of QColors
 # blue to red... one white color removed

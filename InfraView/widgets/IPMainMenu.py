@@ -1,4 +1,4 @@
-import platform
+import platform, platform
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import QKeySequence
@@ -13,6 +13,7 @@ class IPMenuLabel(QLabel):
 class IPMainMenuBar(QMenuBar):
 
     sig_activate_widget = pyqtSignal(str)
+    sig_set_theme = pyqtSignal(str)
 
     def __init__(self, parent, widget_dict):
         super().__init__(parent)
@@ -20,7 +21,7 @@ class IPMainMenuBar(QMenuBar):
         self.main_window = widget_dict['app_window']
 
         if platform.system() == 'Darwin':
-           self.setNativeMenuBar(False)  # This is because I couldn't get the normal mac menu to work...
+           self.setNativeMenuBar(False)  # This is because I couldn't get the normal mac menu to work correctly...
 
         self.apply_stylesheet()
 
@@ -51,7 +52,28 @@ class IPMainMenuBar(QMenuBar):
 
         # View Menu ############
         self.view_menu = QMenu('View', self)
+        if platform.system() == 'Linux':
+            self.dark_action = QAction(self.tr('Dark'), self)
+            self.dark_action.setCheckable(True)
 
+            self.light_action = QAction(self.tr('Light'), self)
+            self.light_action.setCheckable(True)
+            self.light_action.setChecked(True)
+
+            self.auto_action = QAction(self.tr('Auto'), self)
+            self.auto_action.setCheckable(True)
+
+            theme_actiongroup = QActionGroup(self)
+            theme_actiongroup.addAction(self.dark_action)
+            theme_actiongroup.addAction(self.light_action)
+            theme_actiongroup.addAction(self.auto_action)
+            theme_actiongroup.triggered.connect(self.change_theme)
+
+        self.view_menu.addSection("Theme")
+        self.view_menu.addAction(self.dark_action)
+        self.view_menu.addAction(self.light_action)
+        self.view_menu.addAction(self.auto_action)
+        self.view_menu.addSeparator()
         self.view_menu.addAction(self.tr(' Toggle Fullscreen'), 
                                  self.main_window.viewmenu_toggle_fullscreen, 
                                  shortcut=QKeySequence.FullScreen)
@@ -65,7 +87,6 @@ class IPMainMenuBar(QMenuBar):
         self.addSeparator()
 
         self.action_control = QAction(self.tr('Settings \u2193'), self)
-        self.action_control.setObjectName('fred')
         self.action_control.setCheckable(True)
         self.action_control.toggled.connect(self.main_window.toggle_settings)
         self.action_control.toggled.connect(self.control_toggled)
@@ -118,9 +139,17 @@ class IPMainMenuBar(QMenuBar):
 
         self.sig_activate_widget.connect(self.toggle_enable)
 
+    @pyqtSlot(QAction)
+    def change_theme(self, source):
+        if source == self.dark_action:
+            self.sig_set_theme.emit('dark')
+        elif source == self.light_action:
+            self.sig_set_theme.emit('light')
+        elif source == self.auto_action:
+            self.sig_set_theme.emit('auto')
+
     def apply_stylesheet(self):
-        current_style = self.styleSheet()
-        print(current_style)
+        '''manually set the stylesheet of the menu'''
 
         menu_style = '''
         QMenuBar::item:hover{

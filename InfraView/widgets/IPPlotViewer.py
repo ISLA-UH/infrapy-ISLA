@@ -12,7 +12,7 @@ from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPPlotItem
 from InfraView.widgets import IPWaveformSelectorWidget
 from InfraView.widgets import IPEventLine
-from InfraView.widgets import IPUtils
+from InfraView.widgets import IPUtils as utils
 
 from obspy.core import UTCDateTime
 from obspy.core.stream import Stream
@@ -28,11 +28,6 @@ class IPPlotViewer(IPBaseWidgets.IPSplitter):
         self.buildUI()
 
     def buildUI(self):
-
-        # self.setAutoFillBackground(True)
-        # pal = self.palette()
-        # pal.setColor(QPalette.Window, Qt.white)
-        # self.setPalette(pal)
 
         self.pl_widget = IPPlotLayoutWidget(self)
         self.waveform_selector = IPWaveformSelectorWidget.IPWaveformSelectorWidget(self)
@@ -113,8 +108,20 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         super().__init__(parent=parent)
         self.parent = parent
 
+        # self.setAutoFillBackground(True)
+        # pal = self.palette()
+        # pal.setColor(QPalette.Window, Qt.green)
+        # self.setPalette(pal)
+
         self.connect_signals_and_slots()
         self.setMouseTracking(True)
+
+    @pyqtSlot(str)
+    def update_theme(self, t):
+        if t == 'light':
+            self.setBackground((255,255,255))
+        elif t == 'dark':
+            self.setBackground(utils.ip_dark_grey)
 
     def connect_signals_and_slots(self):
         self.scene().sigMouseMoved.connect(self.myMouseMoved)

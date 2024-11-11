@@ -123,6 +123,12 @@ class IPSlownessPlot(pg.PlotItem):
 
         cmap = pg.colormap.get('jet', source='matplotlib')
         self.image_item.setColorMap(cmap)
+
+    def update_theme(self, t):
+        if t == 'light':
+            self.setBackground((255,255,255))
+        elif t == 'dark':
+            self.setBackground((50,50,50))
     
     def set_image(self, image, resolution, tracev_range):
 

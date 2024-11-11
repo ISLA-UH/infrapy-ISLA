@@ -72,9 +72,7 @@ class IPCustomViewBox(pg.ViewBox):
     def getMenu(self):
         if self.menu is None:
             self.menu = QMenu()
-            # self.viewAll = QAction("View All", self.menu)
             self.exportImage = QAction("Export Image", self.menu)
-            # self.exportImage.triggered.connect(self.export)
             self.menu.addAction(self.exportImage)
         return self.menu
 

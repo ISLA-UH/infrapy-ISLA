@@ -60,9 +60,6 @@ class IPStationView(QWidget):
         self.station_TabWidget.setTabsClosable(True)
         self.station_TabWidget.tabCloseRequested.connect(self.remove_station_from_inv)
 
-        #self.arrayViewWidget = IPArrayView(self)
-        #self.arrayViewWidget.setMinimumSize(200, 0)
-
         self.clearButton = QPushButton('Clear')
         button_font = self.clearButton.font()
         button_font.setPointSize(10)
@@ -550,6 +547,13 @@ class IPArrayView(QWidget):
         main_layout.addWidget(self.station_plot)
 
         self.setLayout(main_layout)
+
+    @pyqtSlot(bool)
+    def update_theme(self, t):
+        if t == 'light':
+            self.station_plot.setBackground((255,255,255))
+        elif t == 'dark':
+            self.station_plot.setBackground(IPUtils.ip_dark_grey)
 
     
     @pyqtSlot(bool)

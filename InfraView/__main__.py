@@ -8,6 +8,7 @@ import sys
 import platform
 
 from pathlib import Path
+
 from InfraView.widgets.IPApplicationWindow import *
 
 

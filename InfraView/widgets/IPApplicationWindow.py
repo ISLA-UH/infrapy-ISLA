@@ -1,6 +1,7 @@
 import pyqtgraph as pg
 import numpy as np
-import os
+import os, platform
+import qdarktheme
 from pathlib import Path
 
 
@@ -67,8 +68,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         self.ipApp = qApp   # reference to the application
 
-        pg.setConfigOption('background', 'w')
-        pg.setConfigOption('foreground', 'k')
         pg.setConfigOptions(antialias=True)
 
         self.progname = progname
@@ -76,12 +75,12 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         # initialize the multiproccessor pool
         self.mp_pool = mp.ProcessingPool(cpu_count() - 1)
-        #print("cpu count = {}".format(cpu_count()))
 
         font = self.font()
         font.setFamily('monospace')
 
         self.buildUI()
+        self.set_theme('light')
 
     def buildUI(self):
 
@@ -162,6 +161,15 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         pyqtRemoveInputHook()
         set_trace()
 
+    @pyqtSlot(str)
+    def set_theme(self, t):
+        if platform.system() == 'Linux':
+            qdarktheme.setup_theme(t, corner_shape='sharp')
+        self.widget_dict['waveforms'].update_theme(t)
+        self.widget_dict['beamforming'].update_theme(t)
+        self.widget_dict['spectral'].update_theme(t)
+        self.widget_dict['location'].update_theme(t)
+
     @pyqtSlot()
     def toggle_settings(self):
          self.settings_manager.setVisible(self.settings_manager.isHidden())
@@ -173,6 +181,8 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.sig_widget_changed.emit(name)
 
     def connectSignalsAndSlots(self):
+        self.menuBar.sig_set_theme.connect(self.set_theme)
+
         self.fdsnDialog.fdsnWidget.sigTracesAppended.connect(self.waveformWidget.appendTraces)
         self.fdsnDialog.fdsnWidget.sigTracesReplaced.connect(self.waveformWidget.replaceTraces)
 

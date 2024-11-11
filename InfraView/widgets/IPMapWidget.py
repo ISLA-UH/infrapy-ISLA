@@ -6,9 +6,10 @@ from PyQt5.QtGui import QPainter, QPaintEvent, QColor, QPalette
 
 
 from InfraView.widgets import IPBaseWidgets
+from InfraView.widgets import IPUtils
 
 import matplotlib
-
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -55,6 +56,7 @@ class IPMapWidget(QWidget):
         self.bisl_rslt = (None,None)  #(lat, lon)
         self.conf_ellipse = (None, None) #(dx, dy)
 
+        
         self.parent = parent
         self.buildUI()
 
@@ -73,6 +75,15 @@ class IPMapWidget(QWidget):
         self.setLayout(main_layout)
 
         self.compute_figure()
+
+    def update_theme(self, t):
+        if t == 'light':
+            self.fig.patch.set_facecolor('w')
+        elif t == 'dark':
+            self.fig.patch.set_facecolor(IPUtils.ip_dark_grey_hex)
+        plt.rcParams.update({'text.color': (0.5,0.5,0.5),
+                             'axes.labelcolor': (0.5,0.5,0.5)})
+        self.fig.canvas.draw()
        
 
     def connect_signals_and_slots(self):
@@ -107,6 +118,19 @@ class IPMapWidget(QWidget):
         self.transform = ccrs.PlateCarree()
 
         self.axes = self.fig.add_subplot(1, 1, 1, projection=self.projection)
+
+        c = '0.6'
+        self.axes.tick_params(axis='both', labelsize=8, colors=c)
+        self.axes.title.set_color(c)
+        for spine in ['top', 'right', 'bottom', 'left']:
+            self.axes.spines[spine].set_color(c)
+        self.axes.set_xlabel('Detection Number')
+        self.axes.set_ylabel('Distance')
+        self.axes.xaxis.label.set_size(8)
+        self.axes.xaxis.label.set_color(c)
+        self.axes.xaxis.label.set_color(c)
+        self.axes.yaxis.label.set_size(8)
+        self.axes.yaxis.label.set_color(c)
 
     @pyqtSlot()
     def draw_map(self, preserve_extent=False):
@@ -553,7 +577,7 @@ class IPMapWidget(QWidget):
         else:
             self.mouse_moved = True
             # if event.button is None:
-            self.axes.set_title('Lon = {:+f}, Lat = {:+f}'.format(event.xdata, event.ydata), loc='center', pad=20, fontsize=10)
+            self.axes.set_title('Lon = {:+f}, Lat = {:+f}'.format(event.xdata, event.ydata), loc='center', pad=20, fontsize=10, color='0.6')
             self.fig.canvas.draw()
 
     # matplotlib events are not to be confused with (py)Qt events

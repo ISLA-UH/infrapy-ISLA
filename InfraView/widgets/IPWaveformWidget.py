@@ -50,12 +50,12 @@ class IPWaveformWidget(QWidget):
         self.info_tabs.addTab(self.stationViewer, 'Inventory')
         self.info_tabs.addTab(self.statsViewer, 'Trace Info')
 
-        # self.filterSettingsWidget = IPFilterSettingsWidget.IPFilterSettingsWidget(self)
         self.psdWidget = IPPSDWidget.IPPSDWidget(self)
 
         self.plotViewer = IPPlotViewer.IPPlotViewer(self)
 
         self.lh_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Vertical, parent=self)
+        self.lh_splitter.setHandleWidth(1)
         self.lh_splitter.addWidget(self.plotViewer)
         self.lh_splitter.addWidget(self.info_tabs)
 
@@ -71,6 +71,12 @@ class IPWaveformWidget(QWidget):
         main_layout.addWidget(self.main_splitter)
 
         self.setLayout(main_layout)
+
+    @pyqtSlot(str)
+    def update_theme(self, t):
+        self.plotViewer.pl_widget.update_theme(t)
+        self.psdWidget.update_theme(t)
+        self.arrayViewer.update_theme(t)
 
     def connect_signals_and_slots(self):
         self.filterSettingsWidget.sig_filter_changed.connect(self.update_filtered_data)
