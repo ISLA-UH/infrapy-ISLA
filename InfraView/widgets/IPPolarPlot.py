@@ -45,7 +45,7 @@ class IPSlownessSettingsWidget(QGroupBox):
 
 
 class IPSlownessImageItem(pg.ImageItem):
-    sig_info_changed = pyqtSignal(str)
+    sig_info_changed = pyqtSignal(str, str)
 
     def __init__(self, parent):
         super().__init__()
@@ -75,8 +75,9 @@ class IPSlownessImageItem(pg.ImageItem):
             az = np.degrees(np.arctan2(x, y))
 
             if vel > self.tracev_range[0] and vel < self.tracev_range[1]:
-                info_str = 'Velocity: {:3.2f} m/s \n Azimuth: {:3.2f} deg.'.format(vel, az)
-                self.sig_info_changed.emit(info_str)
+                info_str1 = 'Velocity: {:3.2f} m/s'.format(vel)     
+                info_str2 = 'Azimuth: {:3.2f} deg.'.format(az)
+                self.sig_info_changed.emit(info_str1, info_str2)
 
 class IPSlownessPlot(pg.PlotItem):
 
@@ -88,7 +89,7 @@ class IPSlownessPlot(pg.PlotItem):
         self.resolution = 0
         self.hr = 1.
         self.image_item = IPSlownessImageItem(self)
-        self.image_item.sig_info_changed.connect(self.update_info_label)
+        self.image_item.sig_info_changed.connect(self.update_info_labels)
         self.tracev_range = ()
 
         self.addItem(self.image_item)
@@ -107,8 +108,13 @@ class IPSlownessPlot(pg.PlotItem):
         self.o_circle.setPen(pg.mkPen(width=3, color='k'))
         self.addItem(self.o_circle)
 
-        self.info_label = pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0))
-        self.addItem(self.info_label, ignoreBounds=True)
+        self.info_label1 = pg.LabelItem(text="")
+        self.info_label1.setParentItem(self.vb)
+        self.info_label1.anchor(itemPos=(0,0), parentPos=(0,0))
+
+        self.info_label2 = pg.LabelItem(text="")
+        self.info_label2.setParentItem(self.vb)
+        self.info_label2.anchor(itemPos=(1,0), parentPos=(1,0))
 
         self.radial_list = []
 
@@ -150,11 +156,9 @@ class IPSlownessPlot(pg.PlotItem):
         self.setAutoVisible(y=True, x=True)
         self.getViewBox().autoRange()
 
-        myRange = self.viewRange()
-        self.info_label.setPos(myRange[0][1], myRange[1][1])
-
-    def update_info_label(self, info_str):
-        self.info_label.setText(info_str)
+    def update_info_labels(self, info_str1, info_str2):
+        self.info_label1.setText(info_str1)
+        self.info_label2.setText(info_str2)
 
     def draw_radials(self):
         count = 8

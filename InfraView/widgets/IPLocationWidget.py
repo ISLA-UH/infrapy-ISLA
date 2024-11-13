@@ -77,16 +77,12 @@ class IPLocationWidget(QWidget):
         # set up dendrogram widget
         self.dendrogram = IPDendrogramWidget(self)
 
-        # set up the bisl settings widget
-        self.bislSettings = BISLSettings(self)
-
         # set up showgroundtruth widget
         self.showgroundtruth = ShowGroundTruth(self)
         self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(self.parent.waveformWidget.plotViewer.pl_widget.updateEventLines)
         self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(self.parent.waveformWidget.plotViewer.pl_widget.plotEventLines)
         self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(self.mapWidget.plot_ground_truth)
         self.showgroundtruth.event_widget.showGT_cb.stateChanged.connect(self.mapWidget.show_hide_ground_truth)
-
 
         # set up association settings widget
         self.assocSettings = AssociationSettings(self)
@@ -109,19 +105,10 @@ class IPLocationWidget(QWidget):
         self.loc_splitter.addWidget(self.mapWidget)
         self.loc_splitter.addWidget(self.assoc_splitter)
 
-        # layout holding BISL settings and results
-        self.bisl_widget = QFrame()
-        self.bisl_widget.setFrameStyle(QFrame.Box | QFrame.Plain)
-        self.bisl_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
-        bisl_layout = QHBoxLayout()
-        bisl_layout.addWidget(self.bislSettings)
-        bisl_layout.addWidget(self.bisl_resultsWidget)
-        self.bisl_widget.setLayout(bisl_layout)
-
         #layoutholding bisl_widget and ground truth widget
         self.bottomRow = QWidget(self)
         bottomRow_layout = QHBoxLayout()
-        bottomRow_layout.addWidget(self.bisl_widget)
+        bottomRow_layout.addWidget(self.bisl_resultsWidget)
         bottomRow_layout.addWidget(self.showgroundtruth)
         self.bottomRow.setLayout(bottomRow_layout)
     
@@ -158,7 +145,7 @@ class IPLocationWidget(QWidget):
         # for this, it's the location settings widget, which contains map settings and extent settings
         self.mapWidget.map_settings_widget = widget
         self.mapWidget.extentWidget = widget.extent_settings
-
+        self.bislSettings = widget.bisl_settings
         # now that we have settings widgets, we can initialize this widget
         self.initialize()
 
@@ -169,10 +156,10 @@ class IPLocationWidget(QWidget):
 
     def connectSignalsAndSlots(self):
 
-        self.bislSettings.run_bisl_button.clicked.connect(self.run_bisl)
-        self.bislSettings.update_dm_button.clicked.connect(self.calc_distance_matrix)
+        self.bisl_resultsWidget.action_run.triggered.connect(self.run_bisl)
+        self.bisl_resultsWidget.action_updateDM.triggered.connect(self.calc_distance_matrix)
+        #self.bislSettings.update_dm_button.clicked.connect(self.calc_distance_matrix)
         self.bislSettings.rng_max_edit.valueChanged.connect(self.mapWidget.update_range_max)
-
         self.bislSettings.confidence_edit.valueChanged.connect(self.bislSettings.enable_update_dm_button)
         self.bislSettings.confidence_edit.valueChanged.connect(self.calc_conf_ellipse)
 
@@ -353,7 +340,7 @@ class IPLocationWidget(QWidget):
         self.signal_start_dist_calc.emit()
         self.dm_view.showCalculatingText()
 
-        self.bislSettings.update_dm_button.setEnabled(False)
+        # self.bislSettings.update_dm_button.setEnabled(False)
 
     @pyqtSlot(np.ndarray)
     def dm_run_finished(self, data):
@@ -470,45 +457,45 @@ class BISLSettings(QWidget):
         title_label.setStyleSheet("font-weight: bold;")
         title_label.setAlignment(Qt.AlignCenter)
 
-        self.bm_width_edit = QDoubleSpinBox()
-        self.bm_width_edit.setMinimum(2.5)
-        self.bm_width_edit.setMaximum(45.0)
-        self.bm_width_edit.setValue(10)
-        self.bm_width_edit.setSuffix(' deg')
-        self.bm_width_edit.valueChanged.connect(self.enable_update_dm_button)
+        # self.bm_width_edit = QDoubleSpinBox()
+        # self.bm_width_edit.setMinimum(2.5)
+        # self.bm_width_edit.setMaximum(45.0)
+        # self.bm_width_edit.setValue(10)
+        # self.bm_width_edit.setSuffix(' deg')
+        # self.bm_width_edit.valueChanged.connect(self.enable_update_dm_button)
 
-        self.rng_max_edit = QSpinBox()
-        self.rng_max_edit.setMinimum(100)
-        self.rng_max_edit.setSingleStep(100)
-        self.rng_max_edit.setMaximum(np.pi * self.earth_radius)
-        self.rng_max_edit.setValue(3000)
-        self.rng_max_edit.setSuffix(' km')
-        self.rng_max_edit.valueChanged.connect(self.enable_update_dm_button)
+        # self.rng_max_edit = QSpinBox()
+        # self.rng_max_edit.setMinimum(100)
+        # self.rng_max_edit.setSingleStep(100)
+        # self.rng_max_edit.setMaximum(np.pi * self.earth_radius)
+        # self.rng_max_edit.setValue(3000)
+        # self.rng_max_edit.setSuffix(' km')
+        # self.rng_max_edit.valueChanged.connect(self.enable_update_dm_button)
 
-        self.resolution_edit = QDoubleSpinBox()
-        self.resolution_edit.setMinimum(.01)
-        self.resolution_edit.setMaximum(10)
-        self.resolution_edit.setValue(.05)
-        self.resolution_edit.valueChanged.connect(self.enable_update_dm_button)
+        # self.resolution_edit = QDoubleSpinBox()
+        # self.resolution_edit.setMinimum(.01)
+        # self.resolution_edit.setMaximum(10)
+        # self.resolution_edit.setValue(.05)
+        # self.resolution_edit.valueChanged.connect(self.enable_update_dm_button)
 
-        self.tm_resolution_edit = QSpinBox()
-        self.tm_resolution_edit.setMinimum(1)
-        self.tm_resolution_edit.setMaximum(600)
-        self.tm_resolution_edit.setValue(60)
-        self.tm_resolution_edit.valueChanged.connect(self.enable_update_dm_button)
+        # self.tm_resolution_edit = QSpinBox()
+        # self.tm_resolution_edit.setMinimum(1)
+        # self.tm_resolution_edit.setMaximum(600)
+        # self.tm_resolution_edit.setValue(60)
+        # self.tm_resolution_edit.valueChanged.connect(self.enable_update_dm_button)
 
-        self.confidence_edit = QSpinBox()
-        self.confidence_edit.setMinimum(1)
-        self.confidence_edit.setMaximum(99)
-        self.confidence_edit.setValue(95)
-        self.confidence_edit.setSuffix(' %')
+        # self.confidence_edit = QSpinBox()
+        # self.confidence_edit.setMinimum(1)
+        # self.confidence_edit.setMaximum(99)
+        # self.confidence_edit.setValue(95)
+        # self.confidence_edit.setSuffix(' %')
 
-        layout = QFormLayout()
-        layout.addRow(self.tr('Beam Width: '), self.bm_width_edit)
-        layout.addRow(self.tr('Range Max.: '), self.rng_max_edit)
-        layout.addRow(self.tr('Lat/Lon Resolution'), self.resolution_edit)
-        layout.addRow(self.tr('Time Resolution'), self.tm_resolution_edit)
-        layout.addRow(self.tr('Confidence'), self.confidence_edit)
+        # layout = QFormLayout()
+        # layout.addRow(self.tr('Beam Width: '), self.bm_width_edit)
+        # layout.addRow(self.tr('Range Max.: '), self.rng_max_edit)
+        # layout.addRow(self.tr('Lat/Lon Resolution'), self.resolution_edit)
+        # layout.addRow(self.tr('Time Resolution'), self.tm_resolution_edit)
+        # layout.addRow(self.tr('Confidence'), self.confidence_edit)
 
         self.run_bisl_button = QPushButton('Run BISL')
         button_font = self.run_bisl_button.font()
@@ -520,7 +507,7 @@ class BISLSettings(QWidget):
         
         mainlayout = QVBoxLayout()
         mainlayout.addWidget(title_label)
-        mainlayout.addLayout(layout)
+        # mainlayout.addLayout(layout)
         mainlayout.addStretch()
 
         buttonLayout = QHBoxLayout()
@@ -631,7 +618,7 @@ class IPDistanceMatrixWidget(QWidget):
         self.setLayout(layout)
 
     def showCalculatingText(self):
-        self.calc_text = pg.TextItem('...Calculating...', color=(20, 20, 20), fill=(255, 255, 255), anchor=(0.5, 0.5), border={'color': 'k', 'width': 1})
+        self.calc_text = pg.TextItem('...Calculating...', color=(128,128,128), fill=(255, 255, 255), anchor=(0.5, 0.5), border={'color': (128,128,128), 'width': 1})
         self.dm_plotitem.addItem(self.calc_text)
         self.calc_text.setPos(self.N / 2., self.N / 2.)
 
@@ -687,21 +674,21 @@ class IPDistanceMatrixWidget(QWidget):
         for i in range(self.N):
             # x-axis
             if self.sorted_labels is not None:
-                tx = pg.TextItem(str(self.sorted_labels[i]), anchor=(0.5, 0), color=(0, 0, 0))
-                ty = pg.TextItem(str(self.sorted_labels[i]), anchor=(0, 0.5), color=(0, 0, 0))
+                tx = pg.TextItem(str(self.sorted_labels[i]), anchor=(0.5, 0), color=(128,128,128))
+                ty = pg.TextItem(str(self.sorted_labels[i]), anchor=(0, 0.5), color=(128,128,128))
             else:
-                tx = pg.TextItem(str(i), anchor=(0.5, 0))
-                ty = pg.TextItem(str(i), anchor=(0, 0.5))
+                tx = pg.TextItem(str(i), anchor=(0.5, 0), color=(128,128,128))
+                ty = pg.TextItem(str(i), anchor=(0, 0.5), color=(128,128,128))
             tx.setPos(i, -0.5)
             ty.setPos(-1, i)
 
             self.dm_plotitem.addItem(tx)
             self.dm_plotitem.addItem(ty)
 
-        self.xlabel = pg.TextItem('Detection Number', anchor=(0.5, 0), color=(0, 0, 0))
+        self.xlabel = pg.TextItem('Detection Number', anchor=(0.5, 0), color=(128,128,128))
         self.xlabel.setPos((self.N - 1) / 2., -1.5)
 
-        self.ylabel = pg.TextItem('Detection Number', anchor=(0.5, 0), color=(0, 0, 0), angle=90)
+        self.ylabel = pg.TextItem('Detection Number', anchor=(0.5, 0), angle=90, color=(128,128,128))
         self.ylabel.setPos(-2, (self.N - 1) / 2.)
 
         self.dm_plotitem.addItem(self.xlabel)
@@ -1025,32 +1012,40 @@ class IPBISLResultsWidget(QWidget):
         self.buildUI()
 
     def buildUI(self):
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        tool_layout = self.make_toolbar()
+
         self.consoleBox = QTextEdit()
         self.consoleBox.setReadOnly(True)
 
-        self.clearButton = QPushButton('Clear')
-        button_font = self.clearButton.font()
-        button_font.setPointSize(10)
-
-        self.clearButton.setFont(button_font)
-        self.clearButton.setIcon(self.clearIcon)
-        self.clearButton.clicked.connect(self.clearConsole)
-
-        self.saveAsButton = QPushButton('Save As...')
-        self.saveAsButton.setFont(button_font)
-        self.saveAsButton.setIcon(self.saveAsIcon)
-        self.saveAsButton.clicked.connect(self.saveResults)
-
-        button_layout = QVBoxLayout()
-        button_layout.addWidget(self.clearButton)
-        button_layout.addWidget(self.saveAsButton)
-        button_layout.addStretch()
-
-        main_layout = QHBoxLayout()
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0,0,0,0)
+        main_layout.addLayout(tool_layout)
         main_layout.addWidget(self.consoleBox)
-        main_layout.addLayout(button_layout)
 
         self.setLayout(main_layout)
+
+    def make_toolbar(self):
+
+        tool_layout = QHBoxLayout()
+        tool_layout.setContentsMargins(0,0,0,0)
+        self.toolbar = QToolBar()
+        tool_layout.addWidget(self.toolbar)
+
+        self.action_run = QAction('Run BISL')
+        self.action_run.setToolTip('Run the Baysian Infrasound Source Locator')
+        self.action_updateDM = QAction('Update Distance Matrix')
+        self.action_clear = QAction('Clear')
+        self.action_clear.triggered.connect(self.clearConsole)
+        self.action_saveas = QAction('Save As...')
+        self.action_saveas.triggered.connect(self.saveResults)
+
+        self.toolbar.addAction(self.action_run)
+        self.toolbar.addAction(self.action_updateDM)
+        self.toolbar.addAction(self.action_clear)
+        self.toolbar.addAction(self.action_saveas)
+
+        return tool_layout
 
     def buildIcons(self):
         self.clearIcon = QIcon.fromTheme("edit-clear")
@@ -1112,8 +1107,6 @@ class IPDendrogramWidget(QWidget):
         self.setLayout(layout)
 
     def update_theme(self, t):
-        #print(plt.style.available)
-        
         if t == 'light':
             self.fig.patch.set_facecolor('w')
         elif t == 'dark':

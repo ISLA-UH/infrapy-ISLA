@@ -52,7 +52,7 @@ class IPMainMenuBar(QMenuBar):
 
         # View Menu ############
         self.view_menu = QMenu('View', self)
-        if platform.system() == 'Linux':
+        if platform.system() == 'Linux' or platform.system() == 'Windows':
             self.dark_action = QAction(self.tr('Dark'), self)
             self.dark_action.setCheckable(True)
 
@@ -60,19 +60,19 @@ class IPMainMenuBar(QMenuBar):
             self.light_action.setCheckable(True)
             self.light_action.setChecked(True)
 
-            self.auto_action = QAction(self.tr('Auto'), self)
-            self.auto_action.setCheckable(True)
+            # self.auto_action = QAction(self.tr('Auto'), self)
+            # self.auto_action.setCheckable(True)
 
             theme_actiongroup = QActionGroup(self)
             theme_actiongroup.addAction(self.dark_action)
             theme_actiongroup.addAction(self.light_action)
-            theme_actiongroup.addAction(self.auto_action)
+            # theme_actiongroup.addAction(self.auto_action)
             theme_actiongroup.triggered.connect(self.change_theme)
 
         self.view_menu.addSection("Theme")
         self.view_menu.addAction(self.dark_action)
         self.view_menu.addAction(self.light_action)
-        self.view_menu.addAction(self.auto_action)
+        # self.view_menu.addAction(self.auto_action)
         self.view_menu.addSeparator()
         self.view_menu.addAction(self.tr(' Toggle Fullscreen'), 
                                  self.main_window.viewmenu_toggle_fullscreen, 

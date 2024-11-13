@@ -68,7 +68,8 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         self.ipApp = qApp   # reference to the application
 
-        pg.setConfigOptions(antialias=True)
+        # pg.setConfigOption(antialias=True)
+        pg.setConfigOption('foreground', pg.mkColor(128,128,128))
 
         self.progname = progname
         self.progversion = progversion
@@ -163,7 +164,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot(str)
     def set_theme(self, t):
-        if platform.system() == 'Linux':
+        if platform.system() == 'Linux' or platform.system() == 'Windows':
             qdarktheme.setup_theme(t, corner_shape='sharp')
         self.widget_dict['waveforms'].update_theme(t)
         self.widget_dict['beamforming'].update_theme(t)

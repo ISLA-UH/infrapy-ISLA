@@ -113,7 +113,7 @@ class IPBeamformingWidget(QWidget):
         self.fstatPlot.setLabel('left', 'F-Statistic')
         self.fstat_marker = pg.PlotDataItem([],[], symbol='+', symbolSize='25')
         self.fstatPlot.addItem(self.fstat_marker)
-        self.fstat_marker_label = pg.TextItem('', color=(150,150,150), anchor=(0,1))
+        self.fstat_marker_label = pg.TextItem('', anchor=(0,1))
         self.fstat_marker_label.setZValue(15)
         self.set_textitem_fontsize(self.fstat_marker_label, 10)
         self.fstat_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=IPUtils.reb_powder_blue)
@@ -126,7 +126,7 @@ class IPBeamformingWidget(QWidget):
         self.threshold_label.textItem.setFont(t_font)
         self.fstatPlot.addItem(self.threshold_line)
         # this is the label that pops up to alert someone that the program is calculating the threshold
-        self.threshold_calculating_label = pg.TextItem('Calculating Threshold...', color=IPUtils.lanl_screen_text_black)
+        self.threshold_calculating_label = pg.TextItem('Calculating Threshold...', color=(128,128,128))
 
         self.traceVPlot = IPPlotItem.IPPlotItem(mode='waveform', est=None)
         self.traceVPlot.hideButtons()
@@ -136,7 +136,7 @@ class IPBeamformingWidget(QWidget):
         self.traceVPlot.setLabel('left', 'Trace Velocity (m/s)')
         self.traceV_marker = pg.PlotDataItem([],[], symbol='+', symbolSize='25')
         self.traceVPlot.addItem(self.traceV_marker)
-        self.traceV_marker_label = pg.TextItem('', color=(150,150,150), anchor=(0,1))
+        self.traceV_marker_label = pg.TextItem('', anchor=(0,1))
         self.traceV_marker_label.setZValue(15)
         self.set_textitem_fontsize(self.traceV_marker_label, 10)
         self.traceV_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=self.lanl_green)
@@ -150,10 +150,10 @@ class IPBeamformingWidget(QWidget):
         ba_ticks = [-180.0, -90.0, 0, 90.0, 180.0]
         la.setTicks([[(tic, str(tic)) for tic in ba_ticks]])
         self.backAzPlot.disableAutoRange(ViewBox.XAxis)
-        self.backAzPlot.setLabel('left', 'Back Azimuth (deg)')
+        self.backAzPlot.setLabel('left', 'Back Azimuth (deg)', color=(128,128,128))
         self.backAz_marker = pg.PlotDataItem([], [], symbol='+', symbolSize='25')
         self.backAzPlot.addItem(self.backAz_marker)
-        self.backAz_marker_label = pg.TextItem('', color=(150,150,150), anchor=(0,1))
+        self.backAz_marker_label = pg.TextItem('', anchor=(0,1))
         self.backAz_marker_label.setZValue(15)
         self.set_textitem_fontsize(self.backAz_marker_label, 10)
         self.backAz_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=self.lanl_orange)
@@ -228,9 +228,9 @@ class IPBeamformingWidget(QWidget):
         self.projectionPlot.setXRange(-180, 180)
         self.projectionPlot.getAxis('bottom').setTicks([[(-180, '-180'), (-90, '-90'), (0, '0'), (90, '90'), (180, '180')]])
 
-        self.slowness_time_label = pg.LabelItem('t = ', color=QColor(44, 44, 44))
-        self.slowness_backAz_label = pg.LabelItem('Back Azimuth (deg) = ', color=QColor(44, 44, 44))
-        self.slowness_traceV_label = pg.LabelItem('Trace Velocity (m/s) = ', color=QColor(44, 44, 44))
+        self.slowness_time_label = pg.LabelItem('t = ', color=QColor(128,128,128))
+        self.slowness_backAz_label = pg.LabelItem('Back Azimuth (deg) = ', color=(128,128,128))
+        self.slowness_traceV_label = pg.LabelItem('Trace Velocity (m/s) = ', color=(128,128,128))
 
         self.slownessWidget.addItem(self.slownessPlot)
         self.slownessWidget.nextRow()
@@ -345,8 +345,8 @@ class IPBeamformingWidget(QWidget):
         
         self.vline = pg.InfiniteLine(angle=90, movable=False, pen='k')
         self.hline = pg.InfiniteLine(angle=0, movable=False, pen='k')
-        self.position_label = pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0))
-        self.value_label = pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0))
+        self.position_label = pg.TextItem(html=None, anchor=(1, 0))
+        self.value_label = pg.TextItem(html=None, anchor=(1, 0))
 
         self.vline.setZValue(10)
         self.hline.setZValue(11)

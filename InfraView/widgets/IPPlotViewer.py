@@ -249,7 +249,7 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             self.v_lines[idx].setZValue(10)
             self.h_lines[idx].setZValue(11)
 
-            self.position_labels.append(pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0)))
+            self.position_labels.append(pg.TextItem(color=(128,128,128), html=None, anchor=(1, 0)))
 
             my_plot.addItem(self.v_lines[idx], ignoreBounds=True)
             my_plot.addItem(self.h_lines[idx], ignoreBounds=True)

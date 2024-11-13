@@ -1,8 +1,10 @@
-from PyQt5.QtWidgets import (QCheckBox, QHBoxLayout, QVBoxLayout, QFormLayout, QColorDialog,
+from PyQt5.QtWidgets import (QCheckBox, QHBoxLayout, QVBoxLayout, QFormLayout, QColorDialog, QSpinBox,
                              QGroupBox, QComboBox, QLabel, QPushButton, QFileDialog, QDoubleSpinBox)
 
-from PyQt5.QtCore import pyqtSignal, QSettings
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QSettings
 from PyQt5.QtGui import QColor
+
+import numpy as np
 
 from InfraView.widgets import IPBaseWidgets
 
@@ -112,12 +114,16 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         ### extent ###
         self.extent_settings = IPExtentSettingsWidget(title="Extent")
 
+        ### bisl ###
+        self.bisl_settings = IPBISLSettingsWidget(parent=self, title="BISL")
+
         ###   layouts   ###
         boxes_layout = QHBoxLayout()
         boxes_layout.addWidget(features_gb)
         boxes_layout.addWidget(colors_gb)
         boxes_layout.addWidget(options_gb)
         boxes_layout.addWidget(self.extent_settings)
+        boxes_layout.addWidget(self.bisl_settings)
 
         main_layout = QHBoxLayout()
         main_layout.addLayout(boxes_layout)
@@ -177,6 +183,87 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         settings.beginGroup('LocationWidget')
         settings.setValue('use_offline_cb', self.offline_checkbox.isChecked())
         settings.endGroup()
+
+
+class IPBISLSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
+
+    def __init__(self, title="", parent=None):
+        super().__init__(title=title, parent=parent)
+
+        self.earth_radius = 6378.1   # km
+
+        self.parent = parent
+        self.setTitle(self.tr(title))
+        self.buildUI()
+
+    def buildUI(self):
+
+        # self.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+
+        self.bm_width_edit = QDoubleSpinBox()
+        self.bm_width_edit.setMinimum(2.5)
+        self.bm_width_edit.setMaximum(45.0)
+        self.bm_width_edit.setValue(10)
+        self.bm_width_edit.setSuffix(' deg')
+        self.bm_width_edit.valueChanged.connect(self.enable_update_dm_button)
+
+        self.rng_max_edit = QSpinBox()
+        self.rng_max_edit.setMinimum(100)
+        self.rng_max_edit.setSingleStep(100)
+        self.rng_max_edit.setMaximum(np.pi * self.earth_radius)
+        self.rng_max_edit.setValue(3000)
+        self.rng_max_edit.setSuffix(' km')
+        self.rng_max_edit.valueChanged.connect(self.enable_update_dm_button)
+
+        self.resolution_edit = QDoubleSpinBox()
+        self.resolution_edit.setMinimum(.01)
+        self.resolution_edit.setMaximum(10)
+        self.resolution_edit.setValue(.05)
+        self.resolution_edit.valueChanged.connect(self.enable_update_dm_button)
+
+        self.tm_resolution_edit = QSpinBox()
+        self.tm_resolution_edit.setMinimum(1)
+        self.tm_resolution_edit.setMaximum(600)
+        self.tm_resolution_edit.setValue(60)
+        self.tm_resolution_edit.valueChanged.connect(self.enable_update_dm_button)
+
+        self.confidence_edit = QSpinBox()
+        self.confidence_edit.setMinimum(1)
+        self.confidence_edit.setMaximum(99)
+        self.confidence_edit.setValue(95)
+        self.confidence_edit.setSuffix(' %')
+
+        layout = QFormLayout()
+        layout.addRow(self.tr('Beam Width: '), self.bm_width_edit)
+        layout.addRow(self.tr('Range Max.: '), self.rng_max_edit)
+        layout.addRow(self.tr('Lat/Lon Resolution'), self.resolution_edit)
+        layout.addRow(self.tr('Time Resolution'), self.tm_resolution_edit)
+        layout.addRow(self.tr('Confidence'), self.confidence_edit)
+
+        # self.run_bisl_button = QPushButton('Run BISL')
+        # button_font = self.run_bisl_button.font()
+        # button_font.setPointSize(10)
+        # self.run_bisl_button.setFont(button_font)
+
+        # self.update_dm_button = QPushButton('Update Dist. Matrix')
+        # self.update_dm_button.setFont(button_font)
+        
+        # mainlayout = QVBoxLayout()
+        # mainlayout.addLayout(layout)
+        # mainlayout.addStretch()
+
+        # buttonLayout = QHBoxLayout()
+        # buttonLayout.addWidget(self.run_bisl_button)
+        # buttonLayout.addWidget(self.update_dm_button)
+
+        # mainlayout.addLayout(buttonLayout)
+
+        self.setLayout(layout)
+
+    @pyqtSlot(float)
+    @pyqtSlot(int)
+    def enable_update_dm_button(self, _):
+        self.update_dm_button.setEnabled(True)
 
 
 class IPExtentSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
