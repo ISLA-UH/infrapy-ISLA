@@ -30,8 +30,13 @@ lanl_orange_tint = pg.mkColor("#FF9129")
 lanl_green = pg.mkColor("#00AA64")
 lanl_green_tint = pg.mkColor("#2CC486")
 
+ip_darker_grey = pg.mkColor("#202020")
 ip_dark_grey = pg.mkColor("#303030")
 ip_dark_grey_hex = "#303030"
+ip_mid_grey = pg.mkColor(128,128,128)
+ip_light_grey = pg.mkColor(220,220,220)
+ip_black = pg.mkColor(0,0,0)
+ip_white = pg.mkColor(255,255,255)
 
 # arrays of QColors
 # blue to red... one white color removed

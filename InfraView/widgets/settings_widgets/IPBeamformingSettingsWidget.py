@@ -2,6 +2,8 @@ from PyQt5.QtWidgets import (QGroupBox, QComboBox, QCheckBox, QLabel, QDoubleSpi
                              QHBoxLayout, QFormLayout, QFrame, QPushButton)
 from PyQt5 import QtCore
 
+import pyqtgraph as pg
+
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPPolarPlot
 from InfraView.widgets import IPDetectorSettingsWidget
@@ -95,6 +97,12 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.tracev_max_spin.setSuffix(' m/s')
         self.tracev_max_spin.editingFinished.connect(self.checkTraceVRange)
 
+        #slowness colormap
+        self.colormap_cb = QComboBox()
+        available_maps = pg.colormap.listMaps(source='matplotlib')
+        self.colormap_cb.addItems(available_maps)
+        self.colormap_cb.setCurrentText('jet')
+
         # set everything to default settings
         self.set_defaults()
 
@@ -115,6 +123,7 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         formlayout_col6.addRow("Back Azimuth Resolution: ", self.backaz_resol_spin)
         formlayout_col6.addRow("Back Azimuth Start Angle: ", self.backaz_start_spin)
         formlayout_col6.addRow("Back Azimuth End Angle: ", self.backaz_end_spin)
+        formlayout_col6.addRow("Slowness Color Map: ", self.colormap_cb)
 
         formlayout_col7 = QFormLayout()
         formlayout_col7.addRow("Trace Vel. Resolution: ", self.tracev_resol_spin)
@@ -151,13 +160,14 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.detector_settings = IPDetectorSettingsWidget.IPDetectorSettingsWidget(self)
 
-        self.slowness_settings = IPPolarPlot.IPSlownessSettingsWidget(self)
+        #self.slowness_settings = IPPolarPlot.IPSlownessSettingsWidget(self)
+        #self.slowness_settings = IPSlownessSettingsWidget(self)
 
         main_layout = QHBoxLayout()
         main_layout.addWidget(analysis_gb)
         main_layout.addWidget(values_gb)
         main_layout.addWidget(self.detector_settings)
-        main_layout.addWidget(self.slowness_settings)
+        #main_layout.addWidget(self.slowness_settings)
         main_layout.addStretch()
 
         self.setLayout(main_layout)
@@ -310,3 +320,42 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
             self.subwindow_cb.setChecked(False)
             self.subwindow_cb.setEnabled(False)
             self.subWinLength_spin.setEnabled(False)
+
+
+
+class IPSlownessSettingsWidget(QGroupBox):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setTitle("Slowness Plot")
+        self.beamformingWidget = parent
+
+        self.buildUI()
+
+    def buildUI(self):
+        
+        colormap_label = QLabel("Color Map: ")
+        self.colormap_cb = QComboBox()
+
+        available_maps = pg.colormap.listMaps(source='matplotlib')
+        self.colormap_cb.addItems(available_maps)
+        self.colormap_cb.setCurrentText('jet')
+
+        #TODO:  Hardwire resolution?  Currently not displayed
+        resolution_label = QLabel("Resolution:")
+        self.resolution_spin = QSpinBox()
+        self.resolution_spin.setRange(10,1000)
+        self.resolution_spin.setMaximumWidth(70)
+        self.resolution_spin.setValue(300)
+        self.resolution_spin.setToolTip("Number of points (horizontal and vertical) that make up the slowness image.\nIf you want to 'smooth' the plot, reduce the size of the trace velocity step \nsize and the azimuth step size in the beamformer settings.")
+
+        form1_layout = QFormLayout()
+        form1_layout.addRow(colormap_label, self.colormap_cb)
+
+        self.setLayout(form1_layout)
+
+    def settings(self):
+        '''returns the current settings'''
+        settings = {'cmap': self.colormap_cb.currentText()}
+
+        return settings

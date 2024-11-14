@@ -44,17 +44,18 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         features_gb.setLayout(features_layout)
 
         ###   color settings   ###
-        colors_gb =IPBaseWidgets.IPSettingsGroupBox("Colors")
         ocean_color_label = QLabel("Oceans: ")
         self.ocean_color_button = IPBaseWidgets.IPColorButton(self.ocean_color)
         land_color_label = QLabel("Land: ")
         self.land_color_button = IPBaseWidgets.IPColorButton(self.land_color)
 
-        colors_layout = QFormLayout()
-        colors_layout.addRow(ocean_color_label, self.ocean_color_button)
-        colors_layout.addRow(land_color_label, self.land_color_button)
-
-        colors_gb.setLayout(colors_layout)
+        colors_layout1 = QFormLayout()
+        colors_layout1.addRow(ocean_color_label, self.ocean_color_button)
+        colors_layout2 = QFormLayout()
+        colors_layout2.addRow(land_color_label, self.land_color_button)
+        colors_layout = QHBoxLayout()
+        colors_layout.addLayout(colors_layout1)
+        colors_layout.addLayout(colors_layout2)
 
         ###   grid settings
         self.show_grid_checkbox = QCheckBox("Show Grid Lines ")
@@ -108,6 +109,7 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         options_layout.addLayout(resolution_layout)
         options_layout.addWidget(self.backgroud_image_checkbox)
         options_layout.addLayout(offline_layout)
+        options_layout.addLayout(colors_layout)
         options_layout.addStretch()
         options_gb.setLayout(options_layout)
 
@@ -120,7 +122,6 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         ###   layouts   ###
         boxes_layout = QHBoxLayout()
         boxes_layout.addWidget(features_gb)
-        boxes_layout.addWidget(colors_gb)
         boxes_layout.addWidget(options_gb)
         boxes_layout.addWidget(self.extent_settings)
         boxes_layout.addWidget(self.bisl_settings)
@@ -233,37 +234,28 @@ class IPBISLSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         self.confidence_edit.setValue(95)
         self.confidence_edit.setSuffix(' %')
 
-        layout = QFormLayout()
-        layout.addRow(self.tr('Beam Width: '), self.bm_width_edit)
-        layout.addRow(self.tr('Range Max.: '), self.rng_max_edit)
-        layout.addRow(self.tr('Lat/Lon Resolution'), self.resolution_edit)
-        layout.addRow(self.tr('Time Resolution'), self.tm_resolution_edit)
-        layout.addRow(self.tr('Confidence'), self.confidence_edit)
+        self.update_dm_button = QPushButton('Update Dist. Matrix')
+        self.update_dm_button.setEnabled(False)
 
-        # self.run_bisl_button = QPushButton('Run BISL')
-        # button_font = self.run_bisl_button.font()
-        # button_font.setPointSize(10)
-        # self.run_bisl_button.setFont(button_font)
+        layout1 = QFormLayout()
+        layout1.addRow(self.tr('Beam Width: '), self.bm_width_edit)
+        layout1.addRow(self.tr('Range Max.: '), self.rng_max_edit)
+        layout1.addRow(self.tr('Lat/Lon Resolution'), self.resolution_edit)
+        layout2 = QFormLayout()
 
-        # self.update_dm_button = QPushButton('Update Dist. Matrix')
-        # self.update_dm_button.setFont(button_font)
-        
-        # mainlayout = QVBoxLayout()
-        # mainlayout.addLayout(layout)
-        # mainlayout.addStretch()
+        layout2.addRow(self.tr('Time Resolution'), self.tm_resolution_edit)
+        layout2.addRow(self.tr('Confidence'), self.confidence_edit)
+        layout2.addRow("", self.update_dm_button)
 
-        # buttonLayout = QHBoxLayout()
-        # buttonLayout.addWidget(self.run_bisl_button)
-        # buttonLayout.addWidget(self.update_dm_button)
-
-        # mainlayout.addLayout(buttonLayout)
-
+        layout = QHBoxLayout()
+        layout.addLayout(layout1)
+        layout.addLayout(layout2)
         self.setLayout(layout)
 
     @pyqtSlot(float)
     @pyqtSlot(int)
     def enable_update_dm_button(self, _):
-        self.update_dm_button.setEnabled(True)
+        self.parent.bisl_settings.update_dm_button.setEnabled(True)
 
 
 class IPExtentSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):

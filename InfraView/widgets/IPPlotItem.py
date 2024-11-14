@@ -156,8 +156,15 @@ class IPPlotItem(pg.PlotItem):
             elif mode == 'plain':
                 pass
 
-    def setBackgroundColor(self, r, g, b):
-        self.vb.setBackgroundColor(QColor(r, g, b))
+    # def setBackgroundColor(self, r, g, b):
+    #     self.vb.setBackgroundColor(QColor(r, g, b))
+
+    def setBackgroundColor(self, color):
+        self.vb.setBackgroundColor(color)
+
+    def backgroundColor(self):
+        # return the current background color of the viewbox
+        return self.vb.state['background']
 
     def setEarliestStartTime(self, est):
         self.getAxis('bottom').set_earliest_start_time(est)

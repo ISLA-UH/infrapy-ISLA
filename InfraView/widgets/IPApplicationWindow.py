@@ -68,7 +68,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         self.ipApp = qApp   # reference to the application
 
-        # pg.setConfigOption(antialias=True)
+        pg.setConfigOption('antialias', True)
         pg.setConfigOption('foreground', pg.mkColor(128,128,128))
 
         self.progname = progname

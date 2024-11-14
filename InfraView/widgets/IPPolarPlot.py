@@ -3,45 +3,44 @@ import math
 
 import pyqtgraph as pg
 
-from PyQt5.QtWidgets import QComboBox, QGroupBox, QLabel, QPushButton, QHBoxLayout, QFormLayout, QSpinBox
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 
-class IPSlownessSettingsWidget(QGroupBox):
+# class IPSlownessSettingsWidget(QGroupBox):
 
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setTitle("Slowness Plot")
-        self.beamformingWidget = parent
+#     def __init__(self, parent):
+#         super().__init__(parent)
+#         self.setTitle("Slowness Plot")
+#         self.beamformingWidget = parent
 
-        self.buildUI()
+#         self.buildUI()
 
-    def buildUI(self):
+#     def buildUI(self):
         
-        colormap_label = QLabel("Color Map: ")
-        self.colormap_cb = QComboBox()
+#         colormap_label = QLabel("Color Map: ")
+#         self.colormap_cb = QComboBox()
 
-        available_maps = pg.colormap.listMaps(source='matplotlib')
-        self.colormap_cb.addItems(available_maps)
-        self.colormap_cb.setCurrentText('jet')
+#         available_maps = pg.colormap.listMaps(source='matplotlib')
+#         self.colormap_cb.addItems(available_maps)
+#         self.colormap_cb.setCurrentText('jet')
 
-        #TODO:  Hardwire resolution?  Currently not displayed
-        resolution_label = QLabel("Resolution:")
-        self.resolution_spin = QSpinBox()
-        self.resolution_spin.setRange(10,1000)
-        self.resolution_spin.setMaximumWidth(70)
-        self.resolution_spin.setValue(300)
-        self.resolution_spin.setToolTip("Number of points (horizontal and vertical) that make up the slowness image.\nIf you want to 'smooth' the plot, reduce the size of the trace velocity step \nsize and the azimuth step size in the beamformer settings.")
+#         #TODO:  Hardwire resolution?  Currently not displayed
+#         resolution_label = QLabel("Resolution:")
+#         self.resolution_spin = QSpinBox()
+#         self.resolution_spin.setRange(10,1000)
+#         self.resolution_spin.setMaximumWidth(70)
+#         self.resolution_spin.setValue(300)
+#         self.resolution_spin.setToolTip("Number of points (horizontal and vertical) that make up the slowness image.\nIf you want to 'smooth' the plot, reduce the size of the trace velocity step \nsize and the azimuth step size in the beamformer settings.")
 
-        form1_layout = QFormLayout()
-        form1_layout.addRow(colormap_label, self.colormap_cb)
+#         form1_layout = QFormLayout()
+#         form1_layout.addRow(colormap_label, self.colormap_cb)
 
-        self.setLayout(form1_layout)
+#         self.setLayout(form1_layout)
 
-    def settings(self):
-        '''returns the current settings'''
-        settings = {'cmap': self.colormap_cb.currentText()}
+#     def settings(self):
+#         '''returns the current settings'''
+#         settings = {'cmap': self.colormap_cb.currentText()}
 
-        return settings
+#         return settings
 
 
 class IPSlownessImageItem(pg.ImageItem):

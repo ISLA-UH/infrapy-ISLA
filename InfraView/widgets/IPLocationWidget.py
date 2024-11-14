@@ -157,8 +157,7 @@ class IPLocationWidget(QWidget):
     def connectSignalsAndSlots(self):
 
         self.bisl_resultsWidget.action_run.triggered.connect(self.run_bisl)
-        self.bisl_resultsWidget.action_updateDM.triggered.connect(self.calc_distance_matrix)
-        #self.bislSettings.update_dm_button.clicked.connect(self.calc_distance_matrix)
+        self.bislSettings.update_dm_button.clicked.connect(self.calc_distance_matrix)
         self.bislSettings.rng_max_edit.valueChanged.connect(self.mapWidget.update_range_max)
         self.bislSettings.confidence_edit.valueChanged.connect(self.bislSettings.enable_update_dm_button)
         self.bislSettings.confidence_edit.valueChanged.connect(self.calc_conf_ellipse)
@@ -340,7 +339,7 @@ class IPLocationWidget(QWidget):
         self.signal_start_dist_calc.emit()
         self.dm_view.showCalculatingText()
 
-        # self.bislSettings.update_dm_button.setEnabled(False)
+        self.bislSettings.update_dm_button.setEnabled(False)
 
     @pyqtSlot(np.ndarray)
     def dm_run_finished(self, data):
@@ -439,23 +438,23 @@ class IPLocationWidget(QWidget):
         settings.endGroup()
 
 
-class BISLSettings(QWidget):
+# class BISLSettings(QWidget):
 
-    earth_radius = 6378.1   # km
+#     earth_radius = 6378.1   # km
 
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        self.buildUI()
+#     def __init__(self, parent):
+#         super().__init__()
+#         self.parent = parent
+#         self.buildUI()
 
-    def buildUI(self):
+#     def buildUI(self):
 
-        self.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+#         self.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
 
-        title_label = QLabel('BISL')
-        title_label.setToolTip('Bayesian Infrasound Source Localization')
-        title_label.setStyleSheet("font-weight: bold;")
-        title_label.setAlignment(Qt.AlignCenter)
+#         title_label = QLabel('BISL')
+#         title_label.setToolTip('Bayesian Infrasound Source Localization')
+#         title_label.setStyleSheet("font-weight: bold;")
+#         title_label.setAlignment(Qt.AlignCenter)
 
         # self.bm_width_edit = QDoubleSpinBox()
         # self.bm_width_edit.setMinimum(2.5)
@@ -497,26 +496,26 @@ class BISLSettings(QWidget):
         # layout.addRow(self.tr('Time Resolution'), self.tm_resolution_edit)
         # layout.addRow(self.tr('Confidence'), self.confidence_edit)
 
-        self.run_bisl_button = QPushButton('Run BISL')
-        button_font = self.run_bisl_button.font()
-        button_font.setPointSize(10)
-        self.run_bisl_button.setFont(button_font)
+        # self.run_bisl_button = QPushButton('Run BISL')
+        # button_font = self.run_bisl_button.font()
+        # button_font.setPointSize(10)
+        # self.run_bisl_button.setFont(button_font)
 
-        self.update_dm_button = QPushButton('Update Dist. Matrix')
-        self.update_dm_button.setFont(button_font)
+        # self.update_dm_button = QPushButton('Update Dist. Matrix')
+        # self.update_dm_button.setFont(button_font)
         
-        mainlayout = QVBoxLayout()
-        mainlayout.addWidget(title_label)
-        # mainlayout.addLayout(layout)
-        mainlayout.addStretch()
+        # mainlayout = QVBoxLayout()
+        # mainlayout.addWidget(title_label)
+        # # mainlayout.addLayout(layout)
+        # mainlayout.addStretch()
 
-        buttonLayout = QHBoxLayout()
-        buttonLayout.addWidget(self.run_bisl_button)
-        buttonLayout.addWidget(self.update_dm_button)
+        # buttonLayout = QHBoxLayout()
+        # buttonLayout.addWidget(self.run_bisl_button)
+        # buttonLayout.addWidget(self.update_dm_button)
 
-        mainlayout.addLayout(buttonLayout)
+        # mainlayout.addLayout(buttonLayout)
 
-        self.setLayout(mainlayout)
+        # self.setLayout(mainlayout)
 
     @pyqtSlot(float)
     @pyqtSlot(int)
@@ -1034,14 +1033,12 @@ class IPBISLResultsWidget(QWidget):
 
         self.action_run = QAction('Run BISL')
         self.action_run.setToolTip('Run the Baysian Infrasound Source Locator')
-        self.action_updateDM = QAction('Update Distance Matrix')
         self.action_clear = QAction('Clear')
         self.action_clear.triggered.connect(self.clearConsole)
         self.action_saveas = QAction('Save As...')
         self.action_saveas.triggered.connect(self.saveResults)
 
         self.toolbar.addAction(self.action_run)
-        self.toolbar.addAction(self.action_updateDM)
         self.toolbar.addAction(self.action_clear)
         self.toolbar.addAction(self.action_saveas)
 

@@ -54,6 +54,7 @@ class IPBeamformingWidget(QWidget):
     _beam_collection = []   # This will hold the slowness plots for the current run
     _projection_collection = []
     _max_projection_data = None
+    beam_resolution = 300 # HARDCODED FOR NOW
 
     _t = []
     _trace_vel = []
@@ -294,7 +295,7 @@ class IPBeamformingWidget(QWidget):
         self.lhWidget.scene().sigMouseClicked.connect(self.myMouseClicked)
         self.detectionWidget.signal_detections_changed.connect(self.plotDetectionLines)
 
-        self.bottomSettings.slowness_settings.colormap_cb.currentTextChanged.connect(self.slownessPlot.set_colormap)
+        self.bottomSettings.colormap_cb.currentTextChanged.connect(self.slownessPlot.set_colormap)
 
     @pyqtSlot(str)
     def update_theme(self, t):
@@ -1004,8 +1005,6 @@ class IPBeamformingWidget(QWidget):
     def updateSlowness(self, slowness):
         # adds slowness to the slowness_collection
         self.slowness = slowness
-
-        self.beam_resolution = self.bottomSettings.slowness_settings.resolution_spin.value()
 
         sj_vals = np.linspace(-1/self.bottomSettings.tracev_min_spin.value(), 
                                1/self.bottomSettings.tracev_min_spin.value(), 
