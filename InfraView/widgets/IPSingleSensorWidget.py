@@ -146,7 +146,6 @@ class IPSingleSensorWidget(QWidget):
         adaptive_window_step = adaptive_window_length/2
 
         signal_t_range = self.signalSpecWidget.get_xrange()
-        print(t_s, signal_t_range[0])
         signal_window_mask = np.logical_and(signal_t_range[0] <= t_s, t_s <= signal_t_range[1])
         signal_t_window = t_s[signal_window_mask]
         signal_Sxx_window = Sxx_log[:, signal_window_mask]

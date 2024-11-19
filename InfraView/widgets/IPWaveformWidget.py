@@ -155,7 +155,7 @@ class IPWaveformWidget(QWidget):
 
         for trace in self._sts.select(id=trace_id):
             self._sts.remove(trace)
-            self.removeStation(trace.stats['network'], trace.stats['station'])
+            self.stationViewer.remove_station(station=trace.stats['station'], channel=trace.stats['channel'])
 
         self.statsViewer.setStats(self._sts)
 

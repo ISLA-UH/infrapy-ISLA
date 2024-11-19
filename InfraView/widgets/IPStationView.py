@@ -350,8 +350,8 @@ class IPStationView(QWidget):
         # ready to update the view
         self.update_station_view()
 
-    def remove_station(self, station):
-        self.inv = self.inv.remove(station=station, keep_empty=False)
+    def remove_station(self, station, channel='*'):
+        self.inv = self.inv.remove(station=station, channel=channel, keep_empty=False)
         self.update_station_view()
     
 

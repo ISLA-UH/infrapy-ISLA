@@ -43,7 +43,6 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
     def buildUI(self):
 
         self.load_config_button = QPushButton("Load Config...")
-        # This will be the font we will use through the widget...
 
         self.save_current_button = QPushButton("Save Config...")
         self.save_current_button.setEnabled(False)
@@ -85,11 +84,6 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         row3_layout.addWidget(self.create_session_button)
         row3_layout.addWidget(self.test_connection_button)
         row3_layout.addStretch()
-
-        # row4_layout = QHBoxLayout()
-        # row4_layout.addWidget(self.create_session_button)
-        # row4_layout.addWidget(self.test_connection_button)
-        # row4_layout.addStretch()
 
         main_layout = QVBoxLayout()
         main_layout.addLayout(row1_layout)

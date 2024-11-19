@@ -260,13 +260,13 @@ class IPDatabaseQueryResultsTable(QFrame):
         
 
     def get_session(self):
-        return self.parent.ipdatabase_connect_widget.session
+        return self.parent.ipdatabase_settings_widget.connect_widget.session
     
     def get_schema(self):
-        return self.parent.ipdatabase_connect_widget.schema_type_combo.currentText()
+        return self.parent.ipdatabase_settings_widget.connect_widget.schema_type_combo.currentText()
 
     def get_tables(self):
-        table_dictionary = self.parent.ipdatabase_connect_widget.table_dialog.get_tables_from_text()
+        table_dictionary = self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
         return table_dictionary
         
 
@@ -278,8 +278,6 @@ class IPEventsModel(QAbstractTableModel):
         self.origins = origins
         self.prefor = prefor
         self.col_headers = [c.name for c in self.origins[0].__table__.columns]
-
-        print(self.prefor)
 
     def rowCount(self, parent=None):
         return len(self.origins)
@@ -376,7 +374,6 @@ class IPEventQueryResultsTable(QFrame):
         self.tableView.setModel(self.model)
         self.tableView.reset()
 
-        print(prefor[0].orid)
         start_idx = self.model.index(0,0)
         # print(self.model.data(start_idx, Qt.DisplayRole))
         #mdl_idxs = self.model.match(QModelIndex(), Qt.DisplayRole, prefor[0].orid)
@@ -400,8 +397,8 @@ class IPEventQueryResultsTable(QFrame):
         
         for idx in model_idx:
             selected_origin = self.model.origins[idx.row()]
-            print(type(selected_origin))
             new_origin ={}
+            new_origin['Name'] = selected_origin.evid
             new_origin['Latitude'] = selected_origin.lat
             new_origin['Longitude'] = selected_origin.lon
             new_origin['UTC Date'] = UTCDateTime(selected_origin.time).date

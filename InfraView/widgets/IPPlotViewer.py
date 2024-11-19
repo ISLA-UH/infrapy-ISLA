@@ -61,7 +61,7 @@ class IPPlotViewer(IPBaseWidgets.IPSplitter):
         self.pl_widget.filtered_plot_lines.clear()
         self.pl_widget.clear()
         self.waveform_selector.clear_layout()
-        self.parent.spectraWidget.clearPlot()
+        self.parent.parent.singleSensorWidget.clearWaveformPlots()
         self.title.setText("")
 
     @pyqtSlot(Stream, Stream)
