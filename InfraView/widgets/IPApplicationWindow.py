@@ -1,7 +1,7 @@
 import pyqtgraph as pg
 import numpy as np
 import os, platform
-import qdarktheme
+import qdarktheme, darkdetect
 from pathlib import Path
 
 
@@ -81,7 +81,13 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         font.setFamily('monospace')
 
         self.buildUI()
-        self.set_theme('light')
+
+        if darkdetect.isLight():
+            self.menuBar.light_action.setChecked(True)
+            self.set_theme('light')
+        elif darkdetect.isDark():
+            self.menuBar.dark_action.setChecked(True)
+            self.set_theme('dark')
 
     def buildUI(self):
 

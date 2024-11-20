@@ -506,24 +506,28 @@ class IPBeamformingWidget(QWidget):
         self.waveformPlot.setXRange(self.region_range[0], self.region_range[1], padding=0)
 
     def keyPressEvent(self, evt):
-        if evt.key() == Qt.Key_Left:
-            if self.idx == 0:
+        try:
+            if evt.key() == Qt.Key_Left:
+                if self.idx == 0:
+                    return
+                new_idx = self.idx - 1
+            elif evt.key() == Qt.Key_Right:
+                if self.idx == len(self.proj_indexing):
+                    return
+                new_idx = self.idx + 1
+            else:
+                evt.accept()
                 return
-            new_idx = self.idx - 1
-        elif evt.key() == Qt.Key_Right:
-            if self.idx == len(self.proj_indexing):
-                return
-            new_idx = self.idx + 1
-        else:
-            evt.accept()
-            return
 
-        self.plot_projection_at_idx(new_idx)
-        self.plot_slowness_at_idx(new_idx)
-        self.update_markers(new_idx)
-        self.update_time_range(new_idx)
-        
-        evt.accept()
+            self.plot_projection_at_idx(new_idx)
+            self.plot_slowness_at_idx(new_idx)
+            self.update_markers(new_idx)
+            self.update_time_range(new_idx)
+            
+            evt.accept()
+        except AttributeError:
+            # no slowness plots yet, so we can just bail out
+            return
 
     def myMouseMoved(self, evt):
         # This takes care of the crosshairs

@@ -3,7 +3,7 @@ import platform, platform
 from PyQt5 import QtCore
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import QAction, QActionGroup, QMenuBar, QMenu, QLabel
-from PyQt5.QtCore import pyqtSlot, pyqtSignal
+from PyQt5.QtCore import pyqtSlot, pyqtSignal, Qt
 
 class IPMenuLabel(QLabel):
     def __init__(self, text, parent):
@@ -52,13 +52,12 @@ class IPMainMenuBar(QMenuBar):
 
         # View Menu ############
         self.view_menu = QMenu('View', self)
-        if platform.system() == 'Linux' or platform.system() == 'Windows':
+        if platform.system() == 'Linux' or platform.system() == 'Windows' or platform.system() == 'Darwin':
             self.dark_action = QAction(self.tr('Dark'), self)
             self.dark_action.setCheckable(True)
 
             self.light_action = QAction(self.tr('Light'), self)
             self.light_action.setCheckable(True)
-            self.light_action.setChecked(True)
 
             # self.auto_action = QAction(self.tr('Auto'), self)
             # self.auto_action.setCheckable(True)
@@ -88,27 +87,39 @@ class IPMainMenuBar(QMenuBar):
 
         self.action_control = QAction(self.tr('Settings \u2193'), self)
         self.action_control.setCheckable(True)
+        self.action_control.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Down))
+        self.action_control.setShortcutContext(Qt.ApplicationShortcut)
         self.action_control.toggled.connect(self.main_window.toggle_settings)
         self.action_control.toggled.connect(self.control_toggled)
 
-        self.action_waveforms = QAction(self.tr('Waveforms'), self)
+        self.action_waveforms = QAction(self.tr('&Waveforms'), self)
         self.action_waveforms.setCheckable(True)
+        self.action_waveforms.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_W))
+        self.action_waveforms.setShortcutContext(Qt.ApplicationShortcut)
         self.action_waveforms.triggered.connect(self.activate_waveforms)
 
-        self.action_beamforming = QAction(self.tr('Beamforming'), self)
+        self.action_beamforming = QAction(self.tr('&Beamforming'), self)
         self.action_beamforming.setCheckable(True)
+        self.action_beamforming.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_B))
+        self.action_beamforming.setShortcutContext(Qt.ApplicationShortcut)
         self.action_beamforming.triggered.connect(self.activate_beamforming)
 
-        self.action_location = QAction(self.tr('Location'), self)
+        self.action_location = QAction(self.tr('&Location'), self)
         self.action_location.setCheckable(True)
+        self.action_location.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_L))
+        self.action_location.setShortcutContext(Qt.ApplicationShortcut)
         self.action_location.triggered.connect(self.activate_location)
 
-        self.action_database = QAction(self.tr('Database'), self)
+        self.action_database = QAction(self.tr('&Database'), self)
         self.action_database.setCheckable(True)
+        self.action_database.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_D))
+        self.action_database.setShortcutContext(Qt.ApplicationShortcut)
         self.action_database.triggered.connect(self.activate_database)
 
-        self.action_spectral = QAction(self.tr('Spectral'), self)
+        self.action_spectral = QAction(self.tr('&Spectral'), self)
         self.action_spectral.setCheckable(True)
+        self.action_spectral.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_S))
+        self.action_spectral.setShortcutContext(Qt.ApplicationShortcut)
         self.action_spectral.triggered.connect(self.activate_spectral)
 
         self.action_dict = {'waveforms': self.action_waveforms,
@@ -178,8 +189,11 @@ class IPMainMenuBar(QMenuBar):
     def control_toggled(self, checked):
         if checked:
             self.action_control.setText("Settings \u2191") # up arrow
+            self.action_control.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Up))
         else:
             self.action_control.setText("Settings \u2193") # down arrow
+            self.action_control.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Down))
+        self.action_control.setShortcutContext(Qt.ApplicationShortcut)
 
     @pyqtSlot(str)
     def toggle_enable(self, active_action):

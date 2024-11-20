@@ -120,9 +120,9 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         formlayout_col2.addRow("Method: ", self.method_cb)
 
         formlayout_col6 = QFormLayout()
-        formlayout_col6.addRow("Back Azimuth Resolution: ", self.backaz_resol_spin)
-        formlayout_col6.addRow("Back Azimuth Start Angle: ", self.backaz_start_spin)
-        formlayout_col6.addRow("Back Azimuth End Angle: ", self.backaz_end_spin)
+        formlayout_col6.addRow("Back Az. Resolution: ", self.backaz_resol_spin)
+        formlayout_col6.addRow("Back Az. Start Angle: ", self.backaz_start_spin)
+        formlayout_col6.addRow("Back Az. End Angle: ", self.backaz_end_spin)
         formlayout_col6.addRow("Slowness Color Map: ", self.colormap_cb)
 
         formlayout_col7 = QFormLayout()

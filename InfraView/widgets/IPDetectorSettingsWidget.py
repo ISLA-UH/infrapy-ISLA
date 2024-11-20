@@ -64,13 +64,13 @@ class IPDetectorSettingsWidget(QGroupBox):
 
         self.det_type_group.addButton(self.auto_checkbox)
 
-        form_layout_col1.addRow("Automatically calculate threshold: ", self.auto_checkbox)
+        form_layout_col1.addRow("Auto threshold: ", self.auto_checkbox)
         form_layout_col1.addRow("Manual threshold level: ", self.manual_value)
         form_layout_col1.addRow("Detection p-value: ", self.pval_spin)
         form_layout_col1.addRow("Merge nearby detections", self.merge_detections_cb)
         
         
-        form_layout_col2.addRow("Back azimuth scatter limit: ", self.back_az_limit)
+        form_layout_col2.addRow("Back az. scatter limit: ", self.back_az_limit)
         form_layout_col2.addRow("Minimum peak width: ", self.min_peak_width)
         
         main_layout.addLayout(form_layout_col1)
