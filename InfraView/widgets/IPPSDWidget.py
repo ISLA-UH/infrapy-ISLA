@@ -42,7 +42,7 @@ class IPPSDWidget(QWidget):
         self.psdPlot = IPPlotItem(mode='PSD')
 
         self.psdPlot.setLabel('bottom', 'f (Hz)')
-        self.psdPlot.setLabel('left', 'Power Spectrßal Density (dB)')
+        self.psdPlot.setLabel('left', 'Power Spectral Density (dB)')
         self.psdPlot.setTitle("...")
 
         initdata = np.array([1])

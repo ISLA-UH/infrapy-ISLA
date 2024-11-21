@@ -151,7 +151,7 @@ class IPBeamformingWidget(QWidget):
         ba_ticks = [-180.0, -90.0, 0, 90.0, 180.0]
         la.setTicks([[(tic, str(tic)) for tic in ba_ticks]])
         self.backAzPlot.disableAutoRange(ViewBox.XAxis)
-        self.backAzPlot.setLabel('left', 'Back Azimuth (deg)', color=(128,128,128))
+        self.backAzPlot.setLabel('left', 'Back Azimuth (deg)')
         self.backAz_marker = pg.PlotDataItem([], [], symbol='+', symbolSize='25')
         self.backAzPlot.addItem(self.backAz_marker)
         self.backAz_marker_label = pg.TextItem('', anchor=(0,1))

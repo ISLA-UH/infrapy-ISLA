@@ -58,7 +58,12 @@ class IPSingleSensorWidget(QWidget):
         self.tool_runDetector_button.setText("Run Detector")
         self.tool_runDetector_button.clicked.connect(self.run_spectral_detector)
 
+        self.tool_clearDetections_button = QToolButton()
+        self.tool_clearDetections_button.setText("Clear Detections")
+        self.tool_clearDetections_button.clicked.connect(self.clear_detection_plot)
+
         self.toolbar.addWidget(self.tool_runDetector_button)
+        self.toolbar.addWidget(self.tool_clearDetections_button)
 
         ##### WAVEFORM PLOTS
         self.waveformPlot = IPPlotItem.IPPlotItem(mode='waveform', est=None, lris=False)
@@ -246,8 +251,11 @@ class IPSingleSensorWidget(QWidget):
         self.waveformPlot.setYRange(0, 1, padding=0)
 
         self.signalSpecWidget.clear_spectrogram()
-        self.detectionPlot.clear()
+        
+        self.clear_detection_plot()
 
+    def clear_detection_plot(self):
+        self.detectionPlot.clear()
         self.detectionPlot.spi.clear()
 
 
