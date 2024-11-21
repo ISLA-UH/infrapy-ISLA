@@ -82,6 +82,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         self.buildUI()
 
+        # Initialize theme based on current.   Sometimes works
         if darkdetect.isLight():
             self.menuBar.light_action.setChecked(True)
             self.set_theme('light')
@@ -116,15 +117,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         # now that we have a settings manager and settings widgets along with the actual controled widgets
         # we need to give a reference of the controlled widgets to the respective settings widgets
         self.settings_manager.connect_widgets_and_settings(self.widget_dict)
-    
-                               
-        # add the main widgets to the application tabs
-        # self.mainTabs = QTabWidget()
-        # self.mainTabs.addTab(self.waveformWidget, 'Waveforms')
-        # self.mainTabs.addTab(self.beamformingWidget, 'Beamforming')
-        # self.mainTabs.addTab(self.locationWidget, 'Location')
-        # self.mainTabs.addTab(self.databaseWidget, 'Database')
-        # self.mainTabs.addTab(self.singleSensorWidget, 'Spectral')
 
         # Add widgets to the main stack
         self.mainStack = QStackedWidget()
@@ -134,18 +126,16 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.mainStack.addWidget(self.widget_dict['database'])
         self.mainStack.addWidget(self.widget_dict['spectral'])
 
-        self.activate_widget('waveforms')
-
-
         # Put the settings above the tabs
         mainLayout = QVBoxLayout(self.main_widget)
-        mainLayout.addWidget(self.settings_manager)
+        mainLayout.addWidget(self.settings_manager)        # add the main widgets to the application tabs
         mainLayout.addWidget(self.mainStack)
         mainLayout.setContentsMargins(0,0,0,0)
 
         # All menu items should be located in makeMenuBar method
         self.menuBar = IPMainMenu.IPMainMenuBar(self, self.widget_dict)
         self.setMenuBar(self.menuBar)
+        self.menuBar.activate_waveforms(True)
 
         # Create Dialogs
         self.fdsnDialog = IPFDSNDialog.IPFDSNDialog(self)
@@ -170,8 +160,10 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot(str)
     def set_theme(self, t):
+        # linux and windows acknowledge the pyqtdark themes, mac does its own thing
         if platform.system() == 'Linux' or platform.system() == 'Windows':
             qdarktheme.setup_theme(t, corner_shape='sharp')
+        # Still need to update the pyqtgraph backgrounds and other similar things...
         self.widget_dict['waveforms'].update_theme(t)
         self.widget_dict['beamforming'].update_theme(t)
         self.widget_dict['spectral'].update_theme(t)
@@ -193,7 +185,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.fdsnDialog.fdsnWidget.sigTracesAppended.connect(self.waveformWidget.appendTraces)
         self.fdsnDialog.fdsnWidget.sigTracesReplaced.connect(self.waveformWidget.replaceTraces)
 
-        # new connections
         self.sig_stream_changed.connect(self.waveformWidget.update_streams)
         self.sig_inventory_changed.connect(self.waveformWidget.stationViewer.merge_new_inventory)
 
@@ -201,7 +192,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.beamformingWidget.detectionWidget.signal_detections_cleared.connect(self.locationWidget.detections_cleared)
 
         self.databaseWidget.ipdatabase_query_results_table.signal_new_stream_from_db.connect(self.database_add_streams)
-
         self.databaseWidget.ipevent_query_results_table.sig_origin_changed.connect(self.locationWidget.showgroundtruth.event_widget.setEvent)
 
         # connect tabs to the settings manager so it can adjust when tabs are clicked
@@ -366,7 +356,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     def filemenu_import(self):
         if self.fdsnDialog.exec_():
-            self.mainTabs.setCurrentIndex(0)
+            self.menuBar.activate_waveforms(True)
 
     def filemenu_ClearWaveforms(self):
         self.beamformingWidget.clearWaveformPlot()

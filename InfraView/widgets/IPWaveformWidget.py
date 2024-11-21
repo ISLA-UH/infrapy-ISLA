@@ -136,7 +136,7 @@ class IPWaveformWidget(QWidget):
 
             # self.sig_stream_changed.emit(self.waveformWidget._sts)
 
-            self.parent.mainTabs.setCurrentIndex(0)
+            self.parent.menuBar.activate_waveforms(True)
 
             self.parent.setStatus("Ready", 5000)
             

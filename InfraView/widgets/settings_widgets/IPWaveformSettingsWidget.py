@@ -230,7 +230,7 @@ class IPFilterSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
 
     def update_clicked(self):
         self.sig_filter_changed.emit(self.filter_settings)
-        self.parent.spectraWidget.updateFreqRange((self.highpassSpin.value(), self.lowpassSpin.value()))
+        # self.parent.spectraWidget.updateFreqRange((self.highpassSpin.value(), self.lowpassSpin.value()))
     
     def onActivated_zeroPhase(self, int):
         self.filter_settings['zphase'] = self.zeroPhase_checkbox.isChecked()

@@ -49,9 +49,6 @@ class IPStationView(QWidget):
     def buildUI(self):
 
         self.setAutoFillBackground(True)
-        # pal = self.palette()
-        # pal.setColor(QPalette.Window, Qt.white)
-        # self.setPalette(pal)
 
         self.buildIcons()
 
@@ -91,13 +88,6 @@ class IPStationView(QWidget):
         savebuttonLayout.addWidget(self.reconcileButton)
         savebuttonLayout.addStretch()
 
-        #mainHSplitter = IPBaseWidgets.IPSplitter(Qt.Horizontal,self)
-
-        #mainHSplitter.addWidget(self.station_TabWidget)
-        #mainHSplitter.addWidget(self.arrayViewWidget)
-
-        #mainHSplitter.setSizes([100000,100000])
-
         mainLayout = QHBoxLayout()
         mainLayout.addWidget(self.station_TabWidget)
         mainLayout.addLayout(savebuttonLayout)
@@ -123,9 +113,6 @@ class IPStationView(QWidget):
         self.saveAsButton.clicked.connect(self.saveStationsAs)
         self.loadButton.clicked.connect(self.loadStations)
         self.reconcileButton.clicked.connect(self.reconcileStations)
-
-        # self.inventory_changed.connect(self.arrayViewWidget.set_data)
-        # self.sig_inventory_cleared.connect(self.arrayViewWidget.clear)
 
     def get_inventory(self):
         return self.inv
@@ -226,8 +213,6 @@ class IPStationView(QWidget):
         self.inv = self.inv.remove(station=sta_name)
         
         self.update_station_view()
-
-    
 
     def saveStations(self):
     
