@@ -58,10 +58,10 @@ class IPMainMenuBar(QMenuBar):
 
         self.light_action = QAction(self.tr('Light'), self)
         self.light_action.setCheckable(True)
+        self.light_action.setChecked(True)
 
         self.auto_action = QAction(self.tr('Auto'), self)
         self.auto_action.setCheckable(True)
-        self.auto_action.setChecked(True)
 
         theme_actiongroup = QActionGroup(self)
         theme_actiongroup.addAction(self.dark_action)
@@ -72,7 +72,7 @@ class IPMainMenuBar(QMenuBar):
         self.view_menu.addSection("Theme")
         self.view_menu.addAction(self.dark_action)
         self.view_menu.addAction(self.light_action)
-        self.view_menu.addAction(self.auto_action)
+        # self.view_menu.addAction(self.auto_action)
         self.view_menu.addSeparator()
         self.view_menu.addAction(self.tr(' Toggle Fullscreen'), 
                                  self.main_window.viewmenu_toggle_fullscreen, 

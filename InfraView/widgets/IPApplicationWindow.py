@@ -178,7 +178,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     
     @pyqtSlot(str)
     def set_theme(self, t):
-        print("SET_THEME   {}".format(t), flush=True)
         if t == 'auto':
             t = darkdetect.theme().lower()
         
