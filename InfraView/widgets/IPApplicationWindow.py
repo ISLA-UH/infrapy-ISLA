@@ -158,12 +158,24 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         pyqtRemoveInputHook()
         set_trace()
 
+    @pyqtSlot()
+    def on_palette_change(self):
+        if platform.system() == 'Darwin' or self.menuBar.auto_action.isChecked():
+            # OSX is always auto set, if Linux or Windows, check to see if the theme is auto changed
+            if darkdetect.isLight():
+                self.menuBar.light_action.setChecked(True)
+                self.set_theme('light')
+            elif darkdetect.isDark():
+                self.menuBar.dark_action.setChecked(True)
+                self.set_theme('dark')
+
     @pyqtSlot(str)
     def set_theme(self, t):
         # linux and windows acknowledge the pyqtdark themes, mac does its own thing
         if platform.system() == 'Linux' or platform.system() == 'Windows':
             qdarktheme.setup_theme(t, corner_shape='sharp')
         # Still need to update the pyqtgraph backgrounds and other similar things...
+        print('t={}'.format(t))
         self.widget_dict['waveforms'].update_theme(t)
         self.widget_dict['beamforming'].update_theme(t)
         self.widget_dict['spectral'].update_theme(t)
@@ -181,6 +193,8 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     def connectSignalsAndSlots(self):
         self.menuBar.sig_set_theme.connect(self.set_theme)
+
+        self.ipApp.paletteChanged.connect(self.on_palette_change)
 
         self.fdsnDialog.fdsnWidget.sigTracesAppended.connect(self.waveformWidget.appendTraces)
         self.fdsnDialog.fdsnWidget.sigTracesReplaced.connect(self.waveformWidget.replaceTraces)

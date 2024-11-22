@@ -52,30 +52,35 @@ class IPMainMenuBar(QMenuBar):
 
         # View Menu ############
         self.view_menu = QMenu('View', self)
-        if platform.system() == 'Linux' or platform.system() == 'Windows' or platform.system() == 'Darwin':
-            self.dark_action = QAction(self.tr('Dark'), self)
-            self.dark_action.setCheckable(True)
 
-            self.light_action = QAction(self.tr('Light'), self)
-            self.light_action.setCheckable(True)
+        self.dark_action = QAction(self.tr('Dark'), self)
+        self.dark_action.setCheckable(True)
 
-            # self.auto_action = QAction(self.tr('Auto'), self)
-            # self.auto_action.setCheckable(True)
+        self.light_action = QAction(self.tr('Light'), self)
+        self.light_action.setCheckable(True)
 
-            theme_actiongroup = QActionGroup(self)
-            theme_actiongroup.addAction(self.dark_action)
-            theme_actiongroup.addAction(self.light_action)
-            # theme_actiongroup.addAction(self.auto_action)
-            theme_actiongroup.triggered.connect(self.change_theme)
+        self.auto_action = QAction(self.tr('Auto'), self)
+        self.auto_action.setCheckable(True)
+
+        theme_actiongroup = QActionGroup(self)
+        theme_actiongroup.addAction(self.dark_action)
+        theme_actiongroup.addAction(self.light_action)
+        theme_actiongroup.addAction(self.auto_action)
+        theme_actiongroup.triggered.connect(self.change_theme)
 
         self.view_menu.addSection("Theme")
         self.view_menu.addAction(self.dark_action)
         self.view_menu.addAction(self.light_action)
-        # self.view_menu.addAction(self.auto_action)
+        self.view_menu.addAction(self.auto_action)
         self.view_menu.addSeparator()
         self.view_menu.addAction(self.tr(' Toggle Fullscreen'), 
                                  self.main_window.viewmenu_toggle_fullscreen, 
                                  shortcut=QKeySequence.FullScreen)
+
+        if platform.system() == 'Darwin':
+            self.dark_action.setVisible(False)
+            self.light_action.setVisible(False)
+            self.auto_action.setVisible(False)
 
         # Help Menu ############
         self.help_menu = QMenu('&Help', self)
