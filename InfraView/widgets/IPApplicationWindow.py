@@ -82,13 +82,14 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         self.buildUI()
 
-        # Initialize theme based on current.   Sometimes works
-        if darkdetect.isLight():
-            self.menuBar.light_action.setChecked(True)
-            self.set_theme('light')
-        elif darkdetect.isDark():
-            self.menuBar.dark_action.setChecked(True)
-            self.set_theme('dark')
+        # Initialize theme based on what's checked.   Sometimes works
+        if self.menuBar.auto_action.isChecked():
+            self.set_theme(darkdetect.theme().lower())
+        else:
+            if self.menuBar.light_action.isChecked():
+                self.set_theme('light')
+            elif self.menuBar.dark_action.isChecked():
+                self.set_theme('dark')
 
     def buildUI(self):
 
@@ -160,22 +161,32 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot()
     def on_palette_change(self):
-        if platform.system() == 'Darwin' or self.menuBar.auto_action.isChecked():
-            # OSX is always auto set, if Linux or Windows, check to see if the theme is auto changed
-            if darkdetect.isLight():
-                self.menuBar.light_action.setChecked(True)
-                self.set_theme('light')
-            elif darkdetect.isDark():
-                self.menuBar.dark_action.setChecked(True)
+        print("palette changed", flush=True)
+        # OSX is always auto set, if Linux or Windows, check to see if the theme is auto changed
+        if platform.system() == 'Darwin':
+            self.set_theme(darkdetect.theme().lower())
+            return
+        # For linux and windows, check to see if auto is selected
+        print('woot', flush=True)
+        if self.menuBar.auto_action.isChecked():
+            if darkdetect.isDark():
+                print("it's dark!", flush=True)
                 self.set_theme('dark')
-
+            elif darkdetect.isLight():
+                print('its light!', flush=True)
+                self.set_theme('light')
+    
     @pyqtSlot(str)
     def set_theme(self, t):
+        print("SET_THEME   {}".format(t), flush=True)
+        if t == 'auto':
+            t = darkdetect.theme().lower()
+        
+        print("t= {}".format(t), flush=True)
         # linux and windows acknowledge the pyqtdark themes, mac does its own thing
         if platform.system() == 'Linux' or platform.system() == 'Windows':
             qdarktheme.setup_theme(t, corner_shape='sharp')
-        # Still need to update the pyqtgraph backgrounds and other similar things...
-        print('t={}'.format(t))
+        # Still need to update the pyqtgraph backgrounds and other similar things for all OSes...
         self.widget_dict['waveforms'].update_theme(t)
         self.widget_dict['beamforming'].update_theme(t)
         self.widget_dict['spectral'].update_theme(t)

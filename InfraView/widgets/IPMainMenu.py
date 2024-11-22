@@ -61,6 +61,7 @@ class IPMainMenuBar(QMenuBar):
 
         self.auto_action = QAction(self.tr('Auto'), self)
         self.auto_action.setCheckable(True)
+        self.auto_action.setChecked(True)
 
         theme_actiongroup = QActionGroup(self)
         theme_actiongroup.addAction(self.dark_action)
