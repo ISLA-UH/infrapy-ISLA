@@ -160,27 +160,22 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot()
     def on_palette_change(self):
-        print("palette changed", flush=True)
         # OSX is always auto set, if Linux or Windows, check to see if the theme is auto changed
         if platform.system() == 'Darwin':
             self.set_theme(darkdetect.theme().lower())
             return
         # For linux and windows, check to see if auto is selected
-        print('woot', flush=True)
         if self.menuBar.auto_action.isChecked():
             if darkdetect.isDark():
-                print("it's dark!", flush=True)
                 self.set_theme('dark')
             elif darkdetect.isLight():
-                print('its light!', flush=True)
                 self.set_theme('light')
     
     @pyqtSlot(str)
     def set_theme(self, t):
         if t == 'auto':
             t = darkdetect.theme().lower()
-        
-        print("t= {}".format(t), flush=True)
+
         # linux and windows acknowledge the pyqtdark themes, mac does its own thing
         if platform.system() == 'Linux' or platform.system() == 'Windows':
             qdarktheme.setup_theme(t, corner_shape='sharp')
