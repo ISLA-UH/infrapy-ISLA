@@ -24,7 +24,6 @@ from infrapy.detection import spectral
 class IPSingleSensorWidget(QWidget):
 
     waveform_data_item = None
-    noise_data_item = None
 
     spec_overlap = 0.8
     fs = 1.0
@@ -171,11 +170,6 @@ class IPSingleSensorWidget(QWidget):
     @pyqtSlot(object)
     def signal_region_changed(self, lri):
         #print('signal region changed {}'.format(lri.getRegion()))
-        pass
-
-    @pyqtSlot(object)
-    def noise_region_changed(self, lri):
-        #print('noise region changed {}'.format(lri.getRegion()))
         pass
 
     @pyqtSlot(pg.PlotDataItem, tuple, str)
@@ -355,7 +349,6 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.calc_spec_thread.start()
         self.sig_start_spec_calc.emit()
 
-
     @pyqtSlot(bool)
     def run_finished(self, success):
         if success:
@@ -451,6 +444,7 @@ class IPDetectionStatusDialog(QDialog):
     def finished_detections(self, value):
         self.detection_label.setText("Detections: " + str(value))
 
+
 class IPScatterPlotTimeAxis(pg.AxisItem):
     # subclass the basic axis item, mainly to make custom time axis
     start_time = UTCDateTime(0)
@@ -468,6 +462,7 @@ class IPScatterPlotTimeAxis(pg.AxisItem):
 
     def get_start_time(self):
         return self.start_time
+
 
 class IPDetectionPlotItem(pg.PlotItem):
     data_item = None
@@ -555,7 +550,6 @@ class IPDetectionPlotItem(pg.PlotItem):
         self.setLimits(xMin=t_range[0], xMax=t_range[1], yMin=f_range[0], yMax=f_range[1])
         self.full_range_y = [f_range[0], f_range[1]]
         self.set_yaxis(self.full_range_y)
-        
 
 
 class IPSpectrogramCalcWorker(QObject):

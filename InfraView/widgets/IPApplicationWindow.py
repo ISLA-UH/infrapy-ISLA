@@ -83,7 +83,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.buildUI()
 
         # Initialize theme based on what's checked.   Sometimes works
-        if self.menuBar.auto_action.isChecked():
+        if platform.system() == 'Darwin':
             self.set_theme(darkdetect.theme().lower())
         else:
             if self.menuBar.light_action.isChecked():
@@ -92,7 +92,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 self.set_theme('dark')
 
     def buildUI(self):
-
         self.main_widget = QWidget(self)
 
         # Create the settings manager

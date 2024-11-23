@@ -64,10 +64,6 @@ class IPPlotViewer(IPBaseWidgets.IPSplitter):
         self.parent.parent.singleSensorWidget.clearWaveformPlots()
         self.title.setText("")
 
-    @pyqtSlot(Stream, Stream)
-    def update(self, sts, filtered_sts):
-        pass
-
     @pyqtSlot(dict)
     def show_hide_lines(self, current_filter_display_settings):
         self.pl_widget.draw_plot_lines(current_filter_display_settings)
@@ -173,8 +169,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             self.times.append(times)
             self.spectrograms.append(np.log10(spectrogram))
 
-        #self.update_images()
-
     def plot_traces(self,
                     sts,
                     filtered_sts,
@@ -247,7 +241,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
 
             # this will tell the single station widget to update when the LRIs finish being moved
             new_plot.getSignalRegion().sigRegionChangeFinished.connect(self.parent.parent.parent.singleSensorWidget.signal_region_changed)
-            new_plot.getNoiseRegion().sigRegionChangeFinished.connect(self.parent.parent.parent.singleSensorWidget.noise_region_changed)
 
             # cluge because setting background color covers axis for some reason
             new_plot.getAxis("top").setZValue(0)
@@ -258,9 +251,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             ####################################################################################
             # create the label for the new plot and pin it to the top left
             new_plot.setPlotLabel(trace.id)
-
-            # set the plot lines' color and width (if you chance something here, it needs to also
-            # be changed in updateTraces)
 
             # keep the new_plot reference in a list
             self.plot_list.append(new_plot)
@@ -460,7 +450,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             else:
                 for line in self.arrival_line_list:
                     line.setVisible(False)
-
 
     # This will be called whenever a signal is emitted from the eventwidget
     # saying something has changed
