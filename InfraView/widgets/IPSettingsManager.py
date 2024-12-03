@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QFrame
 from PyQt5.QtCore import Qt, pyqtSlot
 
+import traceback, yaml
+
 from InfraView.widgets.settings_widgets import IPBeamformingSettingsWidget
 from InfraView.widgets.settings_widgets import IPSpectrogramSettingsWidget
 from InfraView.widgets.settings_widgets import IPLocationSettingsWidget
@@ -21,7 +23,10 @@ class IPSettingsManager(QFrame):
         hide_layout = QVBoxLayout()
         self.hide_button = QPushButton('Hide')
         self.hide_button.clicked.connect(self.hide)
+        self.save_button = QPushButton('Save')
+        self.save_button.clicked.connect(self.save_settings)
         hide_layout.addWidget(self.hide_button)
+        hide_layout.addWidget(self.save_button)
         hide_layout.addStretch()
 
         layout = QHBoxLayout()
@@ -83,7 +88,16 @@ class IPSettingsManager(QFrame):
     def toggle_visibility(self):
         self.setVisible(self.isHidden())
 
-
+    def save_settings(self):
+        # collect settings dictionaries from all of the widgets, and save them to an infrapy file
+        settings_dict = {}
+        for key, value in self.settings_widget_dict.items():
+            try:
+                settings_dict[key+'_widget'] = value.to_dict()
+            except AttributeError as e:
+                #print(traceback.format_exc())
+                print("{} doesn't have a to_dict method yet".format(value))
+        print(yaml.dump(settings_dict, allow_unicode=True, default_flow_style=False))
 
 
 

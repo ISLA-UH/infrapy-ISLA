@@ -134,6 +134,29 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.connect_signals_and_slots()
 
+    def to_dict(self):
+        s_dict = {}
+        s_dict['borders'] = self.borders_checkbox.isChecked()
+        s_dict['states'] = self.states_checkbox.isChecked()
+        s_dict['lakes'] = self.lakes_checkbox.isChecked()
+        s_dict['rivers'] = self.rivers_checkbox.isChecked()
+        s_dict['coast'] = self.coast_checkbox.isChecked()
+        s_dict['show_grid'] = self.show_grid_checkbox.isChecked()
+        s_dict['ocean_color'] = self.ocean_color_button.color_str()
+        s_dict['land_color'] = self.land_color_button.color_str()
+        s_dict['resolution'] = self.resolution_cb.currentText()
+        s_dict['background_pic'] = self.backgroud_image_checkbox.isChecked()
+        s_dict['offline'] = self.offline_checkbox.isChecked()
+        s_dict['offline_dir'] = self.offline_directory_label.text()
+
+        s_dict['extent_dict'] = self.extent_settings.to_dict()
+
+        s_dict['bisl_dict'] = self.bisl_settings.to_dict()
+
+        return s_dict
+
+        
+
     def connect_signals_and_slots(self):
         self.offline_checkbox.clicked.connect(self.offline_directory_select_button.setEnabled)
         self.offline_checkbox.clicked.connect(self.offline_directory_label.setEnabled)
@@ -252,6 +275,15 @@ class IPBISLSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         layout.addLayout(layout2)
         self.setLayout(layout)
 
+    def to_dict(self):
+        s_dict = {}
+        s_dict['bisl_bm_width'] = self.bm_width_edit.value()
+        s_dict['bisl_rng_max'] = self.rng_max_edit.value()
+        s_dict['bisl_resolution'] = self.resolution_edit.value()
+        s_dict['bisl_t_resolution'] = self.tm_resolution_edit.value()
+        s_dict['bisl_confidence'] = self.confidence_edit.value()
+        return s_dict
+    
     @pyqtSlot(float)
     @pyqtSlot(int)
     def enable_update_dm_button(self, _):
@@ -342,6 +374,14 @@ class IPExtentSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         coord_layout.addStretch()
         self.setLayout(coord_layout)
 
+    def to_dict(self):
+        s_dict = {}
+        s_dict['ll_lat'] = self.ll_lat_spin.value()
+        s_dict['ll_lon'] = self.ll_lon_spin.value()
+        s_dict['ur_lat'] = self.ur_lat_spin.value()
+        s_dict['ur_lon'] = self.ur_lon_spin.value()
+        return s_dict
+ 
     def set_extent_spin_values(self, extent):
         # ll_lon: lower left longitude
         # ur_lat: upper right latitude

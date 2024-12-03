@@ -24,6 +24,11 @@ class IPWaveformSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         layout.addStretch()
 
         self.setLayout(layout)
+        
+    def to_dict(self):
+        psd_dict = self.psdSettingsWidget.to_dict()
+        filter_dict = self.filterSettingsWidget.to_dict()
+        return {'psd_dict': psd_dict, 'filter_dict': filter_dict}
 
 class IPPSDSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
 
@@ -77,6 +82,14 @@ class IPPSDSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         parametersLayout.addRow(label_window, self.window_cb)
 
         self.setLayout(parametersLayout)
+
+    def to_dict(self):
+        s_dict = {}
+        s_dict['fft_n'] = self.fft_N_Spin.value()
+        s_dict['fs'] = self.fs_Spin.value()
+        s_dict['fft_T'] = self.fft_T_Spin.value() 
+        s_dict['window'] = self.window_cb.currentText()
+        return s_dict
 
     def set_fs(self, fs):
         self.fs_Spin.setValue(fs)
@@ -193,6 +206,17 @@ class IPFilterSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
 
         # default setting is to disable all inputs except for the applyFilter checkbox
         self.disableAll()
+
+    def to_dict(self):
+        s_dict = {}
+        s_dict['apply_filter'] = self.applyFilter_checkbox.isChecked()
+        s_dict['show_unfiltered'] = self.showUnfiltered.isChecked()
+        s_dict['filter_type'] = self.cb_filter_type.currentText()
+        s_dict['lowpass'] = self.lowpassSpin.value()
+        s_dict['highpass'] = self.highpassSpin.value()
+        s_dict['order'] = self.orderSpin.value()
+        s_dict['zero_phase'] = self.zeroPhase_checkbox.isChecked()
+        return s_dict
 
     def onActivated_cb(self, text):
         self.filter_settings['type'] = text

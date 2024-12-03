@@ -55,7 +55,6 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         form1_layout.addRow(self.omega0_label, self.omega0_spin)
         form1_layout.addRow(colormap_label, self.colormap_cb)
         form1_layout.addRow("Color Bar: ", self.colorbar_rb)
-        #form1_layout.addRow("", self.update_button)
         
         spec_layout.addLayout(form1_layout)
         spec_gb.setLayout(spec_layout)
@@ -227,6 +226,29 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         h_layout.addStretch()
         h_layout.setContentsMargins(0,0,0,0)
         self.setLayout(h_layout) 
+
+    def to_dict(self):
+        s_dict = {}
+        s_dict['spec_type'] = self.spec_type_cb.currentText()
+        s_dict['omega0'] = self.omega0_spin.value()
+        s_dict['colormap'] = self.colormap_cb.currentText()
+        s_dict['colorbar'] = self.colorbar_rb.isChecked()
+        s_dict['pval'] = self.pval_spin.value()
+        s_dict['fmin'] = self.fmin_spin.value()
+        s_dict['fmax'] = self.fmax_spin.value()
+        s_dict['cluster_freq_scale'] = self.clust_freq_scale_spin.value()
+        s_dict['cluster_eps'] = self.clust_eps_spin.value()
+        s_dict['cluster_min_samples'] = self.clust_min_samples_spin.value()
+        s_dict['adapt_win_len'] = self.adaptive_win_len_spin.value()
+        s_dict['cwt_pval'] = self.cwt_pval_spin.value()
+        s_dict['cwt_fmin'] = self.cwt_fmin_spin.value()
+        s_dict['cwt_fmax'] = self.cwt_fmax_spin.value()
+        s_dict['cwt_cluster_freq_scale'] = self.cwt_clust_freq_scale_spin.value()
+        s_dict['cwt_cluster_eps'] = self.cwt_clust_eps_spin.value()
+        s_dict['cwt_cluster_min_samples'] = self.cwt_clust_min_samples_spin.value()
+        s_dict['cwt_adapt_win_len'] = self.cwt_adaptive_win_len_spin.value()
+        return s_dict
+
 
     def set_controlled_widget(self, widget):
         super().set_controlled_widget(widget)

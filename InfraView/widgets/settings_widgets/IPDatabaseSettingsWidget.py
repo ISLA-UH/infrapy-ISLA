@@ -27,6 +27,11 @@ class IPDatabaseSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.setLayout(layout)
 
+    def to_dict(self):
+        s_dict = {}
+        s_dict['connect'] = self.connect_widget.to_dict()
+        return s_dict
+
 
 class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
 
@@ -89,7 +94,6 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         main_layout.addLayout(row1_layout)
         main_layout.addLayout(row2_layout)
         main_layout.addLayout(row3_layout)
-        # main_layout.addLayout(row4_layout)
         main_layout.addStretch()
 
         self.setLayout(main_layout)
@@ -106,9 +110,15 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         # connect signals and slots
         self.connect_signals_and_slots()
 
+    def to_dict(self):
+        s_dict = {}
+        s_dict['schema'] = self.schema_type_combo.currentText() 
+        s_dict['url'] = self.url_edit.text()
+        return s_dict
+
     def connect_signals_and_slots(self):
         self.load_config_button.clicked.connect(self.load_config_file)
-        self.save_current_button.clicked.connect(self.save_current_config)
+        # self.save_current_button.clicked.connect(self.save_current_config)
         self.show_tables_button.clicked.connect(self.show_tables_dialog)
         self.show_env_vars_button.clicked.connect(self.show_env_vars_dialog)
         self.create_session_button.clicked.connect(self.create_session)
@@ -132,10 +142,6 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
 
             except Exception as e:
                 IPUtils.errorPopup("Error reading config file \n{}".format(str(e)))
-
-    @pyqtSlot()
-    def save_current_config(self):
-        pass
 
     @pyqtSlot()
     def show_tables_dialog(self):

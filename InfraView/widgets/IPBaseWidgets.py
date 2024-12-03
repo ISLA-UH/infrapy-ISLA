@@ -27,6 +27,9 @@ class IPColorButton(QPushButton):
     def color(self):
         return QColor(self.current_color)
     
+    def color_str(self):
+        return self.color().name()
+    
 
 class IPMenu(QMenu):
     def __init__(self, parent):

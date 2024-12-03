@@ -172,6 +172,26 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.setLayout(main_layout)
 
+    def to_dict(self):
+        s_dict = {}
+        s_dict['win_length']  = self.windowLength_spin.value()
+        s_dict['win_step'] = self.windowStep_spin.value()
+        s_dict['num_sigs'] = self.numSigs_spin.value()
+        s_dict['method'] = self.method_cb.currentText()
+        s_dict['sub_win_check'] = self.subwindow_cb.isChecked()
+        s_dict['sub_win_length'] = self.subWinLength_spin.value()
+        s_dict['backAz_resolution'] = self.backaz_resol_spin.value()
+        s_dict['backAz_start'] = self.backaz_start_spin.value()
+        s_dict['backAz_end'] = self.backaz_end_spin.value()
+        s_dict['traceV_resolution'] = self.tracev_resol_spin.value()
+        s_dict['traceV_min'] = self.tracev_min_spin.value()
+        s_dict['traceV_max'] = self.tracev_max_spin.value()
+        s_dict['colormap'] = self.colormap_cb.currentText()
+        s_dict['detector_settings'] = self.detector_settings.to_dict()
+
+        return s_dict
+
+
     def set_defaults(self):
         default_settings = {'winlen_spin': 10.0,
                     'winstep_spin': 2.5,
