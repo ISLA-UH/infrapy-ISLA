@@ -176,12 +176,6 @@ class IPSettingsManager(QFrame):
         cli_template_dict["ASSOC"]["back_az_width"] = settings_dict["location_widget"]["bisl_dict"]["bisl_bm_width"]
         cli_template_dict["ASSOC"]["range_max"] = settings_dict["location_widget"]["bisl_dict"]["bisl_rng_max"]
         cli_template_dict["ASSOC"]["resolution"] = settings_dict["location_widget"]["bisl_dict"]["bisl_resolution"]
-        cli_template_dict["ASSOC"]["distance_matrix_max"] =
-        cli_template_dict["ASSOC"]["cluster_linkage"] =
-        cli_template_dict["ASSOC"]["cluster_threshold"] =
-        cli_template_dict["ASSOC"]["trimming_threshold"] =
-        cli_template_dict["ASSOC"]["event_population_min"] =
-        cli_template_dict["ASSOC"]["event_station_min"] =
         cli_template_dict["ASSOC"]["multithread"] = False  # Default
         cli_template_dict["ASSOC"]["cpu_cnt"] = None  # Default
         # LOC node
