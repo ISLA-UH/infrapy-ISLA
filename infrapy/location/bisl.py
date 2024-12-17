@@ -212,7 +212,7 @@ def build_grid(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner
         if len(dt_vals) < 1:
             dt_vals = [0.0]
 
-        tm_vals = np.array([tm_lims[1] + np.timedelta64(int(dt_vals[n] * 1e3), 'ms') for n in range(len(dt_vals))])
+        tm_vals = np.array([tm_lims[0] + np.timedelta64(int(dt_vals[n] * 1e3), 'ms') for n in range(len(dt_vals))])
     else:
         tm_vals = [None]
 
@@ -382,21 +382,7 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
     if verbose:
         print("Running Bayesian Infrasonic Source Localization (BISL) Analysis...")
 
-    try:
-        # Determine region of interest and define the polar <--> latlon grid definition
-        if custom_region:
-            center = (custom_region[0], custom_region[1])
-            radius = custom_region[2]
-        else:
-            az_cnt = sum(det.back_azimuth is not None for det in det_list)
-            if az_cnt > 1:
-                center, radius = set_region(det_list, bm_width=bm_width, rng_max=rng_max, rad_min=rad_min, rad_max=rad_max)
-            else:
-                msg = "Detection set doesn't include at least 3 direction-of-arrival detections.  Analysis requires source region definition: --src-est '(lat, lon, radius)'"
-                raise ValueError(msg)
-    except Exception as e:
-        raise ValueError(str(e)) from e
-    
+    '''
     resol = 200
     if verbose:
         print('\t' + "Identifying integration region...")
@@ -411,8 +397,10 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
 
     lat_vals = np.arange(np.min(proj_lats), np.max(proj_lats), latlon_resol)
     lon_vals = np.arange(np.min(proj_lons), np.max(proj_lons), latlon_resol)
-    
+    '''
+
     if len([det for det in det_list if det.peakF_UTCtime < UTCDateTime("9999-01-01T00:00:00")]) > 0:
+        '''
         if verbose:
             print('\t' + "Defining grid and evaluating likelihoods...")
         t_mins, t_maxs = [], []
@@ -426,6 +414,18 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
         tm_vals = np.array([tm_lims[0] + np.timedelta64(int(dt_vals[n] * 1e3), 'ms') for n in range(len(dt_vals))])
 
         lat_grid, lon_grid, tm_grid = np.meshgrid(lat_vals, lon_vals, tm_vals, indexing='ij')     
+        '''
+
+        if verbose:
+            print('\t' + "Identifying integration region...")
+        lat_grid, lon_grid, _, tm_grid = build_grid(det_list, bm_width=bm_width, rng_max=rng_max, grid_resol=100, ll_corner=None, up_corner=None, latlon_resol=None, 
+                                                        include_tms=True, tm_lims=None, tm_resol=None, alt_lims=None, alt_resol=1.0)
+
+        lat_vals = np.sort(np.unique(lat_grid))
+        lon_vals = np.sort(np.unique(lon_grid))
+
+        tm_vals = np.sort(np.unique(tm_grid))
+        dt_vals = (tm_vals - tm_vals[0]).astype('m8[s]').astype(float)
 
         if verbose:
             print('\t\t Progress: ', end='')
@@ -447,6 +447,7 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
 
         if verbose:
             print('\t\t' + "Analyzing spatial PDF...")
+
         def simps_spatial(vals):
             result = simps(vals, x=lon_vals)
             result = simps(result * np.cos(np.radians(lat_vals)), x=lat_vals)
@@ -463,25 +464,26 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
 
         if verbose:
             print('\t\t' + "Analyzing temporal PDF...")
+
         dt_mean = simps(dt_vals * tm_pdf, x=dt_vals)
         dt_stdev = np.sqrt(simps((dt_vals - dt_mean)**2 * tm_pdf, x=dt_vals))
 
         tm_mask = np.logical_and(dt_mean - 3.5 * dt_stdev < dt_vals, dt_vals < dt_mean + 3.5 * dt_stdev)
         time_bnds_90 = find_confidence(interp1d(dt_vals[tm_mask], tm_pdf[tm_mask], kind='cubic'), [dt_vals[tm_mask][0], dt_vals[tm_mask][-1]], 0.90)
         
-        MaP_index = np.argmax(spatial_pdf.flatten())
+        MaP_index = np.argmax(pdf.flatten())
 
         result = {'lat_mean': lat_mean, 'lon_mean' : lon_mean,
                     'EW_stdev': x_stdev, 'NS_stdev': y_stdev,
                     'covar': covar,
-                    't_mean': tm_lims[0] + np.timedelta64(int(dt_mean * 1e3), 'ms'),
+                    't_mean': tm_vals[0] + np.timedelta64(int(dt_mean * 1e3), 'ms'),
                     't_stdev': dt_stdev,
-                    't_min' : tm_lims[0] + np.timedelta64(int(min(time_bnds_90[0]) * 1e3), 'ms'),
-                    't_max' : tm_lims[0] + np.timedelta64(int(max(time_bnds_90[0]) * 1e3), 'ms'),
+                    't_min' :  tm_vals[0] + np.timedelta64(int(min(time_bnds_90[0]) * 1e3), 'ms'),
+                    't_max' : tm_vals[0] + np.timedelta64(int(max(time_bnds_90[0]) * 1e3), 'ms'),
                     'lat_MaP': lat_grid.flatten()[MaP_index],
                     'lon_MaP': lon_grid.flatten()[MaP_index],
                     't_MaP': tm_grid.flatten()[MaP_index],
-                    'MaP_val' : spatial_pdf.flatten()[MaP_index],
+                    'MaP_val' : pdf.flatten()[MaP_index],
                     'spatial_pdf' : np.vstack((lon_grid2.flatten(), lat_grid2.flatten(), spatial_pdf.flatten())),
                     'temporal_pdf' : [tm_vals, tm_pdf]}
 
@@ -500,6 +502,7 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
 
         if verbose:
             print('\t' + "Analyzing localization pdf...")
+
         def simps_2dim(vals):
             result = simps(vals, x=lon_vals)
             result = simps(result, x=lat_vals)
