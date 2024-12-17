@@ -34,6 +34,12 @@ from ..utils import prog_bar
 int_opts = {'limit': 100, 'epsrel': 1.0e-3}
 sph_proj = Geod(ellps='sphere')
 
+
+
+################################
+#### Methods to define the  ####
+####    integration grid    ####
+################################
 def set_region(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, rad_max=1000.0):
     """Defines the integration region for computation of the BISL probability distribution
 
@@ -142,6 +148,92 @@ def set_region(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=10
         radius = rad_min
 
     return center, radius
+
+
+def build_grid(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner=None, up_corner=None, latlon_resol=None, include_tms=False, tm_lims=None, tm_resol=None, alt_lims=None, alt_resol=1.0):
+
+    # Set spatial grid
+    if ll_corner is None:
+        try:
+            # build region from back azimuth intersections
+            az_cnt = sum(det.back_azimuth is not None for det in det_list)
+            if az_cnt > 1:
+                center, radius = set_region(det_list, bm_width=bm_width, rng_max=rng_max, rad_min=100.0, rad_max=rng_max/4.0)
+
+                rngs = np.linspace(0.0, radius * 1.0e3, 3)
+                angles = np.linspace(-180.0, 178.0, 180)
+
+                R, ANGS = np.meshgrid(rngs, angles)
+                proj_rngs = R.flatten()
+                proj_azs = ANGS.flatten()
+
+                temp_lons, temp_lats = sph_proj.fwd(np.array([center[1]] * len(proj_azs)), np.array([center[0]] * len(proj_azs)), proj_azs, proj_rngs, return_back_azimuth=True)[:2]
+
+                ll_corner = (min(temp_lats), min(temp_lons))
+                up_corner = (max(temp_lats), max(temp_lons))
+            else:
+                msg = "Detection set doesn't include at least 3 direction-of-arrival detections.  Analysis requires source region definition: --src-est '(lat, lon, radius)'"
+                raise ValueError(msg)
+        except Exception as e:
+            raise ValueError(str(e)) from e
+
+    if latlon_resol is not None:
+        lat_vals = np.arange(ll_corner[0], up_corner[0] + latlon_resol / 2.0, latlon_resol)
+        lon_vals = np.arange(ll_corner[1], up_corner[1] + latlon_resol / 2.0, latlon_resol)
+    else:
+        lat_vals = np.linspace(ll_corner[0], up_corner[0], grid_resol)
+        lon_vals = np.linspace(ll_corner[1], up_corner[1], grid_resol)
+
+    if len(lat_vals) < 1:
+        lat_vals = [ll_corner[0]]
+    if len(lon_vals) < 1:
+        lon_vals = [ll_corner[1]]
+
+    # Set origin time range (used in BISL and TRIBL, not for HJL)
+    if include_tms:
+        if tm_lims is None:
+            # use celerity range of 220 - 360 m/s and possible propagation ranges
+            t_min, t_max = [], []
+
+            LA, LO = np.meshgrid(lat_vals, lon_vals)
+            LA, LO = LA.flatten(), LO.flatten()
+
+            for det in det_list:
+                rngs = np.array(sph_proj.inv(det.longitude * np.ones_like(LO), det.latitude * np.ones_like(LA), LO, LA, radians=False))[2] / 1000.0             
+                t_min = t_min + [det.peakF_UTCtime - np.timedelta64(int(np.max(rngs) / 0.22 * 1.0e3), 'ms')]
+                t_max = t_max + [det.peakF_UTCtime - np.timedelta64(int(np.min(rngs) / 0.36 * 1.0e3), 'ms')]
+            tm_lims = [max(t_min), min(t_max)]
+
+        if tm_resol is not None:
+            dt_vals = np.arange(0.0, (np.datetime64(tm_lims[1]) - np.datetime64(tm_lims[0])).astype('m8[s]').astype(float) + tm_resol / 2.0, tm_resol)
+        else:
+            dt_vals = np.linspace(0.0, (np.datetime64(tm_lims[1]) - np.datetime64(tm_lims[0])).astype('m8[s]').astype(float), grid_resol)
+
+        if len(dt_vals) < 1:
+            dt_vals = [0.0]
+
+        tm_vals = np.array([tm_lims[1] + np.timedelta64(int(dt_vals[n] * 1e3), 'ms') for n in range(len(dt_vals))])
+    else:
+        tm_vals = [None]
+
+    # Set altitude range if provided (only used for TRIBL)
+    if alt_lims is not None:
+        alt_vals = np.arange(alt_lims[0], alt_lims[1] + alt_resol / 2.0, alt_resol)
+    else:
+        alt_vals = [None]
+
+    if len(alt_vals) < 1:
+        alt_vals = [alt_bounds[0]]
+
+    lat_grid, lon_grid, alt_grid, tm_grid = np.meshgrid(lat_vals, lon_vals, alt_vals, tm_vals, indexing='ij')
+
+    lat_grid = np.squeeze(lat_grid)
+    lon_grid = np.squeeze(lon_grid)
+    alt_grid = np.squeeze(alt_grid)
+    tm_grid = np.squeeze(tm_grid)
+    
+    return lat_grid, lon_grid, alt_grid, tm_grid
+
 
 
 def calc_conf_ellipse(means, st_devs, conf_lvl, pnts=100):
