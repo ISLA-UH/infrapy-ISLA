@@ -150,7 +150,7 @@ def set_region(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=10
     return center, radius
 
 
-def build_grid(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner=None, up_corner=None, latlon_resol=None, include_tms=False, tm_lims=None, tm_resol=None, alt_lims=None, alt_resol=1.0):
+def build_grid(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner=None, ur_corner=None, latlon_resol=None, include_tms=False, tm_lims=None, tm_resol=None, alt_lims=None, alt_resol=1.0):
 
     # Set spatial grid
     if ll_corner is None:
@@ -170,7 +170,7 @@ def build_grid(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner
                 temp_lons, temp_lats = sph_proj.fwd(np.array([center[1]] * len(proj_azs)), np.array([center[0]] * len(proj_azs)), proj_azs, proj_rngs, return_back_azimuth=True)[:2]
 
                 ll_corner = (min(temp_lats), min(temp_lons))
-                up_corner = (max(temp_lats), max(temp_lons))
+                ur_corner = (max(temp_lats), max(temp_lons))
             else:
                 msg = "Detection set doesn't include at least 3 direction-of-arrival detections.  Analysis requires source region definition: --src-est '(lat, lon, radius)'"
                 raise ValueError(msg)
@@ -178,11 +178,11 @@ def build_grid(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner
             raise ValueError(str(e)) from e
 
     if latlon_resol is not None:
-        lat_vals = np.arange(ll_corner[0], up_corner[0] + latlon_resol / 2.0, latlon_resol)
-        lon_vals = np.arange(ll_corner[1], up_corner[1] + latlon_resol / 2.0, latlon_resol)
+        lat_vals = np.arange(ll_corner[0], ur_corner[0] + latlon_resol / 2.0, latlon_resol)
+        lon_vals = np.arange(ll_corner[1], ur_corner[1] + latlon_resol / 2.0, latlon_resol)
     else:
-        lat_vals = np.linspace(ll_corner[0], up_corner[0], grid_resol)
-        lon_vals = np.linspace(ll_corner[1], up_corner[1], grid_resol)
+        lat_vals = np.linspace(ll_corner[0], ur_corner[0], grid_resol)
+        lon_vals = np.linspace(ll_corner[1], ur_corner[1], grid_resol)
 
     if len(lat_vals) < 1:
         lat_vals = [ll_corner[0]]
@@ -334,7 +334,71 @@ def find_confidence(func, lims, conf_lvl):
     return bnds, conf, thresh
 
 
-def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm_resol = 60.0, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, angle=[-180,180],rad_max=1000.0, verbose=True):
+def analyze_pdf(pdf, lat_grid, lon_grid, tm_grid, verbose=False):
+
+        lat_vals = np.sort(np.unique(lat_grid))
+        lon_vals = np.sort(np.unique(lon_grid))
+
+        tm_vals = np.sort(np.unique(tm_grid))
+        dt_vals = (tm_vals - tm_vals[0]).astype('m8[s]').astype(float)
+
+        if verbose:
+            print('\t' + "Analyzing localization pdf...")
+            print('\t\t' + "Normalizing and marginalizing...")
+
+        spatial_pdf = simps(pdf, x=dt_vals)
+        tm_pdf = simps(simps(pdf * np.cos(np.radians(lat_grid)), x=lon_vals, axis=1), x=lat_vals, axis=0)
+        norm = simps(tm_pdf, dt_vals)
+
+        spatial_pdf = spatial_pdf / norm
+        tm_pdf = tm_pdf / norm
+
+        def simps_spatial(vals):
+            result = simps(vals, x=lon_vals)
+            result = simps(result * np.cos(np.radians(lat_vals)), x=lat_vals)
+            return result
+
+        if verbose:
+            print('\t\t' + "Analyzing spatial PDF...")
+
+        lat_grid2, lon_grid2 = np.meshgrid(lat_vals, lon_vals, indexing='ij') 
+        lat_mean, lon_mean = [simps_spatial(grid_vals * spatial_pdf) for grid_vals in [lat_grid2, lon_grid2]]
+
+        temp = np.array(sph_proj.inv(lon_mean * np.ones_like(lon_grid2), lat_mean * np.ones_like(lat_grid2), lon_grid2, lat_grid2, return_back_azimuth=True, radians=False))
+        dx, dy = temp[2] / 1000.0 * np.sin(np.radians(temp[0])), temp[2] / 1000.0 * np.cos(np.radians(temp[0]))
+
+        x_stdev, y_stdev = [np.sqrt(simps_spatial(diff**2 * spatial_pdf)) for diff in [dx, dy]]
+        covar = simps_spatial(dx * dy * spatial_pdf) / (x_stdev * y_stdev)
+
+        if verbose:
+            print('\t\t' + "Analyzing temporal PDF...")
+
+        dt_mean = simps(dt_vals * tm_pdf, x=dt_vals)
+        dt_stdev = np.sqrt(simps((dt_vals - dt_mean)**2 * tm_pdf, x=dt_vals))
+
+        tm_mask = np.logical_and(dt_mean - 3.5 * dt_stdev < dt_vals, dt_vals < dt_mean + 3.5 * dt_stdev)
+        time_bnds_90 = find_confidence(interp1d(dt_vals[tm_mask], tm_pdf[tm_mask], kind='cubic'), [dt_vals[tm_mask][0], dt_vals[tm_mask][-1]], 0.90)
+        
+        MaP_index = np.argmax(pdf.flatten())
+
+        return {'lat_mean': lat_mean, 'lon_mean' : lon_mean,
+                'EW_stdev': x_stdev, 'NS_stdev': y_stdev,
+                'covar': covar,
+                't_mean': tm_vals[0] + np.timedelta64(int(dt_mean * 1e3), 'ms'),
+                't_stdev': dt_stdev,
+                't_min' :  tm_vals[0] + np.timedelta64(int(min(time_bnds_90[0]) * 1e3), 'ms'),
+                't_max' : tm_vals[0] + np.timedelta64(int(max(time_bnds_90[0]) * 1e3), 'ms'),
+                'lat_MaP': lat_grid.flatten()[MaP_index],
+                'lon_MaP': lon_grid.flatten()[MaP_index],
+                't_MaP': tm_grid.flatten()[MaP_index],
+                'MaP_val' : pdf.flatten()[MaP_index],
+                'spatial_pdf' : np.vstack((lon_grid2.flatten(), lat_grid2.flatten(), spatial_pdf.flatten())),
+                'temporal_pdf' : [tm_vals, tm_pdf]}
+
+
+
+
+def run(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner=None, ur_corner=None, latlon_resol=None, tm_lims=None, tm_resol=None, path_geo_model=None, verbose=True):
     """Run analysis of the posterior pdf for BISL
 
         Compute the marginal disribution...
@@ -382,44 +446,11 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
     if verbose:
         print("Running Bayesian Infrasonic Source Localization (BISL) Analysis...")
 
-    '''
-    resol = 200
-    if verbose:
-        print('\t' + "Identifying integration region...")
-    rngs = np.linspace(0.0, radius, resol)
-    angles = np.linspace(angle[0], angle[1] - 1, resol)
-    
-    R, ANG = np.meshgrid(rngs, angles)
-    proj_rngs = R.flatten()
-    prof_azs = ANG.flatten()
-
-    proj_lons, proj_lats = sph_proj.fwd(np.array([center[1]] * resol**2), np.array([center[0]] * resol**2), prof_azs, proj_rngs * 1e3, return_back_azimuth=True)[:2]
-
-    lat_vals = np.arange(np.min(proj_lats), np.max(proj_lats), latlon_resol)
-    lon_vals = np.arange(np.min(proj_lons), np.max(proj_lons), latlon_resol)
-    '''
-
     if len([det for det in det_list if det.peakF_UTCtime < UTCDateTime("9999-01-01T00:00:00")]) > 0:
-        '''
-        if verbose:
-            print('\t' + "Defining grid and evaluating likelihoods...")
-        t_mins, t_maxs = [], []
-        for det in det_list:
-            rngs = np.array(sph_proj.inv(det.longitude * np.ones_like(proj_lons), det.latitude * np.ones_like(proj_lats), proj_lons, proj_lats, radians=False))[2] / 1000.0             
-            t_mins = t_mins + [det.peakF_UTCtime - np.timedelta64(int(np.max(rngs) / 0.22 * 1.0e3), 'ms')]
-            t_maxs = t_maxs + [det.peakF_UTCtime - np.timedelta64(int(np.min(rngs) / 0.34 * 1.0e3), 'ms')]
-        tm_lims = [max(t_mins), min(t_maxs)]
-
-        dt_vals = np.arange(0.0, (tm_lims[1] - tm_lims[0]).astype('m8[s]').astype(float), tm_resol)
-        tm_vals = np.array([tm_lims[0] + np.timedelta64(int(dt_vals[n] * 1e3), 'ms') for n in range(len(dt_vals))])
-
-        lat_grid, lon_grid, tm_grid = np.meshgrid(lat_vals, lon_vals, tm_vals, indexing='ij')     
-        '''
-
         if verbose:
             print('\t' + "Identifying integration region...")
-        lat_grid, lon_grid, _, tm_grid = build_grid(det_list, bm_width=bm_width, rng_max=rng_max, grid_resol=100, ll_corner=None, up_corner=None, latlon_resol=None, 
-                                                        include_tms=True, tm_lims=None, tm_resol=None, alt_lims=None, alt_resol=1.0)
+        lat_grid, lon_grid, _, tm_grid = build_grid(det_list, bm_width=bm_width, rng_max=rng_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
+                                                        latlon_resol=latlon_resol, include_tms=True, tm_lims=tm_lims, tm_resol=tm_resol)
 
         lat_vals = np.sort(np.unique(lat_grid))
         lon_vals = np.sort(np.unique(lon_grid))
@@ -435,62 +466,16 @@ def run(det_list, path_geo_model=None, custom_region=None, latlon_resol=0.05, tm
         else:
             pdf = np.array([det.pdf(lat_grid, lon_grid, tm_grid, path_geo_model=path_geo_model) for det in det_list if type(det) == lklhds.InfrasoundDetection]).prod(axis=0)
 
-        if verbose:
-            print('\t' + "Analyzing localization pdf...")
-            print('\t\t' + "Normalizing and marginalizing...")
-        spatial_pdf = simps(pdf, x=dt_vals)
-        tm_pdf = simps(simps(pdf * np.cos(np.radians(lat_grid)), x=lon_vals, axis=1), x=lat_vals, axis=0)
-
-        norm = simps(tm_pdf, dt_vals)
-        spatial_pdf = spatial_pdf / norm
-        tm_pdf = tm_pdf / norm
-
-        if verbose:
-            print('\t\t' + "Analyzing spatial PDF...")
-
-        def simps_spatial(vals):
-            result = simps(vals, x=lon_vals)
-            result = simps(result * np.cos(np.radians(lat_vals)), x=lat_vals)
-            return result
-        
-        lat_grid2, lon_grid2 = np.meshgrid(lat_vals, lon_vals, indexing='ij') 
-        lat_mean, lon_mean = [simps_spatial(grid_vals * spatial_pdf) for grid_vals in [lat_grid2, lon_grid2]]
-
-        temp = np.array(sph_proj.inv(lon_mean * np.ones_like(lon_grid2), lat_mean * np.ones_like(lat_grid2), lon_grid2, lat_grid2, return_back_azimuth=True, radians=False))
-        dx, dy = temp[2] / 1000.0 * np.sin(np.radians(temp[0])), temp[2] / 1000.0 * np.cos(np.radians(temp[0]))
-
-        x_stdev, y_stdev = [np.sqrt(simps_spatial(diff**2 * spatial_pdf)) for diff in [dx, dy]]
-        covar = simps_spatial(dx * dy * spatial_pdf) / (x_stdev * y_stdev)
-
-        if verbose:
-            print('\t\t' + "Analyzing temporal PDF...")
-
-        dt_mean = simps(dt_vals * tm_pdf, x=dt_vals)
-        dt_stdev = np.sqrt(simps((dt_vals - dt_mean)**2 * tm_pdf, x=dt_vals))
-
-        tm_mask = np.logical_and(dt_mean - 3.5 * dt_stdev < dt_vals, dt_vals < dt_mean + 3.5 * dt_stdev)
-        time_bnds_90 = find_confidence(interp1d(dt_vals[tm_mask], tm_pdf[tm_mask], kind='cubic'), [dt_vals[tm_mask][0], dt_vals[tm_mask][-1]], 0.90)
-        
-        MaP_index = np.argmax(pdf.flatten())
-
-        result = {'lat_mean': lat_mean, 'lon_mean' : lon_mean,
-                    'EW_stdev': x_stdev, 'NS_stdev': y_stdev,
-                    'covar': covar,
-                    't_mean': tm_vals[0] + np.timedelta64(int(dt_mean * 1e3), 'ms'),
-                    't_stdev': dt_stdev,
-                    't_min' :  tm_vals[0] + np.timedelta64(int(min(time_bnds_90[0]) * 1e3), 'ms'),
-                    't_max' : tm_vals[0] + np.timedelta64(int(max(time_bnds_90[0]) * 1e3), 'ms'),
-                    'lat_MaP': lat_grid.flatten()[MaP_index],
-                    'lon_MaP': lon_grid.flatten()[MaP_index],
-                    't_MaP': tm_grid.flatten()[MaP_index],
-                    'MaP_val' : pdf.flatten()[MaP_index],
-                    'spatial_pdf' : np.vstack((lon_grid2.flatten(), lat_grid2.flatten(), spatial_pdf.flatten())),
-                    'temporal_pdf' : [tm_vals, tm_pdf]}
+        result = analyze_pdf(pdf, lat_grid, lon_grid, tm_grid, verbose=verbose)
 
     else:
         if verbose:
-            print('\t' + "Defining grid and evaluating likelihoods...")
-        lat_grid, lon_grid = np.meshgrid(lat_vals, lon_vals, indexing='ij')
+            print('\t' + "Identifying integration region...")
+        lat_grid, lon_grid, _, _ = build_grid(det_list, bm_width=bm_width, rng_max=rng_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
+                                                        latlon_resol=latlon_resol, include_tms=False, tm_lims=tm_lims, tm_resol=tm_resol)
+
+        lat_vals = np.sort(np.unique(lat_grid))
+        lon_vals = np.sort(np.unique(lon_grid))
 
         if verbose:
             print('\t\t Progress: ', end='')

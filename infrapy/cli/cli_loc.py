@@ -24,16 +24,27 @@ from ..utils import data_io
 @click.option("--local-detect-label", help="Detection path and pattern", default=None)
 @click.option("--local-loc-label", help="Localization results path", default=None)
 @click.option("--back-az-width", help="Width of beam projection (default: " + config.defaults['LOC']['back_az_width'] + " [deg])", default=None, type=float)
-@click.option("--range-max", help="Maximum source-receiver range (default: " + config.defaults['LOC']['range_max'] + " [km])", default=None, type=float)
-@click.option("--latlon-resol", help="Resolution of latitude/longitude grid (default: " + config.defaults['LOC']['latlon_resol'] + ")", default=None, type=float)
-@click.option("--tm-resol", help="Resolution of origin time grid (default: " + config.defaults['LOC']['tm_resol'] + ")", default=None, type=float)
+@click.option("--range-max", help="Max source-receiver range (default: " + config.defaults['LOC']['range_max'] + " [km])", default=None, type=float)
 
-@click.option("--src-est", help="Estimated source location and radius of region to consider (default: None)", default=None)
-@click.option("--rcel-wts", help="Custom reciprocal celerity model weights", default=None)
-@click.option("--rcel-mns", help="Custom reciprocal celerity model means", default=None)
-@click.option("--rcel-sds", help="Custom reciprocal celerity model standard deviations", default=None)
-@click.option("--pgm-file", help="Path geometry model (PGM) file (default: None)", default=None)
-def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, latlon_resol, tm_resol, src_est, rcel_wts, rcel_mns, rcel_sds, pgm_file):
+@click.option("--grid-resol", help="Grid resolution (number of points) (default: " + config.defaults['LOC']['grid_resol'] + ")", default=None, type=int)
+
+@click.option("--region-ll-corner", help="Lower left corner of region (lat, lon)", default=None)
+@click.option("--region-ur-corner", help="Upper right corner of region (lat, lon)", default=None)
+@click.option("--latlon-resol", help="Resolution of latitude/longitude grid (degrees)", default=None, type=float)
+
+@click.option("--tm-min", help="Minimum origin time", default=None)
+@click.option("--tm-max", help="Maximum origin time", default=None)
+@click.option("--tm-resol", help="Resolution of origin time grid (seconds)", default=None, type=float)
+
+@click.option("--celerity-model", help="Use included celerity model (default: '" + config.defaults['LOC']['celerity_model'], default=None, hidden=True)
+@click.option("--rcel-wts", help="Custom reciprocal celerity model weights", default=None, hidden=True)
+@click.option("--rcel-mns", help="Custom reciprocal celerity model means", default=None, hidden=True)
+@click.option("--rcel-sds", help="Custom reciprocal celerity model standard deviations", default=None, hidden=True)
+@click.option("--pgm-file", help="Path geometry model (PGM) file (optional)", default=None)
+
+# add TRIBL options here...
+
+def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, region_ll_corner, region_ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file):
     '''
     Run Bayesian Infrasonic Source Localization (BISL) methods to estimate the source location and origin time for an event
 
@@ -77,20 +88,57 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     # Algorithm parameters
     back_az_width = config.set_param(user_config, 'LOC', 'back_az_width', back_az_width, 'float')
     range_max = config.set_param(user_config, 'LOC', 'range_max', range_max, 'float')
+    grid_resol = config.set_param(user_config, 'LOC', 'grid_resol', grid_resol, 'int')       
+
+    region_ll_corner = config.set_param(user_config, 'LOC', 'region_ll_corner', region_ll_corner, 'str')
+    region_ur_corner = config.set_param(user_config, 'LOC', 'region_ur_corner', region_ur_corner, 'str')
     latlon_resol = config.set_param(user_config, 'LOC', 'latlon_resol', latlon_resol, 'float')
+
+    tm_min = config.set_param(user_config, 'LOC', 'tm_min', tm_min, 'str')
+    tm_max = config.set_param(user_config, 'LOC', 'tm_max', tm_max, 'str')
     tm_resol = config.set_param(user_config, 'LOC', 'tm_resol', tm_resol, 'float')
-    src_est = config.set_param(user_config, 'LOC', 'src_est', src_est, 'string')
+
+    celerity_model = config.set_param(user_config, 'LOC', 'celerity_model', celerity_model, 'str')
+    rcel_wts = config.set_param(user_config, 'LOC', 'rcel_wts', rcel_wts, 'str')
+    rcel_mns = config.set_param(user_config, 'LOC', 'rcel_mns', rcel_mns, 'str')
+    rcel_sds = config.set_param(user_config, 'LOC', 'rcel_sds', rcel_sds, 'str')
+
     pgm_file = config.set_param(user_config, 'LOC', 'pgm_file', pgm_file, 'str')
 
-    if src_est is not None:
-        src_est = [float(x.strip('[( )]')) for x in src_est.split(',')]
 
+    # Summarie parameters
     click.echo('\n' + "Parameter summary:")
     click.echo("  back_az_width: " + str(back_az_width))
     click.echo("  range_max: " + str(range_max))
-    click.echo("  latlon_resol: " + str(latlon_resol))
-    click.echo("  tm_resol: " + str(tm_resol))
-    click.echo("  src_est: " + str(src_est))
+
+    if latlon_resol is not None:
+        click.echo("  latlon_resol: " + str(latlon_resol))
+    else: 
+        click.echo("  grid_resol: " + str(grid_resol))
+    
+    if region_ll_corner is not None:
+        click.echo("  region_ll_corner: " + str(region_ll_corner))
+        click.echo("  region_ur_corner: " + str(region_ur_corner))
+
+        region_ll_corner = np.array([float(val) for val in region_ll_corner.replace(" ","").split(",")])
+        region_ur_corner = np.array([float(val) for val in region_ur_corner.replace(" ","").split(",")])
+    
+    if tm_min is not None:
+        click.echo("  tm_min: " + str(tm_min))
+        click.echo("  tm_max: " + str(tm_max))
+
+        tm_lims = (np.datetime64(tm_min), np.datetime64(tm_max))
+    else:
+        tm_lims = None 
+
+    if tm_resol is not None:
+        click.echo("  tm_resol: " + str(tm_resol))
+    else:
+        if latlon_resol is not None:
+            click.echo("  grid_resol: " + str(grid_resol))
+
+    if celerity_model is not 'regional_hf':
+        click.echo("  Celerity model selection not implemented yet...")
 
     if rcel_wts is not None:
         infrasound.canon_rcel_wts = np.array([float(val) for val in rcel_wts.replace(" ","").split(",")])
@@ -117,7 +165,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
         # run localization analysis for multiple detection sets
         for j, det_list in enumerate(events):
             click.echo('\n' + "Running BISL on event " + str(j + 1) + " of " + str(len(events)))
-            result = bisl.run(det_list, path_geo_model=pgm, custom_region=src_est, latlon_resol=latlon_resol, tm_resol=tm_resol, bm_width=back_az_width, rng_max=range_max, rad_min=100.0, rad_max=range_max/4.0)
+            result = bisl.run(det_list, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=None, ur_corner=None, latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
 
             # Determine output format for BISL results
             click.echo('\n' + "BISL Summary:")
@@ -129,7 +177,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     else:
         # run a single localization analysis
         click.echo("")
-        result = bisl.run(events, path_geo_model=pgm, custom_region=src_est, latlon_resol=latlon_resol, tm_resol=tm_resol, bm_width=back_az_width, rng_max=range_max, rad_min=100.0, rad_max=range_max/4.0)
+        result = bisl.run(events, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=None, ur_corner=None, latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
 
         # Determine output format for BISL results
         click.echo('\n' + "BISL Summary:")
