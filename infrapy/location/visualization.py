@@ -133,7 +133,7 @@ def plot_loc(det_list, bisl_result, range_max=1000.0, zoom=False, title=None, ou
 
         for det in det_list:
             if det.back_azimuth is not None:
-                gc_path = sph_proj.fwd_intermediate(det.longitude, det.latitude, det.back_azimuth, npts=2, del_s=(range_max * 1.0e3 / 2))
+                gc_path = sph_proj.fwd_intermediate(det.longitude, det.latitude, det.back_azimuth, npts=2, del_s=(range_max * 1.0e3 / 2), return_back_azimuth=False)
                 lat_min, lat_max = min(min(gc_path.lats), lat_min), max(max(gc_path.lats), lat_max)
                 lon_min, lon_max = min(min(gc_path.lons), lon_min), max(max(gc_path.lons), lon_max)
 
@@ -150,7 +150,7 @@ def plot_loc(det_list, bisl_result, range_max=1000.0, zoom=False, title=None, ou
     if not zoom:
         for det in det_list:
             if det.back_azimuth is not None:
-                gc_path = sph_proj.fwd_intermediate(det.longitude, det.latitude, det.back_azimuth, npts=500, del_s=(range_max * 1.0e3 / 500))
+                gc_path = sph_proj.fwd_intermediate(det.longitude, det.latitude, det.back_azimuth, npts=500, del_s=(range_max * 1.0e3 / 500), return_back_azimuth=False)
                 ax.plot(list(gc_path.lons), list(gc_path.lats), '.', color=back_az_color, markersize=1.5, transform=map_proj)
         ax.plot(array_lons, array_lats, 'k^', markersize=7.5, transform=map_proj)
 

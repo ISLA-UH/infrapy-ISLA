@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 
-from email.policy import default
-import enum
 import os 
 import sys
 import fnmatch
-from threading import local 
 import click
+import tempfile
+
 import configparser as cnfg
 import numpy as np
 
 from obspy import Stream
 
-from ..characterization import spye
-from ..location import bisl
+from ..location import bisl, tribl
 from ..propagation import infrasound
+from ..characterization import spye
 
 from ..utils import config
 from ..utils import data_io
@@ -28,8 +27,8 @@ from ..utils import data_io
 
 @click.option("--grid-resol", help="Grid resolution (number of points) (default: " + config.defaults['LOC']['grid_resol'] + ")", default=None, type=int)
 
-@click.option("--region-ll-corner", help="Lower left corner of region (lat, lon)", default=None)
-@click.option("--region-ur-corner", help="Upper right corner of region (lat, lon)", default=None)
+@click.option("--ll-corner", help="Lower left corner of region (lat, lon)", default=None)
+@click.option("--ur-corner", help="Upper right corner of region (lat, lon)", default=None)
 @click.option("--latlon-resol", help="Resolution of latitude/longitude grid (degrees)", default=None, type=float)
 
 @click.option("--tm-min", help="Minimum origin time", default=None)
@@ -46,10 +45,12 @@ from ..utils import data_io
 @click.option("--atmo-data", help="Atmosphere data if using TRIBL", default=None)
 @click.option("--alt-lims", help="Altitude limits if using TRIBL", default=None)
 @click.option("--alt-resol", help="Altitude resolution if using TRIBL", default=None)
+@click.option("--grnd-snd-spd", help="Sound speed at the ground", default=None)
 @click.option("--c0-stdev", help="Sound speed uncertainty if using TRIBL", default=None)
+@click.option("--det-tm-stdev", help="Detection time uncertainty", default=None)
 @click.option("--local-temp-dir", help="Local temporary directory if using TRIBL", default=None)
 
-def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, region_ll_corner, region_ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file, atmo_data, alt_lims, alt_resol, c0_stdev, local_temp_dir):
+def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, ll_corner, ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file, atmo_data, alt_lims, alt_resol, grnd_snd_spd, c0_stdev, det_tm_stdev, local_temp_dir):
     '''
     Run Bayesian Infrasonic Source Localization (BISL) methods to estimate the source location and origin time for an event
 
@@ -95,8 +96,8 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     range_max = config.set_param(user_config, 'LOC', 'range_max', range_max, 'float')
     grid_resol = config.set_param(user_config, 'LOC', 'grid_resol', grid_resol, 'int')       
 
-    region_ll_corner = config.set_param(user_config, 'LOC', 'region_ll_corner', region_ll_corner, 'str')
-    region_ur_corner = config.set_param(user_config, 'LOC', 'region_ur_corner', region_ur_corner, 'str')
+    ll_corner = config.set_param(user_config, 'LOC', 'll_corner', ll_corner, 'str')
+    ur_corner = config.set_param(user_config, 'LOC', 'ur_corner', ur_corner, 'str')
     latlon_resol = config.set_param(user_config, 'LOC', 'latlon_resol', latlon_resol, 'float')
 
     tm_min = config.set_param(user_config, 'LOC', 'tm_min', tm_min, 'str')
@@ -112,26 +113,28 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     atmo_data = config.set_param(user_config, 'LOC', 'atmo_data', atmo_data, 'str')
     alt_lims = config.set_param(user_config, 'LOC', 'alt_lims', alt_lims, 'str')
     alt_resol = config.set_param(user_config, 'LOC', 'alt_resol', alt_resol, 'float')
+    grnd_snd_spd = config.set_param(user_config, 'LOC', 'grnd_snd_spd', grnd_snd_spd, 'float')
     c0_stdev = config.set_param(user_config, 'LOC', 'c0_stdev', c0_stdev, 'float')
+    det_tm_stdev = config.set_param(user_config, 'LOC', 'det_tm_stdev', det_tm_stdev, 'float')
     local_temp_dir = config.set_param(user_config, 'LOC', 'local_temp_dir', local_temp_dir, 'str')
 
     # Summarie parameters
     click.echo('\n' + "Parameter summary:")
-    click.echo("  back_az_width: " + str(back_az_width))
-    click.echo("  range_max: " + str(range_max))
+    if ll_corner is None:
+        click.echo("  back_az_width: " + str(back_az_width))
+        click.echo("  range_max: " + str(range_max))
+    else:
+        click.echo("  ll_corner: " + str(ll_corner))
+        click.echo("  ur_corner: " + str(ur_corner))
+
+        ll_corner = np.array([float(val) for val in ll_corner.replace(" ","").split(",")])
+        ur_corner = np.array([float(val) for val in ur_corner.replace(" ","").split(",")])
 
     if latlon_resol is not None:
         click.echo("  latlon_resol: " + str(latlon_resol))
     else: 
         click.echo("  grid_resol: " + str(grid_resol))
-    
-    if region_ll_corner is not None:
-        click.echo("  region_ll_corner: " + str(region_ll_corner))
-        click.echo("  region_ur_corner: " + str(region_ur_corner))
 
-        region_ll_corner = np.array([float(val) for val in region_ll_corner.replace(" ","").split(",")])
-        region_ur_corner = np.array([float(val) for val in region_ur_corner.replace(" ","").split(",")])
-    
     if tm_min is not None:
         click.echo("  tm_min: " + str(tm_min))
         click.echo("  tm_max: " + str(tm_max))
@@ -147,7 +150,11 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
 
     if atmo_data is not None:
         click.echo("  atmo_data: " + str(atmo_data))
+        if grnd_snd_spd is not None:
+            click.echo("  grnd_snd_spd: " + str(grnd_snd_spd))
+
         click.echo("  c0_stdev: " + str(c0_stdev))
+        click.echo("  det_tm_stdev: " + str(det_tm_stdev))
 
         if alt_lims is not None:
             click.echo("  alt_lims: " + str(alt_lims))
@@ -171,7 +178,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
         # run localization analysis for multiple detection sets
         for j, det_list in enumerate(events):
             click.echo('\n' + "Running BISL on event " + str(j + 1) + " of " + str(len(events)))
-            result = bisl.run(det_list, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=None, ur_corner=None, latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
+            result = bisl.run(det_list, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner, latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
 
             # Determine output format for BISL results
             click.echo('\n' + "BISL Summary:")
@@ -182,33 +189,22 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
 
     else:
         # run a single localization analysis
-        if atmo_data is None:
-            '''
-            click.echo("Detection summary:")
-            for n, det in enumerate(events):
-                click.echo('\t' + "Detection " + str(n))
-                click.echo('\t' + "Receiver ID: " + det.network + "." + det.station )
-                click.echo('\t' + "Receiver location: " + str(det.latitude) + ", " + str(det.longitude))
-                click.echo('\t' + "Time: " +  str(det.peakF_UTCtime))
-                click.echo('\t' + "F statistic: " + str(np.round(det.peakF_value, 4)))
-                click.echo('\t' + "Back azimuth: " + str(np.round(det.back_azimuth, 4)) + " deg")
-                click.echo("")
-            '''
-            
-            result = bisl.run(events, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=None, ur_corner=None, latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
+        if atmo_data is None:           
+            result = bisl.run(events, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner, 
+                                    latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
         else:
-            click.echo('\n' + "This will run the TRIBL methods..." + '\n')
-            
-            
-            
-            result = {'lat_mean': 0.0, 'lon_mean' : 0.0,
-                        'EW_stdev': 0.0, 'NS_stdev': 0.0,
-                        'covar': 0.0,
-                        'lat_MaP': 0.0,
-                        'lon_MaP': 0.0,
-                        'MaP_val' : 0.0,
-                        'spatial_pdf' : 0.0}
+            atmo_file = atmo_data
 
+            with tempfile.TemporaryDirectory(prefix='infraga_') as tmpdirname:
+                if local_temp_dir is not None:
+                    if not os.path.isdir(local_temp_dir):
+                        os.mkdir(local_temp_dir)
+                    tmpdirname = local_temp_dir
+
+                temp_path = tmpdirname + "/temp"
+
+                result = tribl.run(events, atmo_file, temp_path, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
+                                    latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=True)
 
         # Determine output format for BISL results
         click.echo('\n' + "Localization Summary:")
@@ -218,6 +214,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
             local_loc_label = local_loc_label + ".loc.json"
         click.echo("Writing localization result into " + local_loc_label)
         data_io.write_json(result, local_loc_label)
+
 
 
 @click.command('regional', short_help="Run analysis using a single set of TLMs")
