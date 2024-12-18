@@ -3,13 +3,13 @@ from PyQt5.QtWidgets import (QCheckBox, QComboBox, QLabel, QDoubleSpinBox, QHBox
                              QSpinBox, QPushButton, QFormLayout, 
                              QVBoxLayout, QAbstractSpinBox)
 
-from PyQt5.QtCore import pyqtSignal, QSettings, Qt
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QSettings, Qt
 
 from InfraView.widgets import IPBaseWidgets
 
 class IPWaveformSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent):
         super().__init__(parent=parent)
         self.parent = parent
         self.buildUI()
@@ -24,6 +24,14 @@ class IPWaveformSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         layout.addStretch()
 
         self.setLayout(layout)
+
+    @pyqtSlot(tuple)
+    def update_signal_range(self, r):
+        self.sig_range = r
+
+    @pyqtSlot(tuple)
+    def update_noise_range(self, r):
+        self.noise_range = r
         
     def to_dict(self):
         psd_dict = self.psdSettingsWidget.to_dict()

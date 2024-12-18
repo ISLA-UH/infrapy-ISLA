@@ -47,11 +47,11 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.fmax_label = QLabel("5.0 Hz")
         self.fmax_label.setMinimumWidth(90)   
 
-        self.noiseStart_label = QLabel()
-        self.noiseDuration_label = QLabel()
+        self.noiseStart_label = QLabel("0.0")
+        self.noiseDuration_label = QLabel("0.0")
 
-        self.sigStart_label = QLabel()
-        self.sigDuration_label = QLabel()
+        self.sigStart_label = QLabel("0.0")
+        self.sigDuration_label = QLabel("0.0")
 
         self.subwindow_cb = QCheckBox()
         self.subwindow_cb.stateChanged.connect(self.updateSubwindow)
@@ -173,6 +173,7 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.setLayout(main_layout)
 
     def to_dict(self):
+        print(self.sigStart_label.text())
         s_dict = {}
         s_dict['win_length']  = self.windowLength_spin.value()
         s_dict['win_step'] = self.windowStep_spin.value()
@@ -186,6 +187,10 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['traceV_resolution'] = self.tracev_resol_spin.value()
         s_dict['traceV_min'] = self.tracev_min_spin.value()
         s_dict['traceV_max'] = self.tracev_max_spin.value()
+        s_dict['signal_start'] = self.sigStart_label.text()
+        s_dict['signal_end'] = float(self.sigStart_label.text()) + float(self.sigDuration_label.text())
+        s_dict['noise_start'] = self.noiseStart_label.text()
+        s_dict['noise_end'] = float(self.noiseStart_label.text()) + float(self.noiseDuration_label.text())
         s_dict['colormap'] = self.colormap_cb.currentText()
         s_dict['detector_settings'] = self.detector_settings.to_dict()
 
