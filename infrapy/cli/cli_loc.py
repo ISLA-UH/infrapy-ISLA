@@ -43,8 +43,13 @@ from ..utils import data_io
 @click.option("--pgm-file", help="Path geometry model (PGM) file (optional)", default=None)
 
 # add TRIBL options here...
+@click.option("--atmo-data", help="Atmosphere data if using TRIBL", default=None)
+@click.option("--alt-lims", help="Altitude limits if using TRIBL", default=None)
+@click.option("--alt-resol", help="Altitude resolution if using TRIBL", default=None)
+@click.option("--c0-stdev", help="Sound speed uncertainty if using TRIBL", default=None)
+@click.option("--local-temp-dir", help="Local temporary directory if using TRIBL", default=None)
 
-def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, region_ll_corner, region_ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file):
+def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, region_ll_corner, region_ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file, atmo_data, alt_lims, alt_resol, c0_stdev, local_temp_dir):
     '''
     Run Bayesian Infrasonic Source Localization (BISL) methods to estimate the source location and origin time for an event
 
@@ -102,9 +107,13 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     rcel_wts = config.set_param(user_config, 'LOC', 'rcel_wts', rcel_wts, 'str')
     rcel_mns = config.set_param(user_config, 'LOC', 'rcel_mns', rcel_mns, 'str')
     rcel_sds = config.set_param(user_config, 'LOC', 'rcel_sds', rcel_sds, 'str')
-
     pgm_file = config.set_param(user_config, 'LOC', 'pgm_file', pgm_file, 'str')
 
+    atmo_data = config.set_param(user_config, 'LOC', 'atmo_data', atmo_data, 'str')
+    alt_lims = config.set_param(user_config, 'LOC', 'alt_lims', alt_lims, 'str')
+    alt_resol = config.set_param(user_config, 'LOC', 'alt_resol', alt_resol, 'float')
+    c0_stdev = config.set_param(user_config, 'LOC', 'c0_stdev', c0_stdev, 'float')
+    local_temp_dir = config.set_param(user_config, 'LOC', 'local_temp_dir', local_temp_dir, 'str')
 
     # Summarie parameters
     click.echo('\n' + "Parameter summary:")
@@ -126,7 +135,6 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     if tm_min is not None:
         click.echo("  tm_min: " + str(tm_min))
         click.echo("  tm_max: " + str(tm_max))
-
         tm_lims = (np.datetime64(tm_min), np.datetime64(tm_max))
     else:
         tm_lims = None 
@@ -137,30 +145,28 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
         if latlon_resol is not None:
             click.echo("  grid_resol: " + str(grid_resol))
 
-    if celerity_model is not 'regional_hf':
-        click.echo("  Celerity model selection not implemented yet...")
+    if atmo_data is not None:
+        click.echo("  atmo_data: " + str(atmo_data))
+        click.echo("  c0_stdev: " + str(c0_stdev))
 
-    if rcel_wts is not None:
-        infrasound.canon_rcel_wts = np.array([float(val) for val in rcel_wts.replace(" ","").split(",")])
-        click.echo("  User defined reciprocal celerity (weights): " + str(infrasound.canon_rcel_wts))
+        if alt_lims is not None:
+            click.echo("  alt_lims: " + str(alt_lims))
+            click.echo("  alt_resol: " + str(alt_resol))
 
-    if rcel_mns is not None:
-        infrasound.canon_rcel_mns = np.array([float(val) for val in rcel_mns.replace(" ","").split(",")])
-        click.echo("  User defined reciprocal celerity (means): " + str(infrasound.canon_rcel_mns))
-
-    if rcel_sds is not None:
-        infrasound.canon_rcel_vrs = np.array([float(val) for val in rcel_sds.replace(" ","").split(",")])
-        click.echo("  User defined reciprocal celerity (stdev): " + str(infrasound.canon_rcel_vrs))
-
-    if pgm_file is not None:
-        click.echo("  pgm_file: " + str(pgm_file))
-        pgm = infrasound.PathGeometryModel()
-        pgm.load(pgm_file)
+        if local_temp_dir is not None:
+            click.echo("  local_temp_dir: " + str(local_temp_dir))
     else:
-        pgm = None
+        if pgm_file is not None:
+            click.echo("  pgm_file: " + str(pgm_file))
+            pgm = infrasound.PathGeometryModel()
+            pgm.load(pgm_file)
+        else:
+            infrasound.set_celerity_model(celerity_model, rcel_wts=rcel_wts, rcel_mns=rcel_mns, rcel_sds=rcel_sds)
+            pgm = None  
 
     click.echo("")
     events = data_io.set_det_list(local_detect_label, merge=False)
+
     if type(events[0]) is list:
         # run localization analysis for multiple detection sets
         for j, det_list in enumerate(events):
@@ -176,11 +182,36 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
 
     else:
         # run a single localization analysis
-        click.echo("")
-        result = bisl.run(events, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=None, ur_corner=None, latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
+        if atmo_data is None:
+            '''
+            click.echo("Detection summary:")
+            for n, det in enumerate(events):
+                click.echo('\t' + "Detection " + str(n))
+                click.echo('\t' + "Receiver ID: " + det.network + "." + det.station )
+                click.echo('\t' + "Receiver location: " + str(det.latitude) + ", " + str(det.longitude))
+                click.echo('\t' + "Time: " +  str(det.peakF_UTCtime))
+                click.echo('\t' + "F statistic: " + str(np.round(det.peakF_value, 4)))
+                click.echo('\t' + "Back azimuth: " + str(np.round(det.back_azimuth, 4)) + " deg")
+                click.echo("")
+            '''
+            
+            result = bisl.run(events, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=None, ur_corner=None, latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
+        else:
+            click.echo('\n' + "This will run the TRIBL methods..." + '\n')
+            
+            
+            
+            result = {'lat_mean': 0.0, 'lon_mean' : 0.0,
+                        'EW_stdev': 0.0, 'NS_stdev': 0.0,
+                        'covar': 0.0,
+                        'lat_MaP': 0.0,
+                        'lon_MaP': 0.0,
+                        'MaP_val' : 0.0,
+                        'spatial_pdf' : 0.0}
+
 
         # Determine output format for BISL results
-        click.echo('\n' + "BISL Summary:")
+        click.echo('\n' + "Localization Summary:")
         click.echo(bisl.summarize(result))
 
         if ".loc.json" not in local_loc_label:
