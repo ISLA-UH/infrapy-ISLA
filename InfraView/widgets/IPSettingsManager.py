@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, Q
 from PyQt5.QtCore import Qt, pyqtSlot
 
 import traceback, yaml
+from configparser import SafeConfigParser
 
 from InfraView.widgets.settings_widgets import IPBeamformingSettingsWidget
 from InfraView.widgets.settings_widgets import IPSpectrogramSettingsWidget
@@ -100,6 +101,11 @@ class IPSettingsManager(QFrame):
         print(yaml.dump(settings_dict, allow_unicode=True, default_flow_style=False))
         cli_dict = self.map_infraview_settings_to_cli(settings_dict)
 
+    def ini_to_dict(self, ini_filename):
+        parser = SafeConfigParser()
+        parser.read(ini_filename)
+        
+
     def map_infraview_settings_to_cli(self, settings_dict):
 
         # Dictionary of dictionaries to store mapping; the keys are the CLI nodes
@@ -131,10 +137,16 @@ class IPSettingsManager(QFrame):
         #                          "beamforming_widget"]
         
         # updated_keys = {}
+        for k, v in settings_dict.items():
+            print(k)
 
         # FK node
         cli_template_dict["FK"]["freq_min"] = settings_dict["waveforms_widget"]["filter_dict"]["highpass"]
         cli_template_dict["FK"]["freq_max"] = settings_dict["waveforms_widget"]["filter_dict"]["lowpass"]
+        cli_template_dict["FK"]["signal_start"] = settings_dict["beamforming_widget"]["signal_start"]
+        cli_template_dict["FK"]["signal_end"] = settings_dict["beamforming_widget"]["signal_end"]
+        cli_template_dict["FK"]["noise_start"] = settings_dict["beamforming_widget"]["noise_start"]
+        cli_template_dict["FK"]["noise_end"] = settings_dict["beamforming_widget"]["noise_end"]
         cli_template_dict["FK"]["back_az_min"] = settings_dict["beamforming_widget"]["backAz_start"]
         cli_template_dict["FK"]["back_az_max"] = settings_dict["beamforming_widget"]["backAz_end"]
         cli_template_dict["FK"]["back_az_step"] = settings_dict["beamforming_widget"]["backAz_resolution"]
@@ -142,22 +154,18 @@ class IPSettingsManager(QFrame):
         cli_template_dict["FK"]["trace_vel_max"] = settings_dict["beamforming_widget"]["traceV_max"]
         cli_template_dict["FK"]["trace_vel_step"] = settings_dict["beamforming_widget"]["traceV_resolution"]
         cli_template_dict["FK"]["method"] = settings_dict["beamforming_widget"]["method"]
-        cli_template_dict["FK"]["signal_start"] = None  # Default
-        cli_template_dict["FK"]["signal_end"] = None  # Default
-        cli_template_dict["FK"]["noise_start"] = None  # Default
-        cli_template_dict["FK"]["noise_end"] = None  # Default
+
         cli_template_dict["FK"]["window_len"] = settings_dict["beamforming_widget"]["win_length"]
         cli_template_dict["FK"]["sub_window_len"] = settings_dict["beamforming_widget"]["sub_win_length"]
         cli_template_dict["FK"]["window_step"] = settings_dict["beamforming_widget"]["win_step"]
-        cli_template_dict["FK"]["cpu_cnt"] = 1  # Default
+        cli_template_dict["FK"]["cpu_cnt"] = None  # # GUI doesn't save cpu cnt
         # FD node
         cli_template_dict["FD"]["window_len"] = None  # Default
         cli_template_dict["FD"]["p_value"] = settings_dict["beamforming_widget"]["detector_settings"]["pval"]
         cli_template_dict["FD"]["min_duration"] = settings_dict["beamforming_widget"]["detector_settings"]["min_peak_width"]
         cli_template_dict["FD"]["back_az_width"] = settings_dict["beamforming_widget"]["detector_settings"]["back_az_limit"]
-        cli_template_dict["FD"]["fixed_thresh"] = False
+        cli_template_dict["FD"]["fixed_thresh"] = settings_dict["beamforming_widget"]["detector_settings"]["manual_level"]
         cli_template_dict["FD"]["thresh_ceil"] = None  # Default
-        cli_template_dict["FD"]["return_thresh"] = True
         cli_template_dict["FD"]["merge_dets"] = settings_dict["beamforming_widget"]["detector_settings"]["merge"]
         # SD node
         # Spectrogram v. spectrogram - check string sanitization
@@ -165,23 +173,34 @@ class IPSettingsManager(QFrame):
         cli_template_dict["SD"]["morlet_omega0"] = settings_dict["spectral_widget"]["omega0"]
         cli_template_dict["SD"]["freq_min"] = settings_dict["spectral_widget"]["fmin"]
         cli_template_dict["SD"]["freq_max"] = settings_dict["spectral_widget"]["fmax"]
-        cli_template_dict["SD"]["window_len"] = settings_dict["spectral_widget"]["adapt_win_len"]
-        cli_template_dict["SD"]["window_step"]
+        cli_template_dict["SD"]["window_len"] = settings_dict["spectral_widget"]["adapt_win_len"]   # 900 default
+        cli_template_dict["SD"]["window_step"] = settings_dict["spectral_widget"]["adapt_win_len"] / 2.
         cli_template_dict["SD"]["p_value"] = settings_dict["spectral_widget"]["pval"]
-        cli_template_dict["SD"]["smoothing"] 
-        cli_template_dict["SD"]["freq_tm_factor"]
+        cli_template_dict["SD"]["freq_tm_factor"] = settings_dict["spectral_widget"]["cwt_cluster_freq_scale"]
         cli_template_dict["SD"]["cluster_eps"] = settings_dict["spectral_widget"]["cluster_eps"]
         cli_template_dict["SD"]["cluster_min_samples"] = settings_dict["spectral_widget"]["cluster_min_samples"]
+
+        cli_template_dict["SD-CWT"]["freq_min"] = settings_dict["spectral_widget"]["cwt_fmin"]
+        cli_template_dict["SD-CWT"]["freq_max"] = settings_dict["spectral_widget"]["cwt_fmax"]
+        cli_template_dict["SD-CWT"]["window_len"] = settings_dict["spectral_widget"]["cwt_adapt_win_len"]   # 900 default
+        cli_template_dict["SD-CWT"]["window_step"] = settings_dict["spectral_widget"]["adapt_win_len"] / 2.
+        cli_template_dict["SD-CWT"]["p_value"] = settings_dict["spectral_widget"]["cwt_pval"]
+        cli_template_dict["SD-CWT"]["freq_tm_factor"] = settings_dict["spectral_widget"]["cwt_cluster_freq_scale"]
+        cli_template_dict["SD-CWT"]["cluster_eps"] = settings_dict["spectral_widget"]["cluster_eps"]
+        cli_template_dict["SD-CWT"]["cluster_min_samples"] = settings_dict["spectral_widget"]["cluster_min_samples"]
+
         # ASSOC node
         cli_template_dict["ASSOC"]["back_az_width"] = settings_dict["location_widget"]["bisl_dict"]["bisl_bm_width"]
         cli_template_dict["ASSOC"]["range_max"] = settings_dict["location_widget"]["bisl_dict"]["bisl_rng_max"]
         cli_template_dict["ASSOC"]["resolution"] = settings_dict["location_widget"]["bisl_dict"]["bisl_resolution"]
-        cli_template_dict["ASSOC"]["multithread"] = False  # Default
-        cli_template_dict["ASSOC"]["cpu_cnt"] = None  # Default
+        cli_template_dict["ASSOC"]["cpu_cnt"] = None  # GUI doesn't save cpu cnt
         # LOC node
         cli_template_dict["LOC"]["back_az_width"] = settings_dict["location_widget"]["bisl_dict"]["bisl_bm_width"]
         cli_template_dict["LOC"]["range_max"] = settings_dict["location_widget"]["bisl_dict"]["bisl_rng_max"]
-        
-        print(cli_template_dict)
+        # cli_template_dict["LOC"]["latlon_resol"] = 
+        # cli_template_dict["LOC"]["tm_resol"] =
+        # cli_template_dict["LOC"]["src_est"] = 
+        # cli_template_dict["pgm_model"] = 
+        # print(cli_template_dict)
                 
         return cli_template_dict

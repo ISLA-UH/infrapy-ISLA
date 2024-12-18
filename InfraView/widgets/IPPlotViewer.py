@@ -700,10 +700,12 @@ class IPLinearRegionSettingsWidget(QWidget):
         self.noiseStartSpin.setMinimum(0)
         self.noiseStartSpin.setMaximum(1000000)
         self.noiseStartSpin.setSuffix(' s')
+
         self.noiseDurationSpin = QDoubleSpinBox()
         self.noiseDurationSpin.setMinimum(0)
         self.noiseDurationSpin.setMaximum(1000000)
         self.noiseDurationSpin.setSuffix(' s')
+        self.noiseSpinsChanged.emit((self.noiseStartSpin.value(), self.noiseDurationSpin.value()))
 
         self.noiseStartSpin.valueChanged.connect(self.myNoiseSpinsChanged)
         self.noiseDurationSpin.valueChanged.connect(self.myNoiseSpinsChanged)
@@ -717,6 +719,7 @@ class IPLinearRegionSettingsWidget(QWidget):
         self.signalDurationSpin.setMinimum(0)
         self.signalDurationSpin.setMaximum(1000000)
         self.signalDurationSpin.setSuffix(' s')
+        self.signalSpinsChanged.emit((self.signalStartSpin.value(), self.signalDurationSpin.value()))
 
         self.signalStartSpin.valueChanged.connect(self.mySignalSpinsChanged)
         self.signalDurationSpin.valueChanged.connect(self.mySignalSpinsChanged)
