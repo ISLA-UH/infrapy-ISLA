@@ -75,6 +75,8 @@ def _compute_projections(det_list, atmo_file, temp_dest, grnd_snd_spd=None, latl
         try:
             print("Downloading ETOPO1 data...")
             wget.download(download_url, destination)
+            print("Extracting...")
+            os.system("gzip -d " + destination)
             print("ETOPO file successfully downloaded.")
 
             topo = interp_etopo([min(lat_vals), min(lon_vals)], [max(lat_vals), max(lon_vals)])
