@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QGroupBox, QMenu, QSplitter, QPushButton
+from PyQt5.QtWidgets import QWidget, QLabel, QSizePolicy, QGroupBox, QMenu, QSplitter, QPushButton
 from PyQt5.QtGui import QColor, QPaintEvent, QPainter
 from PyQt5.QtCore import QSize, QRect
 
@@ -71,4 +71,7 @@ class IPSplitter(QSplitter):
 class IPWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+
+class IPElidedLabel(QLabel):
+
         

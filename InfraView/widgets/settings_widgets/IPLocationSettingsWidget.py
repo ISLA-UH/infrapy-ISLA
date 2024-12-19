@@ -99,10 +99,13 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.offline_file_dialog = QFileDialog()
         self.offline_file_dialog.setFileMode(QFileDialog.Directory)
 
-        offline_layout = QHBoxLayout()
-        offline_layout.addWidget(self.offline_checkbox)
+        offdir_layout = QHBoxLayout()
+        offdir_layout.addWidget(self.offline_checkbox)
+        offdir_layout.addWidget(self.offline_directory_select_button)
+        offline_layout = QVBoxLayout()
+        offline_layout.addLayout(offdir_layout)
         offline_layout.addWidget(self.offline_directory_label)
-        offline_layout.addWidget(self.offline_directory_select_button)
+
 
         options_gb = QGroupBox("Options")
         options_layout = QVBoxLayout()
