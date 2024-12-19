@@ -26,8 +26,7 @@ from datetime import datetime
 from pyproj import Geod
 
 from scipy.cluster import hierarchy
-from scipy.integrate import quad, nquad
-from scipy.interpolate import interp2d
+from scipy.integrate import simpson
 from scipy.spatial.distance import squareform
 
 from obspy import UTCDateTime
@@ -42,14 +41,14 @@ from ..utils import latlon as ll
 #    Set Integration Parameters    #
 #     and Spherical Earth Model    #
 # ################################ #
-int_opts = {'limit': 50, 'epsrel': 1.0e-3}
 sph_proj = Geod(ellps='sphere')
 
 # ################################ #
 #       Combining a Pair of        #
 #      Detection Likelihoods       #
 # ################################ #
-def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, rad_max=1000.0, ):
+
+def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, rad_max=1000.0):
     """Defines the integration region for computation of the joint-likelihood for a pair of detections
 
         Projects finite width beams from each of the detecting arrays and looks for intersections
@@ -81,6 +80,9 @@ def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=
 
         """
 
+    # figure out if hard coding this scaling works...
+    rad_min = 100.0
+    rad_max = rng_max / 4.0
     latlon1 = np.array([det1.latitude, det1.longitude], dtype=np.float64)
     latlon2 = np.array([det2.latitude, det2.longitude], dtype=np.float64)
 
@@ -255,7 +257,9 @@ def compute_assoc_pair(det1, det2,  bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
                     result += coeff / np.sqrt(a) * np.exp(-1.0 / 2.0 * (c - b**2 / a))
                 return result
 
-            jntlklhd = 1.0 / np.sqrt(2.0 * np.pi) * quad(jnt_az_pdf, -180.0, 180.0)[0] * quad(jnt_rng_pdf, 0.0, rng_max)[0] / (np.pi * rng_max)
+            az_vals = np.linspace(-180.0, 179.0, 180)
+            rng_vals = np.linspace(0.1, rng_max, 200)
+            jntlklhd = 1.0 / np.sqrt(2.0 * np.pi) * simpson(jnt_az_pdf(az_vals), az_vals) * simpson(jnt_rng_pdf(rng_vals), rng_vals) / (np.pi * rng_max)
     else:
         # Compute integration region center and radius
         success, center, radius = set_region(det1, det2, bm_width=bm_width, rad_min=rad_min, rad_max=rad_max, rng_max=rng_max)
@@ -265,17 +269,12 @@ def compute_assoc_pair(det1, det2,  bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
             rngs = np.linspace(0.0, radius, resol)
             R, ANG = np.meshgrid(rngs, angles)
 
-            R = R.flatten()
-            ANG = ANG.flatten()
-            temp = sph_proj.fwd(np.array([center[1]] * resol**2), np.array([center[0]] * resol**2), ANG, R * 1e3)
+            temp = sph_proj.fwd(np.array([center[1]] * resol**2), np.array([center[0]] * resol**2), ANG.flatten(), R.flatten() * 1e3)
             pdf = lklhds.marginal_spatial_pdf(temp[1], temp[0], [det1, det2])
-            pdf_fit = interp2d(rngs, angles, pdf.reshape(resol, resol), kind='cubic')
 
-            def integrand(r, az):
-                # dxdy -> r dr daz with angle changed to radians produces (r * pi / 180) factor
-                return pdf_fit(r, az)[0] * r * np.pi / 180.0
+            jntlklhd = simpson(simpson(pdf.reshape(resol, resol) * (R * np.pi / 180.0), rngs), angles) / (np.pi * radius)
 
-            jntlklhd = nquad(integrand, [[0.0, radius],[-180.0, 180.0]], opts=[int_opts, int_opts])[0] / (np.pi * rng_max)
+
         else:
             jntlklhd = np.finfo(float).epsneg
 
@@ -315,7 +314,8 @@ def build_distance_matrix(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
             Distance matrix describing joint-likelihood separations for all pairs
 
         """
-    print('\tComputing joint-likelihoods...')
+    if progress:
+        print('\tComputing joint-likelihoods...')
     det_cnt = len(det_list)
     n_tot, n_ref = det_cnt * (det_cnt - 1) / 2, 0
 

@@ -964,8 +964,8 @@ class BISLWorkerObject(QObject):
         try:
             self.bisl_result = bisl.run(self.detections,
                                          bm_width=self.beam_width,
-                                         rad_min=self.rad_min,
-                                         rad_max=self.rad_max,
+                                         # rad_min=self.rad_min,
+                                         # rad_max=self.rad_max,
                                          rng_max=self.rng_max,
                                          latlon_resol=self.latlon_resol,
                                          tm_resol=self.tm_resol,
