@@ -193,8 +193,6 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
             result = bisl.run(events, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner, 
                                     latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
         else:
-            atmo_file = atmo_data
-
             with tempfile.TemporaryDirectory(prefix='infraga_') as tmpdirname:
                 if local_temp_dir is not None:
                     if not os.path.isdir(local_temp_dir):
@@ -203,8 +201,17 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
 
                 temp_path = tmpdirname + "/temp"
 
-                result = tribl.run(events, atmo_file, temp_path, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
-                                    latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=True)
+                if "*" in atmo_data:
+                    click.echo("Atmospheric ensemble methods aren't set up yet...")
+
+
+                    
+
+                    resutlt = {}
+
+                else:              
+                    result = tribl.run(events, atmo_data, temp_path, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
+                                        latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=True)
 
         # Determine output format for BISL results
         click.echo('\n' + "Localization Summary:")

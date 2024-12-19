@@ -69,6 +69,10 @@ def set_region(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=10
 
         """
 
+    # figure out if hard coding this scaling works...
+    rad_min = 100.0
+    rad_max = rng_max / 4.0
+
     det_cnt = len(det_list)
     pair_cnt = det_cnt**2
 
