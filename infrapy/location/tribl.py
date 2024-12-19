@@ -12,11 +12,14 @@ import warnings
 import subprocess
 import tempfile
 import json
-import wget
-
-import numpy as np
 
 from importlib.util import find_spec
+
+if find_spec('infraga'):
+    import wget
+    from netCDF4 import Dataset
+
+import numpy as np
 
 from datetime import datetime
 from pyproj import Geod
@@ -27,7 +30,6 @@ from scipy.stats import norm, gaussian_kde
 from scipy.signal import savgol_filter
 from scipy.special import gamma
 
-from netCDF4 import Dataset
 
 from . import bisl
 from ..utils import prog_bar
