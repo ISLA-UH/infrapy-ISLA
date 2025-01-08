@@ -72,6 +72,6 @@ class IPWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-class IPElidedLabel(QLabel):
+#class IPElidedLabel(QLabel):
 
         
