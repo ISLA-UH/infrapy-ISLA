@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QFrame
+from PyQt5.QtWidgets import QStackedWidget, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QFrame, QFileDialog
 from PyQt5.QtCore import Qt, pyqtSlot
 
-import traceback, yaml
+import traceback, yaml, errno, os
 import configparser
 
 from pathlib import Path
@@ -20,6 +20,12 @@ class IPSettingsManager(QFrame):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setStyleSheet("#settingsManager {border: 1px solid #777;} ")
 
+        self.default_config_path = Path(__file__).parent.parent.parent /"infrapy" / "resources" / "default.config"
+        if self.default_config_path.exists():
+            self.current_config_path = self.default_config_path
+        else:
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(self.default_config_path))
+
         self.settings_widget_dict = {}
 
         self.initialize_settings_widgets()
@@ -30,10 +36,16 @@ class IPSettingsManager(QFrame):
         hide_layout = QVBoxLayout()
         self.hide_button = QPushButton('Hide')
         self.hide_button.clicked.connect(self.hide)
+        self.load_button = QPushButton('Load')
+        self.load_button.clicked.connect(self.load_settings)
         self.save_button = QPushButton('Save')
         self.save_button.clicked.connect(self.save_settings)
+        self.save_as_button = QPushButton('Save As...')
+        self.save_as_button.clicked.connect(self.save_settings_as)
         hide_layout.addWidget(self.hide_button)
+        hide_layout.addWidget(self.load_button)
         hide_layout.addWidget(self.save_button)
+        hide_layout.addWidget(self.save_as_button)
         hide_layout.addStretch()
 
         layout = QHBoxLayout()
@@ -87,11 +99,14 @@ class IPSettingsManager(QFrame):
             self.settings_stack.setCurrentWidget(self.settings_widget_dict[widget_name.lower()])
         except KeyError:
             print("{} settings not found".format(widget_name))
-            
+
     def toggle_visibility(self):
         self.setVisible(self.isHidden())
 
+    @pyqtSlot()
     def save_settings(self):
+        # filepath is a pathlib.Path representing the absolute path + filname to the file
+
         # collect settings dictionaries from all of the widgets, and save them to an infrapy file
         settings_dict = {}
         for key, value in self.settings_widget_dict.items():
@@ -100,11 +115,61 @@ class IPSettingsManager(QFrame):
             except AttributeError as e:
                 #print(traceback.format_exc())
                 print("{} doesn't have a to_dict method yet".format(value))
-        # print(yaml.dump(settings_dict, allow_unicode=True, default_flow_style=False))
         cli_dict = self.map_infraview_settings_to_cli(settings_dict)
 
+        # if self.current_config_file is the self.default_config_file, prompt for a new filename. (ie don't allow anyone to write over default config)
+        # otherwise, save to the current config path
+        if self.current_config_path == self.default_config_path:
+            filename = QFileDialog.getSaveFileName(self, "Config File", "", "Config Files (*.ini *.config)" )
+            self.dict_to_ini(cli_dict, Path(filename[0]))
+        else:
+            self.dict_to_ini(cli_dict, self.current_config_path)
+
+    @pyqtSlot()
+    def save_settings_as(self):
+
+        settings_dict = {}
+        for key, value in self.settings_widget_dict.items():
+            try:
+                settings_dict[key+'_widget'] = value.to_dict()
+            except AttributeError as e:
+                #print(traceback.format_exc())
+                print("{} doesn't have a to_dict method yet".format(value))
+        cli_dict = self.map_infraview_settings_to_cli(settings_dict)
+
+        # force the filedialog
+        filename = QFileDialog.getSaveFileName(self, "Config File", "", "Config Files (*.ini *.config)")
+
+        self.dict_to_ini(cli_dict, Path(filename[0]))
+
+    def load_default_settings(self):
+        filename = str(self.default_config_path)
+        settings_dict = self.ini_to_dict(filename)
+        s_dict = self.map_cli_to_infraview_settings(settings_dict)
+
+        for key, value in self.settings_widget_dict.items():
+            try:
+                settings_dict[key+'_widget'] = value.from_dict(s_dict)
+            except AttributeError as e:
+                #print(traceback.format_exc())
+                print("{} doesn't have a from_dict method yet".format(value))
+
     def load_settings(self):
-        pass
+        filename = QFileDialog.getOpenFileName(self, "Config File", "", "Config Files (*.ini *.config)" )[0]
+        if filename == '':
+            # dialog was cancelled
+            return
+
+        settings_dict = self.ini_to_dict(filename)
+        s_dict = self.map_cli_to_infraview_settings(settings_dict)
+
+        for key, value in self.settings_widget_dict.items():
+            try:
+                settings_dict[key+'_widget'] = value.from_dict(s_dict)
+            except AttributeError as e:
+                #print(traceback.format_exc())
+                print("{} doesn't have a from_dict method yet".format(value))
+
 
     def ini_to_dict(self, ini_filename):
         # ini_filename is the absolute path to the ini file to read
@@ -114,18 +179,40 @@ class IPSettingsManager(QFrame):
         ini_dict = {}
         for section in config.sections():
             ini_dict[section] = {}
-            #print(section)
             for option in config.options(section):
-                #print(option)
                 ini_dict[section][option] = config.get(section, option)
         return ini_dict
 
+    def dict_to_ini(self, dict, ini_filepath):
+        config = configparser.ConfigParser()
+        sections = dict.keys()
+
+        for section in sections:
+            config.add_section(section)
+
+        for section in sections:
+            sub_dict = dict[section]
+            fields = sub_dict.keys()
+            for field in fields:
+                value = sub_dict[field]
+                config.set(section, field, str(value))
+
+        with open(str(ini_filepath), 'w') as f:
+            config.write(f)
+
+        self.current_config_path = ini_filepath
+
     def map_cli_to_infraview_settings(self, cli_dict):
         # This would primarily be for reading in ini files and setting appropriate elements of the gui
-        
+        settings_dict = {'waveforms_widget': {'filter_dict': {}}, 
+                         'beamforming_widget': {'detector_settings':{}},
+                         'spectral_widget': {},
+                         'location_widget': {'bisl_dict': {}}}
+
         #FK
-        settings_dict["waveforms_widget"]["filter_dict"]["highpass"] = cli_dict["FK"]["freq_min"]
-        settings_dict["waveforms_widget"]["filter_dict"]["lowpass"] = cli_dict["FK"]["freq_max"]
+        settings_dict["waveforms_widget"]["filter_dict"]["highpass"] = float(cli_dict["FK"]["freq_min"])
+        settings_dict["waveforms_widget"]["filter_dict"]["lowpass"] = float(cli_dict["FK"]["freq_max"])
+
         settings_dict["beamforming_widget"]["signal_start"] = cli_dict["FK"]["signal_start"]
         settings_dict["beamforming_widget"]["signal_end"] = cli_dict["FK"]["signal_end"]
         settings_dict["beamforming_widget"]["noise_start"] = cli_dict["FK"]["noise_start"]
@@ -160,7 +247,7 @@ class IPSettingsManager(QFrame):
         settings_dict["spectral_widget"]["adapt_win_len"] = cli_dict["SD"]["window_len"]  
         # cli_dict["SD"]["window_step"].  GUI autmatically calulates window_step from window length
         settings_dict["spectral_widget"]["pval"] = cli_dict["SD"]["p_value"] 
-        settings_dict["spectral_widget"]["cwt_cluster_freq_scale"] = cli_dict["SD"]["freq_tm_factor"] 
+        settings_dict["spectral_widget"]["cluster_freq_scale"] = cli_dict["SD"]["freq_tm_factor"] 
         settings_dict["spectral_widget"]["cluster_eps"] = cli_dict["SD"]["cluster_eps"]
         settings_dict["spectral_widget"]["cluster_min_samples"] = cli_dict["SD"]["cluster_min_samples"]
 
@@ -170,8 +257,8 @@ class IPSettingsManager(QFrame):
         # cli_dict["SD-CWT"]["window_step"] GUI automatically calculates window step from window length 
         settings_dict["spectral_widget"]["cwt_pval"] = cli_dict["SD-CWT"]["p_value"]
         settings_dict["spectral_widget"]["cwt_cluster_freq_scale"] = cli_dict["SD-CWT"]["freq_tm_factor"]
-        settings_dict["spectral_widget"]["cluster_eps"] = cli_dict["SD-CWT"]["cluster_eps"]
-        settings_dict["spectral_widget"]["cluster_min_samples"] = cli_dict["SD-CWT"]["cluster_min_samples"]
+        settings_dict["spectral_widget"]["cwt_cluster_eps"] = cli_dict["SD-CWT"]["cluster_eps"]
+        settings_dict["spectral_widget"]["cwt_cluster_min_samples"] = cli_dict["SD-CWT"]["cluster_min_samples"]
 
         # ASSOC node
         settings_dict["location_widget"]["bisl_dict"]["bisl_bm_width"] = cli_dict["ASSOC"]["back_az_width"]
@@ -183,18 +270,17 @@ class IPSettingsManager(QFrame):
         settings_dict["location_widget"]["bisl_dict"]["bisl_bm_width"] = cli_dict["LOC"]["back_az_width"]
         settings_dict["location_widget"]["bisl_dict"]["bisl_rng_max"] = cli_dict["LOC"]["range_max"]
 
+        return settings_dict
 
     def map_infraview_settings_to_cli(self, settings_dict):
         # This is used mainly when saving settings to a ini file
 
         # load infrapy defaults, then if there's something we don't write over, it will automatically have the default value
-        default_config_path = Path(__file__).parent.parent.parent /"infrapy" / "resources" / "default.config"
-        if default_config_path.exists():
-            print("Reading: {}".format(str(default_config_path)))
-            cli_template_dict = self.ini_to_dict(str(default_config_path))
+        if self.default_config_path.exists():
+            print("Reading: {}".format(str(self.default_config_path)))
+            cli_template_dict = self.ini_to_dict(str(self.default_config_path))
         else:
             raise FileNotFoundError
-        print(cli_template_dict)
        
         # FK node
         cli_template_dict["FK"]["freq_min"] = settings_dict["waveforms_widget"]["filter_dict"]["highpass"]
@@ -212,7 +298,7 @@ class IPSettingsManager(QFrame):
         cli_template_dict["FK"]["method"] = settings_dict["beamforming_widget"]["method"]
 
         cli_template_dict["FK"]["window_len"] = settings_dict["beamforming_widget"]["win_length"]
-        cli_template_dict["FK"]["sub_window_len"] = settings_dict["beamforming_widget"]["sub_win_length"]
+        # cli_template_dict["FK"]["sub_window_len"] = settings_dict["beamforming_widget"]["sub_win_length"] not currently in gui
         cli_template_dict["FK"]["window_step"] = settings_dict["beamforming_widget"]["win_step"]
         cli_template_dict["FK"]["cpu_cnt"] = None  # # GUI doesn't save cpu cnt
 

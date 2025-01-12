@@ -34,9 +34,16 @@ class IPWaveformSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.noise_range = r
         
     def to_dict(self):
+        # used when saving to config settings
         psd_dict = self.psdSettingsWidget.to_dict()
         filter_dict = self.filterSettingsWidget.to_dict()
         return {'psd_dict': psd_dict, 'filter_dict': filter_dict}
+
+    def from_dict(self, sd):
+        s = sd['waveforms_widget']['filter_dict']
+        # used when loading new config settings
+        # self.psdSettingsWidget.from_dict(d['psd_dict'])
+        self.filterSettingsWidget.from_dict(s)
 
 class IPPSDSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
 
@@ -98,6 +105,12 @@ class IPPSDSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         s_dict['fft_T'] = self.fft_T_Spin.value() 
         s_dict['window'] = self.window_cb.currentText()
         return s_dict
+
+    def from_dict(self, s_dict):
+        self.fft_N_Spin.setValue(s_dict['fft_n'])
+        self.fs_Spin.setValue(s_dict['fs'])
+        self.fft_T_Spin.setValue(s_dict['fft_T'])
+        self.window_cb.setCurrentText(s_dict['window'])
 
     def set_fs(self, fs):
         self.fs_Spin.setValue(fs)
@@ -225,6 +238,15 @@ class IPFilterSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         s_dict['order'] = self.orderSpin.value()
         s_dict['zero_phase'] = self.zeroPhase_checkbox.isChecked()
         return s_dict
+
+    def from_dict(self, s_dict):
+        # self.applyFilter_checkbox.setChecked(s_dict['apply_filter'])  will be in gui settings
+        # self.showUnfiltered.setChecked(s_dict['show_unfiltered'])     will be in gui settings
+        # self.cb_filter_type.setCurrentText(s_dict['filter_type'])     will be in gui settings
+        self.lowpassSpin.setValue(s_dict['lowpass'])
+        self.highpassSpin.setValue(s_dict['highpass'])
+        # self.orderSpin.setValue(s_dict['order'])                      will be in gui settings
+        # self.zeroPhase_checkbox.setChecked(s_dict['zero_phase'])      will be in gui settings
 
     def onActivated_cb(self, text):
         self.filter_settings['type'] = text

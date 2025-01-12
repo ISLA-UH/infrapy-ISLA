@@ -240,6 +240,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['cluster_eps'] = self.clust_eps_spin.value()
         s_dict['cluster_min_samples'] = self.clust_min_samples_spin.value()
         s_dict['adapt_win_len'] = self.adaptive_win_len_spin.value()
+
         s_dict['cwt_pval'] = self.cwt_pval_spin.value()
         s_dict['cwt_fmin'] = self.cwt_fmin_spin.value()
         s_dict['cwt_fmax'] = self.cwt_fmax_spin.value()
@@ -247,7 +248,31 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['cwt_cluster_eps'] = self.cwt_clust_eps_spin.value()
         s_dict['cwt_cluster_min_samples'] = self.cwt_clust_min_samples_spin.value()
         s_dict['cwt_adapt_win_len'] = self.cwt_adaptive_win_len_spin.value()
+
         return s_dict
+
+    def from_dict(self, s_dict):
+        sd = s_dict['spectral_widget']
+        self.spec_type_cb.setCurrentText(sd['spec_type'])
+        self.omega0_spin.setValue(float(sd['omega0']))
+        # self.colormap_cb      will be in gui config
+        # self.colorbar_rb      will be in gui config
+        self.pval_spin.setValue(float(sd['pval']))
+        self.fmin_spin.setValue(float(sd['fmin']))
+        self.fmax_spin.setValue(float(sd['fmax']))
+        self.clust_freq_scale_spin.setValue(float(sd['cluster_freq_scale']))
+        self.clust_eps_spin.setValue(float(sd['cluster_eps']))
+        self.clust_min_samples_spin.setValue(int(sd['cluster_min_samples']))
+        self.adaptive_win_len_spin.setValue(float(sd['adapt_win_len']))
+
+        self.cwt_pval_spin.setValue(float(sd['cwt_pval']))
+        self.cwt_fmin_spin.setValue(float(sd['cwt_fmin']))
+        self.cwt_fmax_spin.setValue(float(sd['cwt_fmax']))
+        self.cwt_clust_freq_scale_spin.setValue(float(sd['cwt_cluster_freq_scale']))
+        self.cwt_clust_eps_spin.setValue(float(sd['cwt_cluster_eps']))
+        self.cwt_clust_min_samples_spin.setValue(int(sd['cwt_cluster_min_samples']))
+        self.cwt_adaptive_win_len_spin.setValue(float(sd['cwt_adapt_win_len']))
+
 
 
     def set_controlled_widget(self, widget):

@@ -158,6 +158,9 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         return s_dict
 
+    def from_dict(self, s_dict):
+        sd = s_dict['location_widget']
+        self.bisl_settings.from_dict(sd)
         
 
     def connect_signals_and_slots(self):
@@ -286,6 +289,11 @@ class IPBISLSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         s_dict['bisl_t_resolution'] = self.tm_resolution_edit.value()
         s_dict['bisl_confidence'] = self.confidence_edit.value()
         return s_dict
+
+    def from_dict(self, s_dict):
+        sd = s_dict['bisl_dict']
+        self.bm_width_edit.setValue(float(sd['bisl_bm_width']))
+        self.rng_max_edit.setValue(float(sd['bisl_rng_max']))
     
     @pyqtSlot(float)
     @pyqtSlot(int)

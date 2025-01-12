@@ -32,6 +32,10 @@ class IPDatabaseSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['connect'] = self.connect_widget.to_dict()
         return s_dict
 
+    def from_dict(self, s_dict):
+        # self.connect_widget.from_dict(s_dict['connect'])  will be in gui or db config
+        print ("need to add db config somewhere")
+        return
 
 class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
 
@@ -115,6 +119,10 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         s_dict['schema'] = self.schema_type_combo.currentText() 
         s_dict['url'] = self.url_edit.text()
         return s_dict
+
+    def from_dict(self, s_dict):
+        self.schema_type_combo.setCurrentText(s_dict['schema'])
+        self.url_edit.setText(s_dict['url'])
 
     def connect_signals_and_slots(self):
         self.load_config_button.clicked.connect(self.load_config_file)

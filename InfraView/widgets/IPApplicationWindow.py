@@ -132,6 +132,9 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         mainLayout.addWidget(self.mainStack)
         mainLayout.setContentsMargins(0,0,0,0)
 
+        # Load the default settings
+        self.settings_manager.load_default_settings()
+
         # All menu items should be located in makeMenuBar method
         self.menuBar = IPMainMenu.IPMainMenuBar(self, self.widget_dict)
         self.setMenuBar(self.menuBar)

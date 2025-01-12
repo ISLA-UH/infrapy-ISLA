@@ -87,6 +87,16 @@ class IPDetectorSettingsWidget(QGroupBox):
         s_dict['manual_level'] =  self.manual_value.value()
 
         return s_dict
+    
+    def from_dict(self, s_dict):
+        sd = s_dict['detector_settings']
+        self.pval_spin.setValue(float(sd['pval']))
+        self.back_az_limit.setValue(float(sd['back_az_limit']))
+        self.min_peak_width.setValue(float(sd['min_peak_width']))
+        self.merge_detections_cb.setChecked(sd['merge'].lower() == 'true')
+        if sd['manual_level'] == 'None' : sd['manual_level'] = '1.0'
+        self.manual_value.setValue(float(sd['manual_level']))
+
 
     @pyqtSlot()
     def update_widget(self):

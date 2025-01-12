@@ -55,13 +55,14 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.subwindow_cb = QCheckBox()
         self.subwindow_cb.stateChanged.connect(self.updateSubwindow)
-
+        self.subwindow_cb.setVisible(False)
         self.subWinLength_spin = QDoubleSpinBox()
         self.subWinLength_spin.setMaximumWidth(60)
         self.subWinLength_spin.setMinimum(0.0)
         self.subWinLength_spin.setMaximum(1000000)
         self.subWinLength_spin.setSuffix(' s')
         self.subWinLength_spin.setEnabled(False)
+        self.subWinLength_spin.setVisible(False)
 
         self.backaz_resol_spin = QDoubleSpinBox()
         self.backaz_resol_spin.setMinimum(0.1)
@@ -173,14 +174,12 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.setLayout(main_layout)
 
     def to_dict(self):
-        print(self.sigStart_label.text())
         s_dict = {}
         s_dict['win_length']  = self.windowLength_spin.value()
         s_dict['win_step'] = self.windowStep_spin.value()
-        s_dict['num_sigs'] = self.numSigs_spin.value()
         s_dict['method'] = self.method_cb.currentText()
-        s_dict['sub_win_check'] = self.subwindow_cb.isChecked()
-        s_dict['sub_win_length'] = self.subWinLength_spin.value()
+        # s_dict['sub_win_check'] = self.subwindow_cb.isChecked()   CURRENTLY NOT USED
+        # s_dict['sub_win_length'] = self.subWinLength_spin.value() CURRENTLY NOT USED
         s_dict['backAz_resolution'] = self.backaz_resol_spin.value()
         s_dict['backAz_start'] = self.backaz_start_spin.value()
         s_dict['backAz_end'] = self.backaz_end_spin.value()
@@ -195,6 +194,32 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['detector_settings'] = self.detector_settings.to_dict()
 
         return s_dict
+
+    def from_dict(self, s_dict):
+        sd = s_dict['beamforming_widget']
+        self.windowLength_spin.setValue(float(sd['win_length']))
+        self.windowStep_spin.setValue(float(sd['win_step']))
+        self.method_cb.setCurrentText(sd['method'])
+        # self.subwindow_cb.setChected...       CURRENTLY NOT USED
+        # self.subWinLength_spin.setValue(float(sd['sub_win_length'])) CURRENTLY NOT USED
+        self.backaz_resol_spin.setValue(float(sd['backAz_resolution']))
+        self.backaz_start_spin.setValue(float(sd['backAz_start']))
+        self.backaz_end_spin.setValue(float(sd['backAz_end']))
+        self.tracev_resol_spin.setValue(float(sd['traceV_resolution']))
+        self.tracev_min_spin.setValue(float(sd['traceV_min']))
+        self.tracev_max_spin.setValue(float(sd['traceV_max']))
+        if sd['signal_start'] == "None" : sd['signal_start'] = '0.0'
+        if sd['signal_end'] == "None" : sd['signal_end'] = '0.0'
+        self.sigStart_label.setText(sd['signal_start'])
+        self.sigDuration_label.setText(str(float(sd['signal_end']) - float(sd['signal_start'])))
+        if sd['noise_start'] == 'None' : sd['noise_start'] = '0.0'
+        if sd['noise_end'] == 'None' : sd['noise_end'] = '0.0'
+        self.noiseStart_label.setText(sd['noise_start'])
+        self.noiseDuration_label.setText(str(float(sd['noise_end']) - float(sd['noise_start'])))
+
+        self.detector_settings.from_dict(sd)
+        
+          
 
 
     def set_defaults(self):
