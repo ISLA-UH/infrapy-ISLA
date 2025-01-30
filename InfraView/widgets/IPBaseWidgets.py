@@ -1,7 +1,26 @@
-from PyQt5.QtWidgets import QWidget, QLabel, QSizePolicy, QGroupBox, QMenu, QSplitter, QPushButton
+from PyQt5.QtWidgets import QWidget, QLabel, QSizePolicy, QGroupBox, QMenu, QSplitter, QPushButton, QDialog, QDialogButtonBox, QVBoxLayout, QLabel
 from PyQt5.QtGui import QColor, QPaintEvent, QPainter
 from PyQt5.QtCore import QSize, QRect
 
+class IPContinueDialog(QDialog):
+    def __init__(self, parent, message, title=""):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.message = message
+        self.buildUI()
+
+    def buildUI(self):
+        qbtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+
+        self.buttonBox = QDialogButtonBox(qbtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        layout = QVBoxLayout()
+        message_label = QLabel(self.message)
+        layout.addWidget(message_label)
+        layout.addWidget(self.buttonBox)
+        self.setLayout(layout)
 
 class IPColorButton(QPushButton):
     current_color = QColor(255, 0, 0)

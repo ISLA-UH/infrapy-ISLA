@@ -1,7 +1,5 @@
 
-from ssl import OP_NO_RENEGOTIATION
-from tkinter import N
-import configparser
+import configparser, yaml
 
 from PyQt5.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QTextEdit,
                              QLabel, QLineEdit, QPushButton, QVBoxLayout, QDialog, QDialogButtonBox,)
@@ -9,6 +7,7 @@ from PyQt5.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QTextE
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QTimer, Qt
 
 from sqlalchemy.orm import Session
+from pathlib import Path
 
 from InfraView.widgets import IPUtils
 from infrapy.utils import database
@@ -56,6 +55,9 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         self.save_current_button = QPushButton("Save Config...")
         self.save_current_button.setEnabled(False)
 
+        self.save_default_button = QPushButton("Save Defaults...")
+        self.save_default_button.setToolTip("Save current db settings to the $HOME/.lanl_network_config.yml file")
+
         self.table_dialog = IPTableDialog(self)
         self.show_tables_button = QPushButton("Tables...")
 
@@ -80,6 +82,7 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         row1_layout = QHBoxLayout()
         row1_layout.addWidget(self.load_config_button)
         row1_layout.addWidget(self.save_current_button)
+        row1_layout.addWidget(self.save_default_button)
         row1_layout.addStretch()
 
         row2_layout = QHBoxLayout()
@@ -114,6 +117,15 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         # connect signals and slots
         self.connect_signals_and_slots()
 
+        # We provide the option of having a default net config file for database and fdsn settings in the
+        # users home directory.  If it exists, load the information in to save the user from having to do it
+        # each time.
+        try:
+            self.load_default_net_config()
+        except FileNotFoundError:
+            # dont load defaults, just go on with life i guess
+            pass
+
     def to_dict(self):
         s_dict = {}
         s_dict['schema'] = self.schema_type_combo.currentText() 
@@ -127,13 +139,84 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
     def connect_signals_and_slots(self):
         self.load_config_button.clicked.connect(self.load_config_file)
         # self.save_current_button.clicked.connect(self.save_current_config)
+        self.save_default_button.clicked.connect(self.save_default_net_config)
         self.show_tables_button.clicked.connect(self.show_tables_dialog)
         self.show_env_vars_button.clicked.connect(self.show_env_vars_dialog)
         self.create_session_button.clicked.connect(self.create_session)
         self.test_connection_button.pressed.connect(self.check_connection)
 
+    def load_default_net_config(self):
+        '''
+        some applications can store database and fdsn information in a file $HOME/.lanl_network_config.yml.  This function will look to see if that file 
+        exists, and if it does will open it and read in the information into a dictionary.
+        '''
+        file_path = Path.home() / ".lanl_network_config.yml"
+        
+        if file_path.is_file():
+            print("loading default network info")
+            with  open(str(file_path)) as ifile:
+                try:
+                    net_dict =  yaml.safe_load(ifile)
+                except yaml.YAMLError as e:
+                    IPUtils.errorPopup('Error reading str(file_path)')
+                    return {}
+        else:
+            raise FileNotFoundError
+        
+        # the default network config file is a yml file and looks a little different from the normaol ini config files, so
+        # we can just handle it here for now
+        self.url_edit.setText(net_dict['database']['url'])
+        self.schema_type_combo.setCurrentText(net_dict['database']['schema'])
+        self.table_dialog.set_text_from_table_dict(net_dict['database']['tables'])
+        self.env_vars_dialog.set_text_from_vars_dict(net_dict['database']['environmentvars'])
+
+    def save_default_net_config(self):
+
+        file_path = Path.home() / ".lanl_network_config.yml"
+
+        # new dict will contain the settings to be written
+        new_dict = dict()
+        new_dict['url'] = self.url_edit.text()
+        new_dict['schema'] = self.schema_type_combo.currentText()
+        new_dict['tables'] = self.table_dialog.get_tables_from_text()
+        new_dict['environmentvars'] = self.env_vars_dialog.get_vars_from_text()
+
+        if file_path.is_file():
+            # There is an existing config file. First read it in, we will only overwrite the database portion here.
+
+            # first verify the user wants to do this
+            check_dialog = IPBaseWidgets.IPContinueDialog(self, "This will overwrite the database section in the default configuration file. Are you sure?", "Overwrite Default Config")
+
+            if check_dialog.exec() == QDialog.Rejected:
+                return
+            
+            # read in existing settings, we will only overwrite the db section
+            with open(str(file_path)) as ifile:
+                try:
+                    net_dict = yaml.safe_load(ifile)
+                except yaml.YAMLError as e:
+                    IPUtils.errorPopup('Error reading str(file_path). Bailing out')
+                    return
+
+            net_dict['database'] = new_dict
+                
+        else:
+            check_dialog = IPBaseWidgets.IPContinueDialog(self, "Default Config file ({}) does not currently exist.\n Would you like to create it?".format(str(file_path)))
+            if check_dialog.exec() == QDialog.Accepted:
+                net_dict = dict(database = new_dict, 
+                                fdsn = dict(custom_servers = dict(), 
+                                             default_server = 'iris'))
+            else:
+                return
+                
+        
+        with open(str(file_path), 'w') as ofile:
+            yaml.dump(net_dict, ofile, default_flow_style=False)
+
+
     @pyqtSlot()
     def load_config_file(self):
+        # This loads configuration settings from the standard infrapy ini files.
         if self.config_file_dialog.exec_():
             self.config_filename = self.config_file_dialog.selectedFiles()[0]
             try:
@@ -254,22 +337,23 @@ class IPTableDialog(QDialog):
         # set the text of the table editor from a dictionary of tables
         text = ""
         for key, value in tables.items():
-            text += key + ':' + value + '\n'
-
-        self.tables_textEdit.setText(text.rstrip())
+            text += key + ':' + str(value) + '\n'
+            
+        self.tables_textEdit.setText(text)
 
     def get_tables_from_text(self):
-        text = self.tables_textEdit.toPlainText().rstrip()      # the rstrip removes trailing newlines etc
-        lines = text.split("\n")
-        table_dict = {}
+        # Convert the QTextEdit contents into individual lines, then seperate into a dictionary
+        lines = self.tables_textEdit.toPlainText().split("\n")
+
+        table_dict = dict()
+        
         for line in lines:
             key_val = line.split(':')
             try:
                 table_dict[key_val[0]] = key_val[1]
             except IndexError:
-                pass
-
-        return table_dict
+                table_dict[key_val[0]] = ""
+        return table_dict 
 
     def reject(self):
         self.reset()
@@ -310,21 +394,21 @@ class IPEnvVarDialog(QDialog):
         # set the text of the table editor from a dictionary of tables
         text = ""
         for key, value in vars.items():
-            text += key + ':' + value + '\n'
+            text += key + ':' + str(value) + '\n'
 
         self.vars_textEdit.setText(text.rstrip())
 
     def get_vars_from_text(self):
         text = self.vars_textEdit.toPlainText().rstrip()      # the rstrip removes trailing newlines etc
         lines = text.split("\n")
-        vars_dict = {}
+        vars_dict = dict()
 
         for line in lines:
             key_val = line.split(':')
             try:
                 vars_dict[key_val[0]] = key_val[1].strip()
             except IndexError as e:
-                pass
+                vars_dict[key_val[0]] = ""
 
         return vars_dict
 

@@ -1,6 +1,6 @@
 import pyqtgraph as pg
 import numpy as np
-import os, platform
+import os, platform, yaml
 import qdarktheme, darkdetect
 from pathlib import Path
 
@@ -92,6 +92,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 self.set_theme('dark')
 
     def buildUI(self):
+        self.setWindowTitle("Infraview")
         self.main_widget = QWidget(self)
 
         # Create the settings manager
