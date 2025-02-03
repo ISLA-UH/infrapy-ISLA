@@ -1,0 +1,15 @@
+database:
+  environmentvars:
+    # of the form variable: value...
+    # oracle_port: 1523
+  schema: KBCore
+  tables:
+    # of the form tablename: owner.table where owner. is optional...
+    # wfdisc: global.wfdisc_raw
+    # origin: origin
+  url: 'oracle://:@myoracledb.com:1523/dbname'
+fdsn:
+  custom_servers: 
+    # of the form server_name: url
+    # my_fdsn_server: https://myfdsnserver.com/
+  default_server: iris

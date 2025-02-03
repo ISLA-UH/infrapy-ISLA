@@ -158,20 +158,26 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
                 try:
                     net_dict =  yaml.safe_load(ifile)
                 except yaml.YAMLError as e:
-                    IPUtils.errorPopup('Error reading str(file_path)')
-                    return {}
+                    IPUtils.errorPopup('Error reading str(file_path).\nNetwork configuration skipped.')
+                    return
         else:
             raise FileNotFoundError
         
-        # the default network config file is a yml file and looks a little different from the normaol ini config files, so
+        # the default network config file is a yml file and is different from the normal ini config files, so
         # we can just handle it here for now
-        self.url_edit.setText(net_dict['database']['url'])
-        self.schema_type_combo.setCurrentText(net_dict['database']['schema'])
-        self.table_dialog.set_text_from_table_dict(net_dict['database']['tables'])
-        self.env_vars_dialog.set_text_from_vars_dict(net_dict['database']['environmentvars'])
+        try:
+            self.url_edit.setText(net_dict['database']['url'])
+            self.schema_type_combo.setCurrentText(net_dict['database']['schema'])
+            self.table_dialog.set_text_from_table_dict(net_dict['database']['tables'])
+            self.env_vars_dialog.set_text_from_vars_dict(net_dict['database']['environmentvars'])
+        except KeyError:
+            IPUtils.errorPopup("Poorly formed config file.\nMissing some information", title="Key Error")
 
     def save_default_net_config(self):
 
+        
+
+        # Method to save the current db settings to the default network configuration file $HOME/.lanl_network_config.yml
         file_path = Path.home() / ".lanl_network_config.yml"
 
         # new dict will contain the settings to be written
@@ -187,29 +193,30 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
             # first verify the user wants to do this
             check_dialog = IPBaseWidgets.IPContinueDialog(self, "This will overwrite the database section in the default configuration file. Are you sure?", "Overwrite Default Config")
 
-            if check_dialog.exec() == QDialog.Rejected:
-                return
-            
-            # read in existing settings, we will only overwrite the db section
-            with open(str(file_path)) as ifile:
-                try:
-                    net_dict = yaml.safe_load(ifile)
-                except yaml.YAMLError as e:
-                    IPUtils.errorPopup('Error reading str(file_path). Bailing out')
-                    return
+            if check_dialog.exec() == QDialog.Accepted:
+                # read in existing settings, we will only overwrite the db section
+                with open(str(file_path)) as ifile:
+                    try:
+                        net_dict = yaml.safe_load(ifile)
+                    except yaml.YAMLError as e:
+                        IPUtils.errorPopup('Error reading str(file_path). Bailing out')
+                        return
+                net_dict['database'] = new_dict
 
-            net_dict['database'] = new_dict
-                
         else:
             check_dialog = IPBaseWidgets.IPContinueDialog(self, "Default Config file ({}) does not currently exist.\n Would you like to create it?".format(str(file_path)))
             if check_dialog.exec() == QDialog.Accepted:
-                net_dict = dict(database = new_dict, 
-                                fdsn = dict(custom_servers = dict(), 
-                                             default_server = 'iris'))
+                try:
+                    def_config_path = Path(__file__).resolve().parent.parent.parent.parent / 'infrapy' / 'resources' / 'default_lanl_network_config.yml'
+                    with open(str(def_config_path)) as ifile:
+                        net_dict = yaml.safe_load(ifile)
+                        net_dict['database'] = new_dict
+                except yaml.YAMLError as e:
+                    IPUtils.errorPopup('Error reading str(def_config_path).\nNo default configuration file created.')
+                    return
             else:
                 return
-                
-        
+
         with open(str(file_path), 'w') as ofile:
             yaml.dump(net_dict, ofile, default_flow_style=False)
 
@@ -335,6 +342,8 @@ class IPTableDialog(QDialog):
     
     def set_text_from_table_dict(self, tables):
         # set the text of the table editor from a dictionary of tables
+        print(tables)
+            
         text = ""
         for key, value in tables.items():
             text += key + ':' + str(value) + '\n'
@@ -346,13 +355,15 @@ class IPTableDialog(QDialog):
         lines = self.tables_textEdit.toPlainText().split("\n")
 
         table_dict = dict()
-        
+
         for line in lines:
-            key_val = line.split(':')
-            try:
-                table_dict[key_val[0]] = key_val[1]
-            except IndexError:
-                table_dict[key_val[0]] = ""
+            if line.strip():    # if line is blank, this will skip it
+                key_val = line.split(':')
+                try:
+                    table_dict[key_val[0]] = key_val[1]
+                except IndexError:
+                    table_dict[key_val[0]] = ""
+        print('table dict: {}'.format(table_dict))
         return table_dict 
 
     def reject(self):
@@ -391,25 +402,29 @@ class IPEnvVarDialog(QDialog):
         self.vars_textEdit.setText(self.initial_text)
     
     def set_text_from_vars_dict(self, vars):
+        if vars is None:
+            return  # Nothing to do
+        
         # set the text of the table editor from a dictionary of tables
         text = ""
         for key, value in vars.items():
             text += key + ':' + str(value) + '\n'
 
-        self.vars_textEdit.setText(text.rstrip())
+        self.vars_textEdit.setText(text)
 
     def get_vars_from_text(self):
-        text = self.vars_textEdit.toPlainText().rstrip()      # the rstrip removes trailing newlines etc
-        lines = text.split("\n")
+        lines = self.vars_textEdit.toPlainText().split("\n")      # the rstrip removes trailing newlines etc
+        
         vars_dict = dict()
 
         for line in lines:
-            key_val = line.split(':')
-            try:
-                vars_dict[key_val[0]] = key_val[1].strip()
-            except IndexError as e:
-                vars_dict[key_val[0]] = ""
-
+            if line.strip():
+                key_val = line.split(':')
+                try:
+                    vars_dict[key_val[0]] = key_val[1].strip()
+                except IndexError as e:
+                    vars_dict[key_val[0]] = ""
+        print('vars dict: {}'.format(vars_dict))
         return vars_dict
 
     def reject(self):
