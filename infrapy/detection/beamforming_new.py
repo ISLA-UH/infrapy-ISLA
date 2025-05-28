@@ -427,7 +427,7 @@ def project_ABc(A, B, c):
 def compute_beam_power(data, steering, method="bartlett", ns_covar_inv=None, signal_cnt=1):
     """Compute the beampower for a specific frequency
 
-        Cmoputes the beampower at a single frequency using either the FFT'd data, X(f),
+        Computes the beampower at a single frequency using either the FFT'd data, X(f),
         for Bartlett or GLS analysis or the covariance matrix, S(f), for Capon and MUSIC.
 
         Generalized Least Square (GLS) analysis requires a noise covariance for the
@@ -474,21 +474,17 @@ def compute_beam_power(data, steering, method="bartlett", ns_covar_inv=None, sig
 
     beam_power = np.empty(len(steering))
     if method == "bartlett":
-            temp = project_Ab(steering, data)
-            beam_power = (np.conj(temp) * temp).real
+        temp = project_Ab(steering, data)
+        beam_power = (np.conj(temp) * temp).real
 
     elif method == "gls":
         if ns_covar_inv is None:
             # Note: generalized least squares with noise covariance of identity
             # is equivalent to Bartlett beam.
             temp = project_Ab(steering, data)
-            beam_power = (np.conj(temp) * temp).real
-
-            # beam_power = gls_beam(data, steering, np.eye(data.shape[0], dtype=np.complex))
         else:
-            num = project_ABc(steering, ns_covar_inv, data)
-            den = project_ABA(steering, ns_covar_inv)
-            beam_power = (np.conj(num) * num).real / den**2
+            temp = project_ABc(steering, ns_covar_inv, data)
+        beam_power = (np.conj(temp) * temp).real
 
     elif method == "bartlett_covar":
         beam_power = project_ABA(steering, data)
@@ -590,10 +586,15 @@ def run(X, S, f, dxdy, delays, freq_band, method="bartlett", ns_covar_inv=None, 
                 beam_power = np.array([compute_beam_power(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) / np.sqrt(X_msk.shape[0]), method, None, signal_cnt) for nf in range(f_cnt)])
 
     if normalize_beam:
-        if method == "bartlett" or method == "gls" or method == "bartlett_covar":
+        if method == "bartlett" or method == "bartlett_covar":
             beam_power = np.array([beam_power[nf] / (np.vdot(X_msk[:, nf], X_msk[:, nf])).real for nf in range(f_cnt)])
         elif method == "capon":
             beam_power = np.array([beam_power[nf] / (np.max(np.linalg.eigh(S_msk[:, :, nf])[0])) for nf in range(f_cnt)])
+        elif method == "gls":
+            for nf in range(f_cnt):
+                den = np.linalg.norm((ns_covar_inv[:, :, band_mask])[:, :, nf] @ X_msk[:, nf])**2
+                beam_power[nf] /= den
+            beam_power = np.array(beam_power)
 
     return beam_power
 
