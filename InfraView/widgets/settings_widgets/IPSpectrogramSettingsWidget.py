@@ -230,9 +230,10 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
     def to_dict(self):
         s_dict = {}
         s_dict['spec_type'] = self.spec_type_cb.currentText()
+        s_dict['gui_colormap'] = self.colormap_cb.currentText()
+        s_dict['gui_colorbar'] = self.colorbar_rb.isChecked()
+
         s_dict['omega0'] = self.omega0_spin.value()
-        s_dict['colormap'] = self.colormap_cb.currentText()
-        s_dict['colorbar'] = self.colorbar_rb.isChecked()
         s_dict['pval'] = self.pval_spin.value()
         s_dict['fmin'] = self.fmin_spin.value()
         s_dict['fmax'] = self.fmax_spin.value()
@@ -252,11 +253,16 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         return s_dict
 
     def from_dict(self, s_dict):
+        bool_map = {"True": True, "False": False}
+
         sd = s_dict['spectral_widget']
+        print(sd)
         self.spec_type_cb.setCurrentText(sd['spec_type'])
+        self.colormap_cb.setCurrentText(sd['gui_colormap'])
+        self.colorbar_rb.setChecked(bool_map[sd['gui_colorbar']])
+        
         self.omega0_spin.setValue(float(sd['omega0']))
-        # self.colormap_cb      will be in gui config
-        # self.colorbar_rb      will be in gui config
+
         self.pval_spin.setValue(float(sd['pval']))
         self.fmin_spin.setValue(float(sd['fmin']))
         self.fmax_spin.setValue(float(sd['fmax']))

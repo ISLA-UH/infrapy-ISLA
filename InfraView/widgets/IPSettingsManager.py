@@ -12,6 +12,7 @@ from InfraView.widgets.settings_widgets import IPLocationSettingsWidget
 from InfraView.widgets.settings_widgets import IPWaveformSettingsWidget
 from InfraView.widgets.settings_widgets import IPDatabaseSettingsWidget
 
+
 class IPSettingsManager(QFrame):
     def __init__(self, parent):
         super().__init__(parent)
@@ -42,8 +43,11 @@ class IPSettingsManager(QFrame):
         self.save_button.clicked.connect(self.save_settings)
         self.save_as_button = QPushButton('Save As...')
         self.save_as_button.clicked.connect(self.save_settings_as)
+        self.load_defaults_button = QPushButton('Defaults')
+        self.load_defaults_button.clicked.connect(self.load_default_settings)
         hide_layout.addWidget(self.hide_button)
         hide_layout.addWidget(self.load_button)
+        hide_layout.addWidget(self.load_defaults_button)
         hide_layout.addWidget(self.save_button)
         hide_layout.addWidget(self.save_as_button)
         hide_layout.addStretch()
@@ -103,6 +107,11 @@ class IPSettingsManager(QFrame):
     def toggle_visibility(self):
         self.setVisible(self.isHidden())
 
+
+    def set_current_config(self, new_path):
+        self.current_config_path = new_path
+        self.save_button.setToolTip(str(new_path))
+
     @pyqtSlot()
     def save_settings(self):
         # filepath is a pathlib.Path representing the absolute path + filname to the file
@@ -121,9 +130,9 @@ class IPSettingsManager(QFrame):
         # otherwise, save to the current config path
         if self.current_config_path == self.default_config_path:
             filename = QFileDialog.getSaveFileName(self, "Config File", "", "Config Files (*.ini *.config)" )
-            self.dict_to_ini(cli_dict, Path(filename[0]))
-        else:
-            self.dict_to_ini(cli_dict, self.current_config_path)
+            self.set_current_config(Path(filename[0]))
+
+        self.dict_to_ini(cli_dict, self.current_config_path)
 
     @pyqtSlot()
     def save_settings_as(self):
@@ -140,34 +149,39 @@ class IPSettingsManager(QFrame):
         # force the filedialog
         filename = QFileDialog.getSaveFileName(self, "Config File", "", "Config Files (*.ini *.config)")
 
-        self.dict_to_ini(cli_dict, Path(filename[0]))
+        self.set_current_config(Path(filename[0]))
+
+        self.dict_to_ini(cli_dict, self.current_config_path)
 
     def load_default_settings(self):
         filename = str(self.default_config_path)
         settings_dict = self.ini_to_dict(filename)
         s_dict = self.map_cli_to_infraview_settings(settings_dict)
+        self.set_current_config(self.default_config_path)
 
         for key, value in self.settings_widget_dict.items():
             try:
                 settings_dict[key+'_widget'] = value.from_dict(s_dict)
             except AttributeError as e:
-                #print(traceback.format_exc())
+                print(traceback.format_exc())
                 print("{} doesn't have a from_dict method yet".format(value))
+
+        
 
     def load_settings(self):
         filename = QFileDialog.getOpenFileName(self, "Config File", "", "Config Files (*.ini *.config)" )[0]
-        if filename == '':
-            # dialog was cancelled
+        if not filename:
             return
 
         settings_dict = self.ini_to_dict(filename)
         s_dict = self.map_cli_to_infraview_settings(settings_dict)
-
+        self.set_current_config(Path(filename))
+                                
         for key, value in self.settings_widget_dict.items():
             try:
                 settings_dict[key+'_widget'] = value.from_dict(s_dict)
             except AttributeError as e:
-                #print(traceback.format_exc())
+                print(traceback.format_exc())
                 print("{} doesn't have a from_dict method yet".format(value))
 
 
@@ -207,7 +221,7 @@ class IPSettingsManager(QFrame):
         settings_dict = {'waveforms_widget': {'filter_dict': {}}, 
                          'beamforming_widget': {'detector_settings':{}},
                          'spectral_widget': {},
-                         'location_widget': {'bisl_dict': {}}}
+                         'location_widget': {'bisl_dict': {}, 'extent_dict': {}}}
 
         #FK
         settings_dict["waveforms_widget"]["filter_dict"]["highpass"] = float(cli_dict["FK"]["freq_min"])
@@ -270,6 +284,29 @@ class IPSettingsManager(QFrame):
         settings_dict["location_widget"]["bisl_dict"]["bisl_bm_width"] = cli_dict["LOC"]["back_az_width"]
         settings_dict["location_widget"]["bisl_dict"]["bisl_rng_max"] = cli_dict["LOC"]["range_max"]
 
+        # GUI node
+        settings_dict['beamforming_widget']['gui_bf_colormap'] = cli_dict["GUI"]["bf_colormap"]
+        settings_dict['beamforming_widget']['detector_settings']['gui_bf_auto_detect'] = cli_dict["GUI"]["bf_auto_detect"]
+        settings_dict['location_widget']['gui_borders'] = cli_dict["GUI"]["loc_borders"]
+        settings_dict['location_widget']['gui_states'] = cli_dict["GUI"]["loc_states"]
+        settings_dict['location_widget']['gui_lakes'] = cli_dict["GUI"]["loc_lakes"]
+        settings_dict['location_widget']['gui_rivers'] = cli_dict["GUI"]["loc_rivers"]
+        settings_dict['location_widget']['gui_coastline'] = cli_dict["GUI"]["loc_coastline"]
+
+        settings_dict['location_widget']['gui_ocean_color'] = cli_dict['GUI']['loc_ocean_color']
+        settings_dict['location_widget']['gui_land_color'] = cli_dict['GUI']['loc_land_color'] 
+        settings_dict['location_widget']['gui_resolution'] = cli_dict['GUI']['loc_resolution']
+        settings_dict['location_widget']['gui_use_background'] = cli_dict['GUI']['loc_use_background']
+        settings_dict['location_widget']['gui_offline'] = cli_dict['GUI']['loc_offline']
+        settings_dict['location_widget']['gui_offline_dir'] = cli_dict['GUI']['loc_offline_map_dir']
+        settings_dict['location_widget']['extent_dict']['ll_lat'] = cli_dict['GUI']['loc_ext_ll_lat']
+        settings_dict['location_widget']['extent_dict']['ll_lon'] = cli_dict['GUI']['loc_ext_ll_lon']
+        settings_dict['location_widget']['extent_dict']['ur_lat'] = cli_dict['GUI']['loc_ext_ur_lat']
+        settings_dict['location_widget']['extent_dict']['ur_lon'] = cli_dict['GUI']['loc_ext_ur_lon']
+
+        settings_dict['spectral_widget']['gui_colormap'] = cli_dict['GUI']['spec_colormap']
+        settings_dict['spectral_widget']['gui_colorbar'] = cli_dict['GUI']['spec_colorbar']
+
         return settings_dict
 
     def map_infraview_settings_to_cli(self, settings_dict):
@@ -277,7 +314,7 @@ class IPSettingsManager(QFrame):
 
         # load infrapy defaults, then if there's something we don't write over, it will automatically have the default value
         if self.default_config_path.exists():
-            print("Reading: {}".format(str(self.default_config_path)))
+            # print("Reading: {}".format(str(self.default_config_path)))
             cli_template_dict = self.ini_to_dict(str(self.default_config_path))
         else:
             raise FileNotFoundError
@@ -346,5 +383,30 @@ class IPSettingsManager(QFrame):
         # cli_template_dict["LOC"]["tm_resol"] =
         # cli_template_dict["LOC"]["src_est"] = 
         # cli_template_dict["pgm_model"] = 
-                
+
+        #GUI node
+        cli_template_dict["GUI"]["bf_colormap"] = settings_dict['beamforming_widget']['gui_bf_colormap']
+        cli_template_dict['GUI']["bf_auto_detect"] = settings_dict['beamforming_widget']['detector_settings']['gui_bf_auto_detect']
+        
+        cli_template_dict['GUI']['loc_borders'] = settings_dict['location_widget']['gui_borders']
+        cli_template_dict['GUI']['loc_states'] = settings_dict['location_widget']['gui_states']
+        cli_template_dict['GUI']['loc_lakes'] = settings_dict['location_widget']['gui_lakes']
+        cli_template_dict['GUI']['loc_rivers'] = settings_dict['location_widget']['gui_rivers']
+        cli_template_dict['GUI']['loc_coastline'] = settings_dict['location_widget']['gui_coastline']
+        
+        cli_template_dict['GUI']['loc_ocean_color'] = settings_dict['location_widget']['gui_ocean_color']
+        cli_template_dict['GUI']['loc_land_color'] = settings_dict['location_widget']['gui_land_color']
+        cli_template_dict['GUI']['loc_resolution'] = settings_dict['location_widget']['gui_resolution']
+        cli_template_dict['GUI']['loc_use_background'] = settings_dict['location_widget']['gui_use_background']
+        cli_template_dict['GUI']['loc_offline'] = settings_dict['location_widget']['gui_offline']
+        cli_template_dict['GUI']['loc_offline_map_dir'] = settings_dict['location_widget']['gui_offline_dir']
+
+        cli_template_dict['GUI']['loc_ext_ll_lat'] = settings_dict['location_widget']['extent_dict']['ll_lat']
+        cli_template_dict['GUI']['loc_ext_ll_lon'] = settings_dict['location_widget']['extent_dict']['ll_lon']
+        cli_template_dict['GUI']['loc_ext_ur_lat'] = settings_dict['location_widget']['extent_dict']['ur_lat']
+        cli_template_dict['GUI']['loc_ext_ur_lon'] = settings_dict['location_widget']['extent_dict']['ur_lon']
+
+        cli_template_dict['GUI']['spec_colormap'] = settings_dict['spectral_widget']['gui_colormap']
+        cli_template_dict['GUI']['spec_colorbar'] = settings_dict['spectral_widget']['gui_colorbar']
+
         return cli_template_dict

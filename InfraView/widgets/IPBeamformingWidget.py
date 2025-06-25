@@ -20,7 +20,6 @@ from pathlib import Path
 # import infraview widgets here
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPDetectionWidget
-from InfraView.widgets import IPDetectorSettingsWidget
 from InfraView.widgets import IPNewDetectionDialog
 from InfraView.widgets import IPPickLine
 from InfraView.widgets import IPPlotItem

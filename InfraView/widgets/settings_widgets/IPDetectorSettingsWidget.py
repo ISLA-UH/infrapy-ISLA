@@ -79,13 +79,14 @@ class IPDetectorSettingsWidget(QGroupBox):
 
     def to_dict(self):
         s_dict = {}
-        s_dict['auto_detect']  = self.auto_checkbox.isChecked()
         s_dict['pval'] = self.pval_spin.value()
         s_dict['back_az_limit'] = self.back_az_limit.value()
         s_dict['min_peak_width'] = self.min_peak_width.value()
         s_dict['merge'] = self.merge_detections_cb.isChecked()
         s_dict['manual_level'] =  self.manual_value.value()
 
+        s_dict['gui_bf_auto_detect'] = self.auto_checkbox.isChecked()
+        
         return s_dict
     
     def from_dict(self, s_dict):

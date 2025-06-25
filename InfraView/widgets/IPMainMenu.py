@@ -1,4 +1,4 @@
-import platform, platform
+import platform
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import QKeySequence

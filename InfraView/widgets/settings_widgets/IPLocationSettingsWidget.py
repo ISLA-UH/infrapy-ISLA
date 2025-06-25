@@ -139,18 +139,21 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
     def to_dict(self):
         s_dict = {}
-        s_dict['borders'] = self.borders_checkbox.isChecked()
-        s_dict['states'] = self.states_checkbox.isChecked()
-        s_dict['lakes'] = self.lakes_checkbox.isChecked()
-        s_dict['rivers'] = self.rivers_checkbox.isChecked()
-        s_dict['coast'] = self.coast_checkbox.isChecked()
-        s_dict['show_grid'] = self.show_grid_checkbox.isChecked()
-        s_dict['ocean_color'] = self.ocean_color_button.color_str()
-        s_dict['land_color'] = self.land_color_button.color_str()
-        s_dict['resolution'] = self.resolution_cb.currentText()
-        s_dict['background_pic'] = self.backgroud_image_checkbox.isChecked()
-        s_dict['offline'] = self.offline_checkbox.isChecked()
-        s_dict['offline_dir'] = self.offline_directory_label.text()
+        s_dict['gui_borders'] = self.borders_checkbox.isChecked()
+        s_dict['gui_states'] = self.states_checkbox.isChecked()
+        s_dict['gui_lakes'] = self.lakes_checkbox.isChecked()
+        s_dict['gui_rivers'] = self.rivers_checkbox.isChecked()
+        s_dict['gui_coastline'] = self.coast_checkbox.isChecked()
+        s_dict['gui_show_grid'] = self.show_grid_checkbox.isChecked()
+
+        s_dict['gui_ocean_color'] = self.ocean_color_button.color_str()
+        s_dict['gui_land_color'] = self.land_color_button.color_str()
+        s_dict['gui_resolution'] = self.resolution_cb.currentText()
+        s_dict['gui_use_background'] = self.backgroud_image_checkbox.isChecked()
+        s_dict['gui_offline'] = self.offline_checkbox.isChecked()
+        s_dict['gui_offline_dir'] = self.offline_directory_label.text()
+
+
 
         s_dict['extent_dict'] = self.extent_settings.to_dict()
 
@@ -159,9 +162,26 @@ class IPLocationSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         return s_dict
 
     def from_dict(self, s_dict):
+        bool_map = {"True": True, "False": False}
         sd = s_dict['location_widget']
         self.bisl_settings.from_dict(sd)
-        
+
+        self.borders_checkbox.setChecked(bool_map[sd['gui_borders']])
+        self.states_checkbox.setChecked(bool_map[sd['gui_states']])
+        self.lakes_checkbox.setChecked(bool_map[sd['gui_lakes']])
+        self.rivers_checkbox.setChecked(bool_map[sd['gui_rivers']])
+        self.coast_checkbox.setChecked(bool_map[sd['gui_coastline']])
+
+        self.ocean_color_button.set_color_from_str(sd['gui_ocean_color'])
+        self.land_color_button.set_color_from_str(sd['gui_land_color'])
+        self.resolution_cb.setCurrentText(sd['gui_resolution'])
+        self.backgroud_image_checkbox.setChecked(bool_map[sd['gui_use_background']])
+        self.offline_checkbox.setChecked(bool_map[sd['gui_offline']])
+        self.offline_directory_label.setText(sd['gui_offline_dir'])
+
+        self.extent_settings.from_dict(sd)
+
+        self.signal_colors_changed.emit()
 
     def connect_signals_and_slots(self):
         self.offline_checkbox.clicked.connect(self.offline_directory_select_button.setEnabled)
@@ -392,6 +412,15 @@ class IPExtentSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         s_dict['ur_lat'] = self.ur_lat_spin.value()
         s_dict['ur_lon'] = self.ur_lon_spin.value()
         return s_dict
+    
+    def from_dict(self, s_dict):
+        sd = s_dict['extent_dict']
+        self.ll_lat_spin.setValue(float(sd['ll_lat']))
+        self.ll_lon_spin.setValue(float(sd['ll_lon']))
+        self.ur_lat_spin.setValue(float(sd['ur_lat']))
+        self.ur_lon_spin.setValue(float(sd['ur_lon']))
+
+        self.update_map_extent()
  
     def set_extent_spin_values(self, extent):
         # ll_lon: lower left longitude

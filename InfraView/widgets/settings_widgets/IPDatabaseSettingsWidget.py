@@ -1,5 +1,5 @@
 
-import configparser, yaml
+import configparser, yaml, traceback
 
 from PyQt5.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QTextEdit,
                              QLabel, QLineEdit, QPushButton, QVBoxLayout, QDialog, QDialogButtonBox,)
@@ -31,10 +31,10 @@ class IPDatabaseSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['connect'] = self.connect_widget.to_dict()
         return s_dict
 
-    def from_dict(self, s_dict):
-        # self.connect_widget.from_dict(s_dict['connect'])  will be in gui or db config
-        print ("need to add db config somewhere")
-        return
+    # def from_dict(self, s_dict):
+    #     # self.connect_widget.from_dict(s_dict['connect'])  will be in gui or db config
+    #     print ("need to add db config somewhere")
+    #     return
 
 class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
 
@@ -153,12 +153,13 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
         file_path = Path.home() / ".lanl_network_config.yml"
         
         if file_path.is_file():
-            print("loading default network info")
+
             with  open(str(file_path)) as ifile:
                 try:
                     net_dict =  yaml.safe_load(ifile)
                 except yaml.YAMLError as e:
-                    IPUtils.errorPopup('Error reading str(file_path).\nNetwork configuration skipped.')
+                    traceback.print_exc()
+                    IPUtils.errorPopup('Error reading {}.\nNetwork configuration skipped.'.format(str(file_path)))
                     return
         else:
             raise FileNotFoundError
@@ -169,14 +170,13 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
             self.url_edit.setText(net_dict['database']['url'])
             self.schema_type_combo.setCurrentText(net_dict['database']['schema'])
             self.table_dialog.set_text_from_table_dict(net_dict['database']['tables'])
-            self.env_vars_dialog.set_text_from_vars_dict(net_dict['database']['environmentvars'])
-        except KeyError:
-            IPUtils.errorPopup("Poorly formed config file.\nMissing some information", title="Key Error")
+            self.env_vars_dialog.set_text_from_vars_dict(net_dict['database']['environment_vars'])
+            
+        except KeyError as e:
+            print(f"Key error: {e}")
+            # IPUtils.errorPopup("Poorly formed config file.\nMissing some information", title="Key Error")
 
     def save_default_net_config(self):
-
-        
-
         # Method to save the current db settings to the default network configuration file $HOME/.lanl_network_config.yml
         file_path = Path.home() / ".lanl_network_config.yml"
 
@@ -199,7 +199,7 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
                     try:
                         net_dict = yaml.safe_load(ifile)
                     except yaml.YAMLError as e:
-                        IPUtils.errorPopup('Error reading str(file_path). Bailing out')
+                        IPUtils.errorPopup('Error reading {}. Bailing out'.format(str(file_path)))
                         return
                 net_dict['database'] = new_dict
 
@@ -212,7 +212,7 @@ class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
                         net_dict = yaml.safe_load(ifile)
                         net_dict['database'] = new_dict
                 except yaml.YAMLError as e:
-                    IPUtils.errorPopup('Error reading str(def_config_path).\nNo default configuration file created.')
+                    IPUtils.errorPopup('Error reading {}.\nNo default configuration file created.'.format(str(def_config_path)))
                     return
             else:
                 return
@@ -342,8 +342,6 @@ class IPTableDialog(QDialog):
     
     def set_text_from_table_dict(self, tables):
         # set the text of the table editor from a dictionary of tables
-        print(tables)
-            
         text = ""
         for key, value in tables.items():
             text += key + ':' + str(value) + '\n'
@@ -363,7 +361,7 @@ class IPTableDialog(QDialog):
                     table_dict[key_val[0]] = key_val[1]
                 except IndexError:
                     table_dict[key_val[0]] = ""
-        print('table dict: {}'.format(table_dict))
+
         return table_dict 
 
     def reject(self):
@@ -424,7 +422,6 @@ class IPEnvVarDialog(QDialog):
                     vars_dict[key_val[0]] = key_val[1].strip()
                 except IndexError as e:
                     vars_dict[key_val[0]] = ""
-        print('vars dict: {}'.format(vars_dict))
         return vars_dict
 
     def reject(self):

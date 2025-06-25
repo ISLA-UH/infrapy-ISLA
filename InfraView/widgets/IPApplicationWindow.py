@@ -491,7 +491,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         # initialize the lat/lon/ele 
         lat = 0.0
         lon = 0.0
-        ele = -1.0
+        ele = 0.0
 
         network = trace.stats['network'] 
         station = trace.stats['station']
@@ -510,7 +510,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
             if 'stel' in trace.stats['sac']:
                 ele = trace.stats['sac']['stel']
             else:
-                ele = 0.333
+                ele = 0.0
 
         if lat == 0.0 or lon == 0.0 or ele < 0:
             if self.fill_sta_info_dialog.exec_(network, station, location, channel, lat, lon, ele):

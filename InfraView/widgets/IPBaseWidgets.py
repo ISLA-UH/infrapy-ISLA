@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 from PyQt5.QtWidgets import QWidget, QLabel, QSizePolicy, QGroupBox, QMenu, QSplitter, QPushButton, QDialog, QDialogButtonBox, QVBoxLayout, QLabel
 from PyQt5.QtGui import QColor, QPaintEvent, QPainter
 from PyQt5.QtCore import QSize, QRect
@@ -42,6 +44,10 @@ class IPColorButton(QPushButton):
     def set_color(self, new_color):
         # new color should be a QColor type
         self.current_color = new_color
+        self.update()
+
+    def set_color_from_str(self, new_color_str):
+        self.set_color(QColor(new_color_str))
 
     def color(self):
         return QColor(self.current_color)
@@ -79,6 +85,12 @@ class IPSettingsWidget(QWidget):
 
     def set_controlled_widget(self, widget):
         self.controlled_widget = widget
+
+    # def to_dict(self):
+    #     pass
+
+    # def from_dict(self, sd):
+    #     pass
 
 
 class IPSplitter(QSplitter):

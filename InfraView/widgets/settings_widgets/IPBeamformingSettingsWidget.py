@@ -6,7 +6,7 @@ import pyqtgraph as pg
 
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPPolarPlot
-from InfraView.widgets import IPDetectorSettingsWidget
+from InfraView.widgets.settings_widgets import IPDetectorSettingsWidget
 
 class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
@@ -174,6 +174,8 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.setLayout(main_layout)
 
     def to_dict(self):
+        # s_dict is the standard settings for analysis
+        # g_dict is the settings for the gui
         s_dict = {}
         s_dict['win_length']  = self.windowLength_spin.value()
         s_dict['win_step'] = self.windowStep_spin.value()
@@ -190,7 +192,7 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['signal_end'] = float(self.sigStart_label.text()) + float(self.sigDuration_label.text())
         s_dict['noise_start'] = self.noiseStart_label.text()
         s_dict['noise_end'] = float(self.noiseStart_label.text()) + float(self.noiseDuration_label.text())
-        s_dict['colormap'] = self.colormap_cb.currentText()
+        s_dict['gui_bf_colormap'] = self.colormap_cb.currentText()
         s_dict['detector_settings'] = self.detector_settings.to_dict()
 
         return s_dict
@@ -217,10 +219,9 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.noiseStart_label.setText(sd['noise_start'])
         self.noiseDuration_label.setText(str(float(sd['noise_end']) - float(sd['noise_start'])))
 
-        self.detector_settings.from_dict(sd)
-        
-          
+        self.colormap_cb.setCurrentText(sd['gui_bf_colormap'])
 
+        self.detector_settings.from_dict(sd)
 
     def set_defaults(self):
         default_settings = {'winlen_spin': 10.0,
@@ -249,8 +250,6 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.tracev_resol_spin.setValue(default_settings['traceVelRes_spin'])
         self.tracev_min_spin.setValue(default_settings['traceVelmin_spin'])
         self.tracev_max_spin.setValue(default_settings['traceVelmax_spin'])
-        
-
 
     def HLine(self):
         hl = QFrame()
@@ -370,7 +369,6 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
             self.subwindow_cb.setChecked(False)
             self.subwindow_cb.setEnabled(False)
             self.subWinLength_spin.setEnabled(False)
-
 
 
 class IPSlownessSettingsWidget(QGroupBox):
