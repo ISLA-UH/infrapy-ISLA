@@ -25,7 +25,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.spec_type_cb = QComboBox(self)
         spec_type_label = QLabel("Spectrogram Type:")
-        self.spec_type_cb.addItem("Spectrogram")
+        self.spec_type_cb.addItem("SPECTROGRAM")
         self.spec_type_cb.addItem("STFT")
         self.spec_type_cb.addItem("CWT")
 
@@ -229,7 +229,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
     def to_dict(self):
         s_dict = {}
-        s_dict['spec_type'] = self.spec_type_cb.currentText()
+        s_dict['spec_type'] = self.spec_type_cb.currentText().lower()
         s_dict['gui_colormap'] = self.colormap_cb.currentText()
         s_dict['gui_colorbar'] = self.colorbar_rb.isChecked()
 
@@ -257,7 +257,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         sd = s_dict['spectral_widget']
         print(sd)
-        self.spec_type_cb.setCurrentText(sd['spec_type'])
+        self.spec_type_cb.setCurrentText(sd['spec_type'].upper())
         self.colormap_cb.setCurrentText(sd['gui_colormap'])
         self.colorbar_rb.setChecked(bool_map[sd['gui_colorbar']])
         
@@ -278,6 +278,8 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.cwt_clust_eps_spin.setValue(float(sd['cwt_cluster_eps']))
         self.cwt_clust_min_samples_spin.setValue(int(sd['cwt_cluster_min_samples']))
         self.cwt_adaptive_win_len_spin.setValue(float(sd['cwt_adapt_win_len']))
+
+        self.update_button.clicked.emit()
 
 
 

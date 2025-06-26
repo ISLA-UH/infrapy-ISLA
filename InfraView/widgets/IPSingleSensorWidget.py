@@ -44,7 +44,7 @@ class IPSingleSensorWidget(QWidget):
 
     def connect_signals_and_slots(self):
         self.spectrogram_settings_widget.colormap_cb.currentTextChanged.connect(self.signalSpecWidget.set_colormap)
-        self.spectrogram_settings_widget.colorbar_rb.clicked.connect(self.signalSpecWidget.show_hide_colorbar)
+        self.spectrogram_settings_widget.colorbar_rb.toggled.connect(self.signalSpecWidget.show_hide_colorbar)
         self.spectrogram_settings_widget.update_button.clicked.connect(self.updateSpectrograms)
 
     def buildUI(self):
@@ -251,6 +251,7 @@ class IPSingleSensorWidget(QWidget):
     def clear_detection_plot(self):
         self.detectionPlot.clear()
         self.detectionPlot.spi.clear()
+        self.detectionPlot.setXLink(self.waveformPlot)
 
 
 class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
@@ -572,7 +573,7 @@ class IPSpectrogramCalcWorker(QObject):
 
     @pyqtSlot()
     def run(self):
-        if self.spec_type == 'Spectrogram':
+        if self.spec_type.upper() == 'SPECTROGRAM':
             try:
                 self.f, self.t, self.Sxx = spectrogram(self.data[1], 
                                         self.fs, 
@@ -583,7 +584,7 @@ class IPSpectrogramCalcWorker(QObject):
                 self.signal_runFinished.emit(False)
                 return
 
-        elif self.spec_type == 'STFT':
+        elif self.spec_type.upper() == 'STFT':
             try:
                 self.f, self.t, self.Sxx = stft(self.data[1], 
                                             fs=self.fs, 
@@ -595,7 +596,7 @@ class IPSpectrogramCalcWorker(QObject):
                 self.signal_runFinished.emit(False)
                 return 
 
-        elif self.spec_type == 'CWT':
+        elif self.spec_type.upper() == 'CWT':
             if self.morlet_omega0 is None:
                 IPUtils.errorPopup("Morelet Omega0 needed to calculate CWT")
                 self.signal_runFinished.emit(False)

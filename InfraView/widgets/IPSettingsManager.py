@@ -35,8 +35,8 @@ class IPSettingsManager(QFrame):
         self.insert_settings_widgets()
 
         hide_layout = QVBoxLayout()
-        self.hide_button = QPushButton('Hide')
-        self.hide_button.clicked.connect(self.hide)
+        # self.hide_button = QPushButton('Hide')
+        # self.hide_button.clicked.connect(self.hide)
         self.load_button = QPushButton('Load')
         self.load_button.clicked.connect(self.load_settings)
         self.save_button = QPushButton('Save')
@@ -45,7 +45,8 @@ class IPSettingsManager(QFrame):
         self.save_as_button.clicked.connect(self.save_settings_as)
         self.load_defaults_button = QPushButton('Defaults')
         self.load_defaults_button.clicked.connect(self.load_default_settings)
-        hide_layout.addWidget(self.hide_button)
+        self.load_defaults_button.setToolTip("Load default settings")
+        # hide_layout.addWidget(self.hide_button)
         hide_layout.addWidget(self.load_button)
         hide_layout.addWidget(self.load_defaults_button)
         hide_layout.addWidget(self.save_button)
@@ -218,7 +219,7 @@ class IPSettingsManager(QFrame):
 
     def map_cli_to_infraview_settings(self, cli_dict):
         # This would primarily be for reading in ini files and setting appropriate elements of the gui
-        settings_dict = {'waveforms_widget': {'filter_dict': {}}, 
+        settings_dict = {'waveforms_widget': {'filter_dict': {}, 'psd_dict': {}}, 
                          'beamforming_widget': {'detector_settings':{}},
                          'spectral_widget': {},
                          'location_widget': {'bisl_dict': {}, 'extent_dict': {}}}
@@ -227,10 +228,10 @@ class IPSettingsManager(QFrame):
         settings_dict["waveforms_widget"]["filter_dict"]["highpass"] = float(cli_dict["FK"]["freq_min"])
         settings_dict["waveforms_widget"]["filter_dict"]["lowpass"] = float(cli_dict["FK"]["freq_max"])
 
-        settings_dict["beamforming_widget"]["signal_start"] = cli_dict["FK"]["signal_start"]
-        settings_dict["beamforming_widget"]["signal_end"] = cli_dict["FK"]["signal_end"]
-        settings_dict["beamforming_widget"]["noise_start"] = cli_dict["FK"]["noise_start"]
-        settings_dict["beamforming_widget"]["noise_end"] = cli_dict["FK"]["noise_end"]
+        # settings_dict["beamforming_widget"]["signal_start"] = cli_dict["FK"]["signal_start"]
+        # settings_dict["beamforming_widget"]["signal_end"] = cli_dict["FK"]["signal_end"]
+        # settings_dict["beamforming_widget"]["noise_start"] = cli_dict["FK"]["noise_start"]
+        # settings_dict["beamforming_widget"]["noise_end"] = cli_dict["FK"]["noise_end"]
         settings_dict["beamforming_widget"]["backAz_start"] = cli_dict["FK"]["back_az_min"]
         settings_dict["beamforming_widget"]["backAz_end"] = cli_dict["FK"]["back_az_max"]
         settings_dict["beamforming_widget"]["backAz_resolution"] = cli_dict["FK"]["back_az_step"] 
@@ -284,7 +285,15 @@ class IPSettingsManager(QFrame):
         settings_dict["location_widget"]["bisl_dict"]["bisl_bm_width"] = cli_dict["LOC"]["back_az_width"]
         settings_dict["location_widget"]["bisl_dict"]["bisl_rng_max"] = cli_dict["LOC"]["range_max"]
 
-        # GUI node
+        # GUI node  -- gui specific settings go here
+        settings_dict['waveforms_widget']['filter_dict']['apply_filter'] = cli_dict['GUI']['wf_filter_apply']
+        settings_dict['waveforms_widget']['filter_dict']['filter_type'] = cli_dict['GUI']['wf_filter_type']
+        settings_dict['waveforms_widget']['filter_dict']['order'] = cli_dict['GUI']['wf_filter_order']
+        settings_dict['waveforms_widget']['filter_dict']['zero_phase'] = cli_dict['GUI']['wf_filter_zerophase']
+        settings_dict['waveforms_widget']['filter_dict']['show_unfiltered'] = cli_dict['GUI']['wf_filter_show_unfiltered']
+        settings_dict['waveforms_widget']['psd_dict']['fft_n'] = cli_dict['GUI']['wf_psd_fftn']
+        settings_dict['waveforms_widget']['psd_dict']['window'] = cli_dict['GUI']['wf_psd_window']
+
         settings_dict['beamforming_widget']['gui_bf_colormap'] = cli_dict["GUI"]["bf_colormap"]
         settings_dict['beamforming_widget']['detector_settings']['gui_bf_auto_detect'] = cli_dict["GUI"]["bf_auto_detect"]
         settings_dict['location_widget']['gui_borders'] = cli_dict["GUI"]["loc_borders"]
@@ -354,8 +363,8 @@ class IPSettingsManager(QFrame):
         cli_template_dict["SD"]["morlet_omega0"] = settings_dict["spectral_widget"]["omega0"]
         cli_template_dict["SD"]["freq_min"] = settings_dict["spectral_widget"]["fmin"]
         cli_template_dict["SD"]["freq_max"] = settings_dict["spectral_widget"]["fmax"]
-        cli_template_dict["SD"]["window_len"] = settings_dict["spectral_widget"]["adapt_win_len"]   # 900 default
-        cli_template_dict["SD"]["window_step"] = settings_dict["spectral_widget"]["adapt_win_len"] / 2.
+        cli_template_dict["SD"]["window_len"] = settings_dict["spectral_widget"]["adapt_win_len"]               # 900 default
+        cli_template_dict["SD"]["window_step"] = settings_dict["spectral_widget"]["adapt_win_len"] / 2.         # hard coding for now
         cli_template_dict["SD"]["p_value"] = settings_dict["spectral_widget"]["pval"]
         cli_template_dict["SD"]["freq_tm_factor"] = settings_dict["spectral_widget"]["cwt_cluster_freq_scale"]
         cli_template_dict["SD"]["cluster_eps"] = settings_dict["spectral_widget"]["cluster_eps"]
@@ -363,8 +372,8 @@ class IPSettingsManager(QFrame):
 
         cli_template_dict["SD-CWT"]["freq_min"] = settings_dict["spectral_widget"]["cwt_fmin"]
         cli_template_dict["SD-CWT"]["freq_max"] = settings_dict["spectral_widget"]["cwt_fmax"]
-        cli_template_dict["SD-CWT"]["window_len"] = settings_dict["spectral_widget"]["cwt_adapt_win_len"]   # 900 default
-        cli_template_dict["SD-CWT"]["window_step"] = settings_dict["spectral_widget"]["adapt_win_len"] / 2.
+        cli_template_dict["SD-CWT"]["window_len"] = settings_dict["spectral_widget"]["cwt_adapt_win_len"]       # 900 default
+        cli_template_dict["SD-CWT"]["window_step"] = settings_dict["spectral_widget"]["adapt_win_len"] / 2.     # hard coding for now
         cli_template_dict["SD-CWT"]["p_value"] = settings_dict["spectral_widget"]["cwt_pval"]
         cli_template_dict["SD-CWT"]["freq_tm_factor"] = settings_dict["spectral_widget"]["cwt_cluster_freq_scale"]
         cli_template_dict["SD-CWT"]["cluster_eps"] = settings_dict["spectral_widget"]["cluster_eps"]
@@ -384,8 +393,16 @@ class IPSettingsManager(QFrame):
         # cli_template_dict["LOC"]["src_est"] = 
         # cli_template_dict["pgm_model"] = 
 
-        #GUI node
-        cli_template_dict["GUI"]["bf_colormap"] = settings_dict['beamforming_widget']['gui_bf_colormap']
+        #GUI node -- GUI specific settings go here
+        cli_template_dict['GUI']['wf_filter_apply'] = settings_dict['waveforms_widget']['filter_dict']['apply_filter']
+        cli_template_dict['GUI']['wf_filter_type'] = settings_dict['waveforms_widget']['filter_dict']['filter_type']
+        cli_template_dict['GUI']['wf_filter_order'] = settings_dict['waveforms_widget']['filter_dict']['order']
+        cli_template_dict['GUI']['wf_filter_zerophase'] = settings_dict['waveforms_widget']['filter_dict']['zero_phase']
+        cli_template_dict['GUI']['wf_filter_show_unfiltered'] = settings_dict['waveforms_widget']['filter_dict']['show_unfiltered']
+        cli_template_dict['GUI']['wf_psd_fftn'] = settings_dict['waveforms_widget']['psd_dict']['fft_n']
+        cli_template_dict['GUI']['wf_psd_window'] =settings_dict['waveforms_widget']['psd_dict']['window']
+
+        cli_template_dict['GUI']["bf_colormap"] = settings_dict['beamforming_widget']['gui_bf_colormap']
         cli_template_dict['GUI']["bf_auto_detect"] = settings_dict['beamforming_widget']['detector_settings']['gui_bf_auto_detect']
         
         cli_template_dict['GUI']['loc_borders'] = settings_dict['location_widget']['gui_borders']

@@ -210,14 +210,15 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.tracev_resol_spin.setValue(float(sd['traceV_resolution']))
         self.tracev_min_spin.setValue(float(sd['traceV_min']))
         self.tracev_max_spin.setValue(float(sd['traceV_max']))
-        if sd['signal_start'] == "None" : sd['signal_start'] = '0.0'
-        if sd['signal_end'] == "None" : sd['signal_end'] = '0.0'
-        self.sigStart_label.setText(sd['signal_start'])
-        self.sigDuration_label.setText(str(float(sd['signal_end']) - float(sd['signal_start'])))
-        if sd['noise_start'] == 'None' : sd['noise_start'] = '0.0'
-        if sd['noise_end'] == 'None' : sd['noise_end'] = '0.0'
-        self.noiseStart_label.setText(sd['noise_start'])
-        self.noiseDuration_label.setText(str(float(sd['noise_end']) - float(sd['noise_start'])))
+        # NOT SURE I want to save and reload the signal start and ends...ask Phil
+        # if sd['signal_start'] == "None" : sd['signal_start'] = '0.0'
+        # if sd['signal_end'] == "None" : sd['signal_end'] = '0.0'
+        # self.sigStart_label.setText(sd['signal_start'])
+        # self.sigDuration_label.setText(str(float(sd['signal_end']) - float(sd['signal_start'])))
+        # if sd['noise_start'] == 'None' : sd['noise_start'] = '0.0'
+        # if sd['noise_end'] == 'None' : sd['noise_end'] = '0.0'
+        # self.noiseStart_label.setText(sd['noise_start'])
+        # self.noiseDuration_label.setText(str(float(sd['noise_end']) - float(sd['noise_start'])))
 
         self.colormap_cb.setCurrentText(sd['gui_bf_colormap'])
 

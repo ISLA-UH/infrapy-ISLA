@@ -87,7 +87,7 @@ class IPSettingsWidget(QWidget):
         self.controlled_widget = widget
 
     # def to_dict(self):
-    #     pass
+    #    pass
 
     # def from_dict(self, sd):
     #     pass
