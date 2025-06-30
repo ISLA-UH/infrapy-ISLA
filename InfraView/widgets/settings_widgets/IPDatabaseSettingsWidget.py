@@ -31,10 +31,9 @@ class IPDatabaseSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         s_dict['connect'] = self.connect_widget.to_dict()
         return s_dict
 
-    # def from_dict(self, s_dict):
-    #     # self.connect_widget.from_dict(s_dict['connect'])  will be in gui or db config
-    #     print ("need to add db config somewhere")
-    #     return
+    def from_dict(self, _):
+        # TODO: add this to manually add settings
+        pass
 
 class IPDatabaseConnectWidget(IPBaseWidgets.IPSettingsGroupBox):
 

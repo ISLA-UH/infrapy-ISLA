@@ -256,7 +256,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         bool_map = {"True": True, "False": False}
 
         sd = s_dict['spectral_widget']
-        print(sd)
+
         self.spec_type_cb.setCurrentText(sd['spec_type'].upper())
         self.colormap_cb.setCurrentText(sd['gui_colormap'])
         self.colorbar_rb.setChecked(bool_map[sd['gui_colorbar']])

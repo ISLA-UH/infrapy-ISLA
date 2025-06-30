@@ -21,6 +21,8 @@ from InfraView.widgets import IPBaseWidgets
 
 from infrapy.detection import spectral
 
+import traceback
+
 class IPSingleSensorWidget(QWidget):
 
     waveform_data_item = None
@@ -29,6 +31,8 @@ class IPSingleSensorWidget(QWidget):
     fs = 1.0
 
     mp_pool = None
+
+    signal_start_sd_calc = pyqtSignal()
     
     def __init__(self, parent, pool=None):
         super().__init__(parent)
@@ -95,6 +99,8 @@ class IPSingleSensorWidget(QWidget):
 
         self.setLayout(main_layout)
 
+        self.sdThread = QThread()
+
     @pyqtSlot(str)
     def update_theme(self, t):
         if t == 'light':
@@ -120,6 +126,8 @@ class IPSingleSensorWidget(QWidget):
         return self.appWidget.waveformWidget.get_earliest_start_time()
     
     def run_spectral_detector(self):
+        self.detectionPlot.clear()
+
         f_s, t_s, Sxx_log = self.signalSpecWidget.get_logdata()
         # Pull in the detector settings
         if self.spectrogram_settings_widget.spec_type_cb.currentText() == 'CWT':
@@ -151,21 +159,45 @@ class IPSingleSensorWidget(QWidget):
 
         signal_t_range = self.signalSpecWidget.get_xrange()
         signal_window_mask = np.logical_and(signal_t_range[0] <= t_s, t_s <= signal_t_range[1])
-        signal_t_window = t_s[signal_window_mask]
         signal_Sxx_window = Sxx_log[:, signal_window_mask]
 
-        spec_dets, clustering, _ = spectral.run_sd(f_s, signal_t_window, signal_Sxx_window, 
-                                                   freq_band, pval, adaptive_window_length , 
-                                                   adaptive_window_step, clustering_freq_scaling, 
-                                                   clustering_eps, clustering_min_samples, 
-                                                   self.mp_pool, t_skip, verbose=False)
+        self.signal_t_window = t_s[signal_window_mask]
+        self.t_s = t_s
+        self.f_s = f_s
+
+        self.sd_worker_object = IPSpectralDetectorWorkerObject(self.f_s, self.signal_t_window, 
+                                                                signal_Sxx_window, freq_band, 
+                                                                pval, adaptive_window_length , 
+                                                                adaptive_window_step, clustering_freq_scaling, 
+                                                                clustering_eps, clustering_min_samples,
+                                                                self.mp_pool, t_skip)
         
+        self.signal_start_sd_calc.connect(self.sd_worker_object.run)
+        self.sd_worker_object.moveToThread(self.sdThread)
+        self.sd_worker_object.signal_runFinished.connect(self.detection_run_finished)
+        self.sdThread.start()
+        self.signal_start_sd_calc.emit()
+
+        # # NOTE: the clustering window is hardcoded here to 600.  TODO read this from config file
+        # clustering_window_len = 600
+        # spec_dets, clustering_pts, _ = spectral.run_sd(self.f_s, self.signal_t_window, signal_Sxx_window, 
+        #                                            freq_band, pval, adaptive_window_length , 
+        #                                            adaptive_window_step, clustering_freq_scaling, 
+        #                                            clustering_eps, clustering_min_samples, 
+        #                                            clustering_window_len,
+        #                                            self.mp_pool, t_skip, verbose=False)
+        
+        # self.detection_run_finished(spec_dets, clustering_pts)
+
+    @pyqtSlot(np.ndarray, list)
+    def detection_run_finished(self, spec_dets, clustering_pts):
         self.detectionPlot.plot_data(spec_dets, 
-                                    signal_t_window[1]-signal_t_window[0], 
+                                    self.signal_t_window[1]-self.signal_t_window[0], 
                                     self.waveformPlot.get_start_time(), 
-                                    [t_s[0],t_s[-1]], 
-                                    [f_s[0], f_s[-1]],
-                                    clustering)
+                                    [self.t_s[0],self.t_s[-1]], 
+                                    [self.f_s[0], self.f_s[-1]],
+                                    clustering_pts)
+
         
     @pyqtSlot(object)
     def signal_region_changed(self, lri):
@@ -252,6 +284,71 @@ class IPSingleSensorWidget(QWidget):
         self.detectionPlot.clear()
         self.detectionPlot.spi.clear()
         self.detectionPlot.setXLink(self.waveformPlot)
+
+class IPSpectralDetectorWorkerObject(QObject):
+
+    signal_runFinished = pyqtSignal(np.ndarray, list)
+
+    def __init__(self, 
+                 f_s, 
+                 signal_t_window, 
+                 signal_Sxx_window, 
+                 freq_band, 
+                 pval, 
+                 adaptive_window_length , 
+                 adaptive_window_step, 
+                 clustering_freq_scaling, 
+                 clustering_eps, 
+                 clustering_min_samples, 
+                 mp_pool, 
+                 t_skip):
+        
+        super().__init__()
+        self.f_s = f_s
+        self.signal_t_window = signal_t_window
+        self.signal_Sxx_window = signal_Sxx_window
+        self.freq_band = freq_band
+        self.pval = pval
+        self.adaptive_window_length = adaptive_window_length
+        self.adaptive_window_step = adaptive_window_step
+        self.clustering_freq_scaling = clustering_freq_scaling
+        self.clustering_eps = clustering_eps
+        self.clustering_min_samples = clustering_min_samples
+        self.mp_pool = mp_pool
+        self.t_skip = t_skip
+
+        self.thread_stopped = True
+
+    @pyqtSlot()
+    def run(self):
+        self.thread_stopped = False
+
+        try:
+            # NOTE: the clustering window is hardcoded here to 600.  TODO read this from config file
+            clustering_window_len = 600
+            spec_dets, clustering_pts, _ = spectral.run_sd(self.f_s, 
+                                                           self.signal_t_window, 
+                                                           self.signal_Sxx_window, 
+                                                            self.freq_band, 
+                                                            self.pval, 
+                                                            self.adaptive_window_length , 
+                                                            self.adaptive_window_step, 
+                                                            self.clustering_freq_scaling, 
+                                                            self.clustering_eps, 
+                                                            self.clustering_min_samples, 
+                                                            clustering_window_len, 
+                                                            self.mp_pool, 
+                                                            self.t_skip)
+        except Exception as e:
+            traceback.print_exc()
+            IPUtils.errorPopup("Error calculating detections")
+            return
+
+        self.signal_runFinished.emit(spec_dets, clustering_pts)
+
+    @pyqtSlot()
+    def stop(self):
+        self.thread_stopped = True
 
 
 class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
@@ -499,7 +596,10 @@ class IPDetectionPlotItem(pg.PlotItem):
         else:
             self.setYRange(range[0], range[1], padding=0)
 
-    def plot_data(self, detections, dt, start_time, t_range, f_range, db):
+    def clear(self):
+        self.removeItem(self.spi)
+
+    def plot_data(self, detections, dt, start_time, t_range, f_range, cluster_pts):
         #detection data comes in as a list of lists with each element being [t,f,value]
         # first clear any old points
         self.spi.clear()
@@ -507,45 +607,20 @@ class IPDetectionPlotItem(pg.PlotItem):
         # initialize the start time of the axis
         self.getAxis('bottom').set_start_time(start_time)
 
-        #we have to make the spots that will be drawn
-        # spots = []
-        # for detection in detections:
-        #     spots.append({'pos': (detection[0], detection[1]), 'symbol': 's', 'size': 5*dt})
-
-        # self.spi.addPoints(spots)
-
-        #####PARSE THE CLUSTERING  following https://scikit-learn.org/stable/auto_examples/cluster/plot_dbscan.html#sphx-glr-auto-examples-cluster-plot-dbscan-py
-        labels = db.labels_
-        unique_labels = set(labels)
-        core_samples_mask = np.zeros_like(labels, dtype=bool)
-        core_samples_mask[db.core_sample_indices_] = True
-
-
-        # Number of clusters in labels, ignoring noise if present.
-        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-        n_noise_ = list(labels).count(-1)
-
-        core_samples_mask = np.zeros_like(labels, dtype=bool)
-        core_samples_mask[db.core_sample_indices_] = True
-
         colors = IPUtils.blue_to_red
-
         spots = []
-        for k, col in zip(unique_labels, colors):
-            if k == -1:
-                # Black used for noise.
-                col = pg.mkColor(0,0,0)
-            class_member_mask = labels == k
-           
-            xy = detections[class_member_mask & core_samples_mask]
-            for data in xy:
-                spots.append({'pos': (data[0], data[1]), 'pen': {'color': col}, 'brush': col, 'symbol': 's', 'size':5.6*dt})
-
-            xy = detections[class_member_mask & ~core_samples_mask]
-            for data in xy:
-                spots.append({'pos': (data[0], data[1]), 'pen': {'color': col}, 'brush': col, 'symbol': 's', 'size':5.6*dt})
+        for idx, det_points in enumerate(cluster_pts):
+            try:
+                col = colors[idx]
+            except IndexError:
+                IPUtils.errorPopup("More detections than color options. Perhaps run on a smaller timespan, or increase the linkage (EPS).")
+                return
+            
+            for pts in det_points:
+                spots.append({'pos': (pts[0], pts[1]), 'pen': {'color': col}, 'brush': col, 'symbol': 's', 'size':5.6*dt})
 
         self.spi.addPoints(spots)
+        self.addItem(self.spi)
 
         # set axis limits
         self.setLimits(xMin=t_range[0], xMax=t_range[1], yMin=f_range[0], yMax=f_range[1])

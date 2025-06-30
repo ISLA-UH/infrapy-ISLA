@@ -218,7 +218,9 @@ class IPSettingsManager(QFrame):
         self.current_config_path = ini_filepath
 
     def map_cli_to_infraview_settings(self, cli_dict):
-        # This would primarily be for reading in ini files and setting appropriate elements of the gui
+        # Used whem reading in a configuration file.
+        # The command line config files are read into a dictionary, this function
+        # converts that dictionary to the one that the settings widget uses.
         settings_dict = {'waveforms_widget': {'filter_dict': {}, 'psd_dict': {}}, 
                          'beamforming_widget': {'detector_settings':{}},
                          'spectral_widget': {},
@@ -319,7 +321,7 @@ class IPSettingsManager(QFrame):
         return settings_dict
 
     def map_infraview_settings_to_cli(self, settings_dict):
-        # This is used mainly when saving settings to a ini file
+        # Convert the settings widget dictionary to one that can be read into the command line config ini file.
 
         # load infrapy defaults, then if there's something we don't write over, it will automatically have the default value
         if self.default_config_path.exists():
@@ -327,7 +329,7 @@ class IPSettingsManager(QFrame):
             cli_template_dict = self.ini_to_dict(str(self.default_config_path))
         else:
             raise FileNotFoundError
-       
+
         # FK node
         cli_template_dict["FK"]["freq_min"] = settings_dict["waveforms_widget"]["filter_dict"]["highpass"]
         cli_template_dict["FK"]["freq_max"] = settings_dict["waveforms_widget"]["filter_dict"]["lowpass"]

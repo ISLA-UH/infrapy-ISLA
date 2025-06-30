@@ -767,10 +767,11 @@ def run_fkd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, s
 @click.option("--freq-tm-factor", help="Freq./time scaling (sec/decade) (def.: " + config.defaults['SD']['freq_tm_factor'] + ")", default=None, type=float)
 @click.option("--cluster-eps", help="Clustering linkage distance (default: " + config.defaults['SD']['cluster_eps'] + ")", default=None, type=float)
 @click.option("--cluster-min-samples", help="Clustering minimum samples (default: " + config.defaults['SD']['cluster_min_samples'] + ")", default=None, type=int)
+@click.option("--cluster-window-len", help="Window length for clustering (default: " + config.defaults['SD']['cluster_window_len'], default=None, type=float)
 @click.option("--cpu-cnt", help="CPU count for multithreading (default: None)", default=None, type=int)
 def run_sd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, station, location, channel, starttime, endtime, 
     local_detect_label, signal_start, signal_end, spectral_option, morlet_omega0, freq_min, freq_max, window_len, window_step, 
-    p_value, freq_tm_factor, cluster_eps, cluster_min_samples, cpu_cnt):
+    p_value, freq_tm_factor, cluster_eps, cluster_min_samples, cluster_window_len, cpu_cnt):
     '''
     Run spectral detection methods on a single channel to identify signals of interest.
     
@@ -874,6 +875,7 @@ def run_sd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, st
     freq_tm_factor = config.set_param(user_config, 'SD', 'freq_tm_factor', freq_tm_factor, 'float')
     cluster_eps = config.set_param(user_config, 'SD', 'cluster_eps', cluster_eps, 'float')
     cluster_min_samples = config.set_param(user_config, 'SD', 'cluster_min_samples', cluster_min_samples, 'int')
+    cluster_window_len = config.set_param(user_config, 'SD', 'cluster_window_len', cluster_window_len, 'float')
     cpu_cnt = config.set_param(user_config, 'SD', 'cpu_cnt', cpu_cnt, 'int')
 
     click.echo('\n' + "Algorithm parameters:")
@@ -938,7 +940,7 @@ def run_sd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, st
         else:
             stream.trim(t1, t2)
 
-    det_list = spectral.cli_sd(stream[0], spectral_option, morlet_omega0, [freq_min, freq_max], 0.8, p_value, window_len, window_step, freq_tm_factor, cluster_eps, cluster_min_samples, pl)
+    det_list = spectral.cli_sd(stream[0], spectral_option, morlet_omega0, [freq_min, freq_max], 0.8, p_value, window_len, window_step, freq_tm_factor, cluster_eps, cluster_min_samples, cluster_window_len, pl)
 
     if local_detect_label is None or local_detect_label == "auto":
         local_detect_label = output_id
