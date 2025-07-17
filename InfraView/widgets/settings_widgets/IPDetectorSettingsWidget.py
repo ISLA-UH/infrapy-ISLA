@@ -83,10 +83,12 @@ class IPDetectorSettingsWidget(QGroupBox):
         s_dict['back_az_limit'] = self.back_az_limit.value()
         s_dict['min_peak_width'] = self.min_peak_width.value()
         s_dict['merge'] = self.merge_detections_cb.isChecked()
-        s_dict['manual_level'] =  self.manual_value.value()
-
-        s_dict['gui_bf_auto_detect'] = self.auto_checkbox.isChecked()
         
+        if self.auto_checkbox.isChecked():
+            s_dict['manual_level'] =  None
+        else:
+            s_dict['manual_level'] =  self.manual_value.value()
+
         return s_dict
     
     def from_dict(self, s_dict):
@@ -95,11 +97,15 @@ class IPDetectorSettingsWidget(QGroupBox):
         self.back_az_limit.setValue(float(sd['back_az_limit']))
         self.min_peak_width.setValue(float(sd['min_peak_width']))
         self.merge_detections_cb.setChecked(sd['merge'].lower() == 'true')
-        if sd['manual_level'] == 'None' : sd['manual_level'] = '1.0'
-        self.manual_value.setValue(float(sd['manual_level']))
+
+        if sd['manual_level'] != 'None':
+            self.manual_value.setValue(float(sd['manual_level']))
+            self.auto_checkbox.setChecked(False)
+        else:
+            self.auto_checkbox.setChecked(True)
+            self.manual_value.setValue(1.0)
 
 
-    @pyqtSlot()
     def update_widget(self):
         self.manual_value.setEnabled(not self.auto_checkbox.isChecked())
         self.pval_spin.setEnabled(self.auto_checkbox.isChecked())

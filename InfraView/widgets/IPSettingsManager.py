@@ -230,10 +230,12 @@ class IPSettingsManager(QFrame):
         settings_dict["waveforms_widget"]["filter_dict"]["highpass"] = float(cli_dict["FK"]["freq_min"])
         settings_dict["waveforms_widget"]["filter_dict"]["lowpass"] = float(cli_dict["FK"]["freq_max"])
 
-        # settings_dict["beamforming_widget"]["signal_start"] = cli_dict["FK"]["signal_start"]
-        # settings_dict["beamforming_widget"]["signal_end"] = cli_dict["FK"]["signal_end"]
-        # settings_dict["beamforming_widget"]["noise_start"] = cli_dict["FK"]["noise_start"]
-        # settings_dict["beamforming_widget"]["noise_end"] = cli_dict["FK"]["noise_end"]
+        # I still want to write the default values for signal/noise windows into the config file for later reading
+        settings_dict["beamforming_widget"]["signal_start"] = None
+        settings_dict["beamforming_widget"]["signal_end"] = None
+        settings_dict["beamforming_widget"]["noise_start"] = None
+        settings_dict["beamforming_widget"]["noise_end"] = None
+
         settings_dict["beamforming_widget"]["backAz_start"] = cli_dict["FK"]["back_az_min"]
         settings_dict["beamforming_widget"]["backAz_end"] = cli_dict["FK"]["back_az_max"]
         settings_dict["beamforming_widget"]["backAz_resolution"] = cli_dict["FK"]["back_az_step"] 
@@ -247,7 +249,7 @@ class IPSettingsManager(QFrame):
         #cli_template_dict["FK"]["cpu_cnt"] # GUI doesn't save cpu cnt
 
         # FD node
-        settings_dict["beamforming_widget"]["detector_settings"]["window_len"] = cli_dict["FD"]["window_len"]
+        # settings_dict["beamforming_widget"]["detector_settings"]["window_len"] = cli_dict["FD"]["window_len"]
         settings_dict["beamforming_widget"]["detector_settings"]["thresh_ceil"] = cli_dict["FD"]["thresh_ceil"]
         settings_dict["beamforming_widget"]["detector_settings"]["pval"] = cli_dict["FD"]["p_value"]
         settings_dict["beamforming_widget"]["detector_settings"]["min_peak_width"] = cli_dict["FD"]["min_duration"]
@@ -297,7 +299,6 @@ class IPSettingsManager(QFrame):
         settings_dict['waveforms_widget']['psd_dict']['window'] = cli_dict['GUI']['wf_psd_window']
 
         settings_dict['beamforming_widget']['gui_bf_colormap'] = cli_dict["GUI"]["bf_colormap"]
-        settings_dict['beamforming_widget']['detector_settings']['gui_bf_auto_detect'] = cli_dict["GUI"]["bf_auto_detect"]
         settings_dict['location_widget']['gui_borders'] = cli_dict["GUI"]["loc_borders"]
         settings_dict['location_widget']['gui_states'] = cli_dict["GUI"]["loc_states"]
         settings_dict['location_widget']['gui_lakes'] = cli_dict["GUI"]["loc_lakes"]
@@ -333,10 +334,10 @@ class IPSettingsManager(QFrame):
         # FK node
         cli_template_dict["FK"]["freq_min"] = settings_dict["waveforms_widget"]["filter_dict"]["highpass"]
         cli_template_dict["FK"]["freq_max"] = settings_dict["waveforms_widget"]["filter_dict"]["lowpass"]
-        cli_template_dict["FK"]["signal_start"] = settings_dict["beamforming_widget"]["signal_start"]
-        cli_template_dict["FK"]["signal_end"] = settings_dict["beamforming_widget"]["signal_end"]
-        cli_template_dict["FK"]["noise_start"] = settings_dict["beamforming_widget"]["noise_start"]
-        cli_template_dict["FK"]["noise_end"] = settings_dict["beamforming_widget"]["noise_end"]
+        # cli_template_dict["FK"]["signal_start"] = settings_dict["beamforming_widget"]["signal_start"]
+        # cli_template_dict["FK"]["signal_end"] = settings_dict["beamforming_widget"]["signal_end"]
+        # cli_template_dict["FK"]["noise_start"] = settings_dict["beamforming_widget"]["noise_start"]
+        # cli_template_dict["FK"]["noise_end"] = settings_dict["beamforming_widget"]["noise_end"]
         cli_template_dict["FK"]["back_az_min"] = settings_dict["beamforming_widget"]["backAz_start"]
         cli_template_dict["FK"]["back_az_max"] = settings_dict["beamforming_widget"]["backAz_end"]
         cli_template_dict["FK"]["back_az_step"] = settings_dict["beamforming_widget"]["backAz_resolution"]
@@ -351,7 +352,7 @@ class IPSettingsManager(QFrame):
         cli_template_dict["FK"]["cpu_cnt"] = None  # # GUI doesn't save cpu cnt
 
         # FD node
-        cli_template_dict["FD"]["window_len"] = None  # Default
+        # cli_template_dict["FD"]["window_len"] = None  # Don't write the FD window_len from the gui at this point
         cli_template_dict["FD"]["p_value"] = settings_dict["beamforming_widget"]["detector_settings"]["pval"]
         cli_template_dict["FD"]["min_duration"] = settings_dict["beamforming_widget"]["detector_settings"]["min_peak_width"]
         cli_template_dict["FD"]["back_az_width"] = settings_dict["beamforming_widget"]["detector_settings"]["back_az_limit"]
@@ -405,7 +406,6 @@ class IPSettingsManager(QFrame):
         cli_template_dict['GUI']['wf_psd_window'] =settings_dict['waveforms_widget']['psd_dict']['window']
 
         cli_template_dict['GUI']["bf_colormap"] = settings_dict['beamforming_widget']['gui_bf_colormap']
-        cli_template_dict['GUI']["bf_auto_detect"] = settings_dict['beamforming_widget']['detector_settings']['gui_bf_auto_detect']
         
         cli_template_dict['GUI']['loc_borders'] = settings_dict['location_widget']['gui_borders']
         cli_template_dict['GUI']['loc_states'] = settings_dict['location_widget']['gui_states']

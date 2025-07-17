@@ -18,13 +18,13 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
     def buildUI(self):
 
         self.windowLength_spin = QDoubleSpinBox()
-        self.windowLength_spin.setMaximumWidth(60)
+        self.windowLength_spin.setMaximumWidth(80)
         self.windowLength_spin.setSuffix(' s')
         self.windowLength_spin.setMinimum(0.0)
         self.windowLength_spin.setMaximum(1000000)
 
         self.windowStep_spin = QDoubleSpinBox()
-        self.windowStep_spin.setMaximumWidth(60)
+        self.windowStep_spin.setMaximumWidth(80)
         self.windowStep_spin.setSuffix(' s')
         self.windowStep_spin.setMinimum(0.01)
         self.windowStep_spin.setMaximum(1000000)
@@ -117,7 +117,7 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         sub_win_layout = QHBoxLayout()
         sub_win_layout.addWidget(self.subWinLength_spin)
         sub_win_layout.addWidget(self.subwindow_cb)
-        formlayout_col2.addRow("Subwindow Length: ", sub_win_layout)
+        # formlayout_col2.addRow("Subwindow Length: ", sub_win_layout)
         formlayout_col2.addRow("Method: ", self.method_cb)
 
         formlayout_col6 = QFormLayout()

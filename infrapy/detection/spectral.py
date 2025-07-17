@@ -148,7 +148,7 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
         ----------
         dets: iterable of dicts
             List of dictionaries containing detection info
-        """
+    """
  
     if verbose:
         print('\n' + "Running spectral detection (sd) analysis...")
