@@ -105,17 +105,16 @@ def _compute_projections(det_list, atmo_file, temp_dest, grnd_snd_spd=None, latl
 
     command_list = []
     for n, det in enumerate(det_list):
-        if not os.path.isfile(temp_dest + ".det-" + str(n) + ".projection.dat"):
-            corners = np.meshgrid(latlon_bnds[0], latlon_bnds[1])
-            _, _, temp = sph_proj.inv([det.longitude] * 4, [det.latitude] * 4, corners[1].flatten(), corners[0].flatten())
-            max_rng = max(temp / 1000.0) * 1.2
+        corners = np.meshgrid(latlon_bnds[0], latlon_bnds[1])
+        _, _, temp = sph_proj.inv([det.longitude] * 4, [det.latitude] * 4, corners[1].flatten(), corners[0].flatten())
+        max_rng = max(temp / 1000.0) * 1.2
 
-            command = find_spec('infraga').submodule_search_locations[0][:-8] + "/bin/infraga-sph -back_proj " + atmo_file + " rcvr_lat=" + str(det.latitude) + " rcvr_lon=" + str(det.longitude)
-            command = command + " azimuth=" + str(det.back_azimuth) + " inclination=" + str(np.degrees(np.arccos(min(grnd_snd_spd[n] / det.trace_velocity, 1.0))))
-            command = command + " max_rng=" + str(max_rng) + " bounces=" + str(bounces) + " z_grnd=" + str(rcvr_elevs[n])
-            command = command + " output_id=" + temp_dest + ".det-" + str(n) + " > /dev/null"
-            
-            command_list = command_list + [command]
+        command = find_spec('infraga').submodule_search_locations[0][:-8] + "/bin/infraga-sph -back_proj " + atmo_file + " rcvr_lat=" + str(det.latitude) + " rcvr_lon=" + str(det.longitude)
+        command = command + " azimuth=" + str(det.back_azimuth) + " inclination=" + str(np.degrees(np.arccos(min(grnd_snd_spd[n] / det.trace_velocity, 1.0))))
+        command = command + " max_rng=" + str(max_rng) + " bounces=" + str(bounces) + " z_grnd=" + str(rcvr_elevs[n])
+        command = command + " output_id=" + temp_dest + ".det-" + str(n) + " > /dev/null"
+        
+        command_list = command_list + [command]
 
     if cpu_cnt is not None:
         for j in range(0, len(command_list), cpu_cnt):
@@ -199,13 +198,18 @@ def build_projections(dets_list, atmo_file, projection_path, grnd_snd_spd=None, 
         return None
 
 
+def eval_on_grid(proj, lat_grid, lon_grid, alt_grid, tm_grid, prog_step):
+    return proj.likelihood(lat_grid.flatten(), lon_grid.flatten(), alt_grid.flatten(), tm_grid.flatten(), prog_step=prog_step)
+
+def eval_on_grid_wrapper(args):
+    return eval_on_grid(*args)
+
+
 def run(det_list, atmo_file, temp_path, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner=None, ur_corner=None, latlon_resol=None, tm_lims=None, tm_resol=None, alt_lims=None, alt_resol=1.0,
-            grnd_snd_spd=340.0, c0_stdev=10.0, det_time_stdev=10.0, verbose=True):
+            grnd_snd_spd=340.0, c0_stdev=10.0, det_time_stdev=10.0, verbose=True, show_prog=True, pool=None):
 
     if verbose:
         print("Running Time-Reversed Infarasonic Bayesian Localization (TRIBL) Analysis...")
-
-    if verbose:
         print('\t' + "Identifying integration region and building grid...")
     
     if alt_lims is None:
@@ -218,21 +222,35 @@ def run(det_list, atmo_file, temp_path, bm_width=10.0, rng_max=2000.0, grid_reso
     lon_vals = np.sort(np.unique(lon_grid))
     alt_vals = np.sqrt(np.unique(alt_grid))
     tm_vals = np.sort(np.unique(tm_grid))
-    dt_vals = (tm_vals - tm_vals[0]).astype('m8[s]').astype(float)
 
     if verbose:
         print('\t' + "Computing back projections for detection list...")
-    projs = build_projections(det_list, atmo_file, temp_path, grnd_snd_spd=grnd_snd_spd, latlon_bnds=[[lat_vals[0], lat_vals[-1]], [lon_vals[0], lon_vals[-1]]], cpu_cnt=None, c0_stdev=c0_stdev, det_time_std_dev=det_time_stdev)
 
-    print('\t' + "Evaluating localization probability on grid...")
+    if pool:
+        cpu_cnt = pool._processes
+    else:
+        cpu_cnt = None
+
+    projs = build_projections(det_list, atmo_file, temp_path, grnd_snd_spd=grnd_snd_spd, latlon_bnds=[[lat_vals[0], lat_vals[-1]], [lon_vals[0], lon_vals[-1]]], cpu_cnt=cpu_cnt, c0_stdev=c0_stdev, det_time_std_dev=det_time_stdev)
+
     if verbose:
+        print('\t' + "Evaluating localization probability on grid...")
         print('\t\t Progress: ', end='')
+
+    if show_prog or verbose:
         prog_bar.prep(5 * len(det_list))
-        pdf = np.prod(np.array([proj.likelihood(lat_grid.flatten(), lon_grid.flatten(), alt_grid.flatten(), tm_grid.flatten(), prog_step=5) for proj in projs]), axis=0)
+        if pool:
+            det_pdfs = pool.map(eval_on_grid_wrapper, [[proj, lat_grid, lon_grid, alt_grid, tm_grid, 5] for proj in projs])
+        else:
+            det_pdfs = np.array([eval_on_grid(proj, lat_grid, lon_grid, alt_grid, tm_grid, prog_step=5) for proj in projs])
         prog_bar.close()
     else:   
-        pdf = np.prod(np.array([proj.likelihood(lat_grid.flatten(), lon_grid.flatten(), alt_grid.flatten(), tm_grid.flatten()) for proj in projs]), axis=0)
-    
+        if pool:
+            det_pdfs = pool.map(eval_on_grid_wrapper, [[proj, lat_grid, lon_grid, alt_grid, tm_grid, 0] for proj in projs])
+        else:
+            det_pdfs = np.array([eval_on_grid(proj, lat_grid, lon_grid, alt_grid, tm_grid, prog_step=0) for proj in projs])
+
+    pdf = np.prod(det_pdfs, axis=0)    
     pdf = pdf.reshape(lat_grid.shape)
 
     np.savez_compressed(temp_path + ".pdf", lat_vals=lat_vals, lon_vals=lon_vals, alt_vals=alt_vals, tm_vals=tm_vals, pdf=pdf)

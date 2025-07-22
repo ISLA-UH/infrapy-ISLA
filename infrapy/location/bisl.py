@@ -227,7 +227,7 @@ def build_grid(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner
         alt_vals = [None]
 
     if len(alt_vals) < 1:
-        alt_vals = [alt_bounds[0]]
+        alt_vals = [0.0]
 
     lat_grid, lon_grid, alt_grid, tm_grid = np.meshgrid(lat_vals, lon_vals, alt_vals, tm_vals, indexing='ij')
 
@@ -397,7 +397,8 @@ def analyze_pdf(pdf, lat_grid, lon_grid, tm_grid, verbose=False):
                 't_MaP': tm_grid.flatten()[MaP_index],
                 'MaP_val' : pdf.flatten()[MaP_index],
                 'spatial_pdf' : np.vstack((lon_grid2.flatten(), lat_grid2.flatten(), spatial_pdf.flatten())),
-                'temporal_pdf' : [tm_vals, tm_pdf]}
+                'temporal_pdf' : [tm_vals, tm_pdf],
+                'norm' : norm}
 
 
 

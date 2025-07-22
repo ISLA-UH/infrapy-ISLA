@@ -13,6 +13,10 @@ import numpy as np
 
 from obspy import Stream
 
+from scipy.integrate import simps
+
+from multiprocessing import Pool
+
 from ..location import bisl, tribl
 from ..propagation import infrasound
 from ..characterization import spye
@@ -51,8 +55,9 @@ from ..utils import data_io
 @click.option("--c0-stdev", help="Sound speed uncertainty if using TRIBL", default=None)
 @click.option("--det-tm-stdev", help="Detection time uncertainty", default=None)
 @click.option("--local-temp-dir", help="Local temporary directory if using TRIBL", default=None)
+@click.option("--cpu-cnt", help="CPU count for multithreading (default: None)", default=None, type=int)
 
-def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, ll_corner, ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file, atmo_data, alt_lims, alt_resol, grnd_snd_spd, c0_stdev, det_tm_stdev, local_temp_dir):
+def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, ll_corner, ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file, atmo_data, alt_lims, alt_resol, grnd_snd_spd, c0_stdev, det_tm_stdev, local_temp_dir, cpu_cnt):
     '''
     Run Bayesian Infrasonic Source Localization (BISL) methods to estimate the source location and origin time for an event
 
@@ -60,6 +65,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     Example usage (run from infrapy/examples directory):
     \tinfrapy run_loc --local-detect-label GJI_example-ev0  --local-loc-label GJI_example-ev0
     \tinfrapy run_loc --local-detect-label data/detection_set2.json --local-loc-label data/location2 --pgm-file ../infrapy/propagation/priors/UTTR_models/UTTR_06_1800UTC.pgm
+    \tinfrapy run_loc --local-detect-label data/Blom_etal2024_GJI/UTTR  --local-loc-label data/Blom_etal2024_GJI/UTTR-BISL
     \tinfrapy run_loc --config-file config/tribl_example.config
     '''
 
@@ -120,6 +126,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     c0_stdev = config.set_param(user_config, 'LOC', 'c0_stdev', c0_stdev, 'float')
     det_tm_stdev = config.set_param(user_config, 'LOC', 'det_tm_stdev', det_tm_stdev, 'float')
     local_temp_dir = config.set_param(user_config, 'LOC', 'local_temp_dir', local_temp_dir, 'str')
+    cpu_cnt = config.set_param(user_config, 'ASSOC', 'cpu_cnt', cpu_cnt, 'int')
 
     # Summarie parameters
     click.echo('\n' + "Parameter summary:")
@@ -174,6 +181,12 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
             infrasound.set_celerity_model(celerity_model, rcel_wts=rcel_wts, rcel_mns=rcel_mns, rcel_sds=rcel_sds)
             pgm = None  
 
+    if cpu_cnt is not None:
+        click.echo("  cpu_cnt: " + str(cpu_cnt))
+        pl = Pool(cpu_cnt)
+    else:
+        pl = None
+
     click.echo("")
     events = data_io.set_det_list(local_detect_label, merge=False)
 
@@ -207,11 +220,56 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
                     temp_path = tmpdirname + "/temp"
 
                     if "*" in atmo_data:
-                        click.echo("Atmospheric ensemble methods aren't set up yet...")
-                        return 
+                        if len(os.path.dirname(atmo_data)) > 0:
+                            file_path = os.path.dirname(atmo_data) + "/"
+                        else:
+                            file_path = ""
+
+                        if "/" in atmo_data:
+                            dir_files = os.listdir(os.path.dirname(atmo_data))
+                        else:
+                            dir_files = os.listdir(".")
+
+                        file_list = []
+                        for file in dir_files:
+                            if fnmatch.fnmatch(file, os.path.basename(atmo_data)):
+                                file_list += [file]
+                        file_list = np.sort(file_list)
+
+                        click.echo('\n' + "Computing localization using atmosphere ensemble:")
+                        norms = []
+                        for k, file_name in enumerate(file_list):                            
+                            print('\t' + str(k + 1) + '/' + str(len(file_list)) + '\t' + file_path + file_name + '\t', end='')
+                            temp = tribl.run(events, file_path + file_name, temp_path + "-" + str(k), bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
+                                            latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=False, show_prog=True, pool=pl) 
+                            norms = norms + [temp['norm']]
+
+                        norms = norms / np.sum(norms)
+
+                        print('\n' + "Merging PDFs across the ensemble...")
+                        tmp_0 = np.load(temp_path + "-0.pdf.npz")
+
+                        lat_grid, lon_grid, alt_grid, tm_grid = np.meshgrid(tmp_0['lat_vals'], tmp_0['lon_vals'], tmp_0['alt_vals'], tmp_0['tm_vals'], indexing='ij')
+                        lat_grid = np.squeeze(lat_grid)
+                        lon_grid = np.squeeze(lon_grid)
+                        alt_grid = np.squeeze(alt_grid)
+                        tm_grid = np.squeeze(tm_grid)
+
+                        pdf = tmp_0['pdf']
+
+                        print('\t1/' + str(len(file_list)) + '\t' + file_path + file_list[0] + '\t' + str(norms[0]))
+
+                        for k, file_name in enumerate(file_list[1:]):                            
+                            tmp_k = np.load(temp_path + "-" + str(k + 1) + ".pdf.npz")
+                            pdf = pdf + tmp_k['pdf']
+                            print('\t' + str(k + 2) + '/' + str(len(file_list)) + '\t' + file_path + file_name + '\t' + str(norms[k + 1]))
+                    
+                        click.echo('\n' + "Analyzing combined localization PDF...")
+                        result = bisl.analyze_pdf(pdf, lat_grid, lon_grid, tm_grid, verbose=True)
+
                     else:              
                         result = tribl.run(events, atmo_data, temp_path, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
-                                            latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=True)
+                                            latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=True, pool=pl)
             else:
                 click.echo('\n' + "Can't run TRIBL methods without infraGA installed for ray tracing")
                 return
@@ -224,6 +282,10 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
             local_loc_label = local_loc_label + ".loc.json"
         click.echo("Writing localization result into " + local_loc_label)
         data_io.write_json(result, local_loc_label)
+
+    if pl is not None:
+        pl.terminate()
+        pl.close()
 
 
 
