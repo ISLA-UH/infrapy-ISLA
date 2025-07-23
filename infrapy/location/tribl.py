@@ -209,7 +209,7 @@ def run(det_list, atmo_file, temp_path, bm_width=10.0, rng_max=2000.0, grid_reso
             grnd_snd_spd=340.0, c0_stdev=10.0, det_time_stdev=10.0, verbose=True, show_prog=True, pool=None):
 
     if verbose:
-        print("Running Time-Reversed Infarasonic Bayesian Localization (TRIBL) Analysis...")
+        print("Running Time-Reversed Infrasonic Bayesian Localization (TRIBL) Analysis...")
         print('\t' + "Identifying integration region and building grid...")
     
     if alt_lims is None:
