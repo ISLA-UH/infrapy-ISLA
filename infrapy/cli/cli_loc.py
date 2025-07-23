@@ -211,65 +211,68 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
         else:
 
             if find_spec('infraga'):
-                with tempfile.TemporaryDirectory(prefix='infraga_') as tmpdirname:
-                    if local_temp_dir is not None:
-                        if not os.path.isdir(local_temp_dir):
-                            os.mkdir(local_temp_dir)
-                        tmpdirname = local_temp_dir
+                if not os.path.isfile(find_spec('infraga').submodule_search_locations[0] + "/bin/infraga-sph"):
+                    click.echo("InfraGA methods not compiled.  Run 'infraga compile' and try again.")
+                else:                               
+                    with tempfile.TemporaryDirectory(prefix='infraga_') as tmpdirname:
+                        if local_temp_dir is not None:
+                            if not os.path.isdir(local_temp_dir):
+                                os.mkdir(local_temp_dir)
+                            tmpdirname = local_temp_dir
 
-                    temp_path = tmpdirname + "/temp"
+                        temp_path = tmpdirname + "/temp"
 
-                    if "*" in atmo_data:
-                        if len(os.path.dirname(atmo_data)) > 0:
-                            file_path = os.path.dirname(atmo_data) + "/"
-                        else:
-                            file_path = ""
+                        if "*" in atmo_data:
+                            if len(os.path.dirname(atmo_data)) > 0:
+                                file_path = os.path.dirname(atmo_data) + "/"
+                            else:
+                                file_path = ""
 
-                        if "/" in atmo_data:
-                            dir_files = os.listdir(os.path.dirname(atmo_data))
-                        else:
-                            dir_files = os.listdir(".")
+                            if "/" in atmo_data:
+                                dir_files = os.listdir(os.path.dirname(atmo_data))
+                            else:
+                                dir_files = os.listdir(".")
 
-                        file_list = []
-                        for file in dir_files:
-                            if fnmatch.fnmatch(file, os.path.basename(atmo_data)):
-                                file_list += [file]
-                        file_list = np.sort(file_list)
+                            file_list = []
+                            for file in dir_files:
+                                if fnmatch.fnmatch(file, os.path.basename(atmo_data)):
+                                    file_list += [file]
+                            file_list = np.sort(file_list)
 
-                        click.echo('\n' + "Computing localization using atmosphere ensemble:")
-                        norms = []
-                        for k, file_name in enumerate(file_list):                            
-                            print('\t' + str(k + 1) + '/' + str(len(file_list)) + '\t' + file_path + file_name + '\t', end='')
-                            temp = tribl.run(events, file_path + file_name, temp_path + "-" + str(k), bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
-                                            latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=False, show_prog=True, pool=pl) 
-                            norms = norms + [temp['norm']]
+                            click.echo('\n' + "Computing localization using atmosphere ensemble:")
+                            norms = []
+                            for k, file_name in enumerate(file_list):                            
+                                print('\t' + str(k + 1) + '/' + str(len(file_list)) + '\t' + file_path + file_name + '\t', end='')
+                                temp = tribl.run(events, file_path + file_name, temp_path + "-" + str(k), bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
+                                                latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=False, show_prog=True, pool=pl) 
+                                norms = norms + [temp['norm']]
 
-                        norms = norms / np.sum(norms)
+                            norms = norms / np.sum(norms)
 
-                        print('\n' + "Merging PDFs across the ensemble...")
-                        tmp_0 = np.load(temp_path + "-0.pdf.npz")
+                            print('\n' + "Merging PDFs across the ensemble...")
+                            tmp_0 = np.load(temp_path + "-0.pdf.npz")
 
-                        lat_grid, lon_grid, alt_grid, tm_grid = np.meshgrid(tmp_0['lat_vals'], tmp_0['lon_vals'], tmp_0['alt_vals'], tmp_0['tm_vals'], indexing='ij')
-                        lat_grid = np.squeeze(lat_grid)
-                        lon_grid = np.squeeze(lon_grid)
-                        alt_grid = np.squeeze(alt_grid)
-                        tm_grid = np.squeeze(tm_grid)
+                            lat_grid, lon_grid, alt_grid, tm_grid = np.meshgrid(tmp_0['lat_vals'], tmp_0['lon_vals'], tmp_0['alt_vals'], tmp_0['tm_vals'], indexing='ij')
+                            lat_grid = np.squeeze(lat_grid)
+                            lon_grid = np.squeeze(lon_grid)
+                            alt_grid = np.squeeze(alt_grid)
+                            tm_grid = np.squeeze(tm_grid)
 
-                        pdf = tmp_0['pdf']
+                            pdf = tmp_0['pdf']
 
-                        print('\t1/' + str(len(file_list)) + '\t' + file_path + file_list[0] + '\t' + str(norms[0]))
+                            print('\t1/' + str(len(file_list)) + '\t' + file_path + file_list[0] + '\t' + str(norms[0]))
 
-                        for k, file_name in enumerate(file_list[1:]):                            
-                            tmp_k = np.load(temp_path + "-" + str(k + 1) + ".pdf.npz")
-                            pdf = pdf + tmp_k['pdf']
-                            print('\t' + str(k + 2) + '/' + str(len(file_list)) + '\t' + file_path + file_name + '\t' + str(norms[k + 1]))
-                    
-                        click.echo('\n' + "Analyzing combined localization PDF...")
-                        result = bisl.analyze_pdf(pdf, lat_grid, lon_grid, tm_grid, verbose=True)
+                            for k, file_name in enumerate(file_list[1:]):                            
+                                tmp_k = np.load(temp_path + "-" + str(k + 1) + ".pdf.npz")
+                                pdf = pdf + tmp_k['pdf']
+                                print('\t' + str(k + 2) + '/' + str(len(file_list)) + '\t' + file_path + file_name + '\t' + str(norms[k + 1]))
+                        
+                            click.echo('\n' + "Analyzing combined localization PDF...")
+                            result = bisl.analyze_pdf(pdf, lat_grid, lon_grid, tm_grid, verbose=True)
 
-                    else:              
-                        result = tribl.run(events, atmo_data, temp_path, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
-                                            latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=True, pool=pl)
+                        else:              
+                            result = tribl.run(events, atmo_data, temp_path, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner,
+                                                latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, alt_lims=alt_lims, alt_resol=alt_resol, grnd_snd_spd=grnd_snd_spd, c0_stdev=c0_stdev, det_time_stdev=det_tm_stdev, verbose=True, pool=pl)
             else:
                 click.echo('\n' + "Can't run TRIBL methods without infraGA installed for ray tracing")
                 return

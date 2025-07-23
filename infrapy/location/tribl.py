@@ -109,7 +109,7 @@ def _compute_projections(det_list, atmo_file, temp_dest, grnd_snd_spd=None, latl
         _, _, temp = sph_proj.inv([det.longitude] * 4, [det.latitude] * 4, corners[1].flatten(), corners[0].flatten())
         max_rng = max(temp / 1000.0) * 1.2
 
-        command = find_spec('infraga').submodule_search_locations[0][:-8] + "/bin/infraga-sph -back_proj " + atmo_file + " rcvr_lat=" + str(det.latitude) + " rcvr_lon=" + str(det.longitude)
+        command = find_spec('infraga').submodule_search_locations[0] + "/bin/infraga-sph -back_proj " + atmo_file + " rcvr_lat=" + str(det.latitude) + " rcvr_lon=" + str(det.longitude)
         command = command + " azimuth=" + str(det.back_azimuth) + " inclination=" + str(np.degrees(np.arccos(min(grnd_snd_spd[n] / det.trace_velocity, 1.0))))
         command = command + " max_rng=" + str(max_rng) + " bounces=" + str(bounces) + " z_grnd=" + str(rcvr_elevs[n])
         command = command + " output_id=" + temp_dest + ".det-" + str(n) + " > /dev/null"
@@ -226,7 +226,7 @@ def run(det_list, atmo_file, temp_path, bm_width=10.0, rng_max=2000.0, grid_reso
     if verbose:
         print('\t' + "Computing back projections for detection list...")
 
-    if pool:
+    if pool is not None:
         cpu_cnt = pool._processes
     else:
         cpu_cnt = None
