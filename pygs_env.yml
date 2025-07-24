@@ -1,4 +1,4 @@
-name: pygs_test
+name: pygs
 
 channels:
   - conda-forge
