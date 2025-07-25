@@ -45,7 +45,7 @@ resol = '100m'  # use data at this scale (not working at the moment)
 #     Localization Methods     #
 # ############################ #
 def interp_etopo(ll_corner, ur_corner):
-    etopo1 = Dataset(find_spec('infraga').submodule_search_locations[0] + "/ETOPO1_Ice_g_gmt4.grd")
+    etopo1 = Dataset(find_spec('infraga').submodule_search_locations[0] + "/resources/ETOPO1_Ice_g_gmt4.grd")
 
     grid_lons = etopo1.variables['x'][:]
     grid_lats = etopo1.variables['y'][:]
@@ -68,13 +68,16 @@ def _compute_projections(det_list, atmo_file, temp_dest, grnd_snd_spd=None, latl
     lat_vals = [det.latitude for det in det_list]
     lon_vals = [det.longitude for det in det_list]
 
-    if os.path.isfile(find_spec('infraga').submodule_search_locations[0] + "/ETOPO1_Ice_g_gmt4.grd"):
+    if os.path.isfile(find_spec('infraga').submodule_search_locations[0] + "/resources/ETOPO1_Ice_g_gmt4.grd"):
         topo = interp_etopo([min(lat_vals), min(lon_vals)], [max(lat_vals), max(lon_vals)])
     else:
         print("Topography file not found.  Downloading from https://www.ngdc.noaa.gov/mgg/global/")
         download_url = "https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO1/data/ice_surface/grid_registered/netcdf/ETOPO1_Ice_g_gmt4.grd.gz"
-        destination = find_spec('infraga').submodule_search_locations[0] + "/ETOPO1_Ice_g_gmt4.grd.gz"
+        destination = find_spec('infraga').submodule_search_locations[0] + "/resources/ETOPO1_Ice_g_gmt4.grd.gz"
         try:
+            if not os.path.isdir(os.path.split(destination)[0]):
+                os.mkdir(os.path.split(destination)[0])
+            
             print("Downloading ETOPO1 data...")
             wget.download(download_url, destination)
             print("Extracting...")
@@ -86,7 +89,7 @@ def _compute_projections(det_list, atmo_file, temp_dest, grnd_snd_spd=None, latl
         except:
             print("Download failed.")
             print("Try manual download: " + download_url)
-            print("Place file in /path/to/infraGA/infraga/ (here .py files are located)")
+            print("Place extracted .grd file in " + find_spec('infraga').submodule_search_locations[0] + "/resources/")
 
     rcvr_elevs = np.array([topo(det.latitude, det.longitude)[0] for det in det_list])
 
