@@ -56,7 +56,6 @@ from ..utils import data_io
 @click.option("--det-tm-stdev", help="Detection time uncertainty", default=None)
 @click.option("--local-temp-dir", help="Local temporary directory if using TRIBL", default=None)
 @click.option("--cpu-cnt", help="CPU count for multithreading (default: None)", default=None, type=int)
-
 def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, range_max, grid_resol, ll_corner, ur_corner, latlon_resol, tm_min, tm_max, tm_resol, celerity_model, rcel_wts, rcel_mns, rcel_sds, pgm_file, atmo_data, alt_lims, alt_resol, grnd_snd_spd, c0_stdev, det_tm_stdev, local_temp_dir, cpu_cnt):
     '''
     Run Bayesian Infrasonic Source Localization (BISL) methods to estimate the source location and origin time for an event
@@ -187,6 +186,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     else:
         pl = None
 
+
     click.echo("")
     events = data_io.set_det_list(local_detect_label, merge=False)
 
@@ -209,7 +209,6 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
             result = bisl.run(events, bm_width=back_az_width, rng_max=range_max, grid_resol=grid_resol, ll_corner=ll_corner, ur_corner=ur_corner, 
                                     latlon_resol=latlon_resol, tm_lims=tm_lims, tm_resol=tm_resol, path_geo_model=pgm)
         else:
-
             if find_spec('infraga'):
                 if not os.path.isfile(find_spec('infraga').submodule_search_locations[0] + "/bin/infraga-sph"):
                     click.echo("InfraGA methods not compiled.  Run 'infraga compile' and try again.")
@@ -289,6 +288,7 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     if pl is not None:
         pl.terminate()
         pl.close()
+
 
 
 

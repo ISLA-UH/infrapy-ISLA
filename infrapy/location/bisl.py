@@ -401,8 +401,6 @@ def analyze_pdf(pdf, lat_grid, lon_grid, tm_grid, verbose=False):
                 'norm' : norm}
 
 
-
-
 def run(det_list, bm_width=10.0, rng_max=2000.0, grid_resol=50, ll_corner=None, ur_corner=None, latlon_resol=None, tm_lims=None, tm_resol=None, path_geo_model=None, verbose=True):
     """Run analysis of the posterior pdf for BISL
 
