@@ -28,7 +28,7 @@ class IPFDSNDialog(QDialog):
         self.buildUI()
 
     def buildUI(self):
-        self.setWindowTitle(self.tr('InfraView: FDSN Import ;-)'))
+        self.setWindowTitle(self.tr('InfraView: FDSN Import'))
 
         self.fdsnWidget = IPFDSNWidget()
 
@@ -194,7 +194,6 @@ class IPFDSNWidget(QWidget):
         horizontalLineWidget = QWidget()
         horizontalLineWidget.setFixedHeight(2);
         horizontalLineWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed);
-        horizontalLineWidget.setStyleSheet("background-color: #c0c0c0;");
         formLayout.addWidget(horizontalLineWidget)
 
         formLayout.addRow(label_network_name, self.networkNameBox)

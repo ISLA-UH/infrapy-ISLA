@@ -1,8 +1,12 @@
-from PyQt5.QtWidgets import (QWidget, QComboBox, QCheckBox, QLabel, QDoubleSpinBox, QSpinBox,
+from PyQt5.QtWidgets import (QGroupBox, QComboBox, QCheckBox, QLabel, QDoubleSpinBox, QSpinBox,
                              QHBoxLayout, QFormLayout, QFrame, QPushButton)
 from PyQt5 import QtCore
 
+import pyqtgraph as pg
+
 from InfraView.widgets import IPBaseWidgets
+from InfraView.widgets import IPPolarPlot
+from InfraView.widgets.settings_widgets import IPDetectorSettingsWidget
 
 class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
@@ -12,15 +16,15 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.buildUI()
 
     def buildUI(self):
-    
+
         self.windowLength_spin = QDoubleSpinBox()
-        self.windowLength_spin.setMaximumWidth(60)
+        self.windowLength_spin.setMaximumWidth(80)
         self.windowLength_spin.setSuffix(' s')
         self.windowLength_spin.setMinimum(0.0)
         self.windowLength_spin.setMaximum(1000000)
 
         self.windowStep_spin = QDoubleSpinBox()
-        self.windowStep_spin.setMaximumWidth(60)
+        self.windowStep_spin.setMaximumWidth(80)
         self.windowStep_spin.setSuffix(' s')
         self.windowStep_spin.setMinimum(0.01)
         self.windowStep_spin.setMaximum(1000000)
@@ -43,21 +47,22 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.fmax_label = QLabel("5.0 Hz")
         self.fmax_label.setMinimumWidth(90)   
 
-        self.noiseStart_label = QLabel()
-        self.noiseDuration_label = QLabel()
+        self.noiseStart_label = QLabel("0.0")
+        self.noiseDuration_label = QLabel("0.0")
 
-        self.sigStart_label = QLabel()
-        self.sigDuration_label = QLabel()
+        self.sigStart_label = QLabel("0.0")
+        self.sigDuration_label = QLabel("0.0")
 
         self.subwindow_cb = QCheckBox()
         self.subwindow_cb.stateChanged.connect(self.updateSubwindow)
-
+        self.subwindow_cb.setVisible(False)
         self.subWinLength_spin = QDoubleSpinBox()
         self.subWinLength_spin.setMaximumWidth(60)
         self.subWinLength_spin.setMinimum(0.0)
         self.subWinLength_spin.setMaximum(1000000)
         self.subWinLength_spin.setSuffix(' s')
         self.subWinLength_spin.setEnabled(False)
+        self.subWinLength_spin.setVisible(False)
 
         self.backaz_resol_spin = QDoubleSpinBox()
         self.backaz_resol_spin.setMinimum(0.1)
@@ -93,6 +98,12 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.tracev_max_spin.setSuffix(' m/s')
         self.tracev_max_spin.editingFinished.connect(self.checkTraceVRange)
 
+        #slowness colormap
+        self.colormap_cb = QComboBox()
+        available_maps = pg.colormap.listMaps(source='matplotlib')
+        self.colormap_cb.addItems(available_maps)
+        self.colormap_cb.setCurrentText('jet')
+
         # set everything to default settings
         self.set_defaults()
 
@@ -106,8 +117,28 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         sub_win_layout = QHBoxLayout()
         sub_win_layout.addWidget(self.subWinLength_spin)
         sub_win_layout.addWidget(self.subwindow_cb)
-        formlayout_col2.addRow("Subwindow Length: ", sub_win_layout)
+        # formlayout_col2.addRow("Subwindow Length: ", sub_win_layout)
+        formlayout_col2.addRow("Method: ", self.method_cb)
 
+        formlayout_col6 = QFormLayout()
+        formlayout_col6.addRow("Back Az. Resolution: ", self.backaz_resol_spin)
+        formlayout_col6.addRow("Back Az. Start Angle: ", self.backaz_start_spin)
+        formlayout_col6.addRow("Back Az. End Angle: ", self.backaz_end_spin)
+        formlayout_col6.addRow("Slowness Color Map: ", self.colormap_cb)
+
+        formlayout_col7 = QFormLayout()
+        formlayout_col7.addRow("Trace Vel. Resolution: ", self.tracev_resol_spin)
+        formlayout_col7.addRow("Trace Vel Min: ", self.tracev_min_spin)
+        formlayout_col7.addRow("Trace Vel Max: ", self.tracev_max_spin)
+        formlayout_col7.addRow("", self.reset_button)
+
+        horizLayoutA = QHBoxLayout()
+        horizLayoutA.addLayout(formlayout_col2)
+        horizLayoutA.addLayout(formlayout_col6)
+        horizLayoutA.addLayout(formlayout_col7)
+
+        analysis_gb = QGroupBox('Analysis Settings')
+        analysis_gb.setLayout(horizLayoutA)
         # removed col3
 
         formlayout_col4 = QFormLayout()
@@ -120,30 +151,78 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         formlayout_col5.addRow("Duration: ", self.noiseDuration_label)
         formlayout_col5.addRow("Duration: ", self.sigDuration_label)
 
-        formlayout_col6 = QFormLayout()
-        formlayout_col6.addRow("Back Azimuth Resolution: ", self.backaz_resol_spin)
-        formlayout_col6.addRow("Back Azimuth Start Angle: ", self.backaz_start_spin)
-        formlayout_col6.addRow("Back Azimuth End Angle: ", self.backaz_end_spin)
+        horizLayoutB = QHBoxLayout()
+        horizLayoutB.addLayout(formlayout_col4)
+        horizLayoutB.addLayout(formlayout_col5)
 
-        formlayout_col7 = QFormLayout()
-        formlayout_col7.addRow("Trace Vel. Resolution: ", self.tracev_resol_spin)
-        formlayout_col7.addRow("Trace Vel Min: ", self.tracev_min_spin)
-        formlayout_col7.addRow("Trace Vel Max: ", self.tracev_max_spin)
+        values_gb = QGroupBox("Current Values")
+        values_gb.setLayout(horizLayoutB)
+        values_gb.setVisible(False)
 
-        formlayout_col8 = QFormLayout()
-        formlayout_col8.addRow("Method: ", self.method_cb)
-        formlayout_col8.addRow("", self.reset_button)
+        self.detector_settings = IPDetectorSettingsWidget.IPDetectorSettingsWidget(self)
 
-        horizLayout = QHBoxLayout()
-        horizLayout.addLayout(formlayout_col2)
-        horizLayout.addLayout(formlayout_col4)
-        horizLayout.addLayout(formlayout_col5)
-        horizLayout.addLayout(formlayout_col6)
-        horizLayout.addLayout(formlayout_col7)
-        horizLayout.addLayout(formlayout_col8)
-        horizLayout.addStretch()
+        #self.slowness_settings = IPPolarPlot.IPSlownessSettingsWidget(self)
+        #self.slowness_settings = IPSlownessSettingsWidget(self)
 
-        self.setLayout(horizLayout)
+        main_layout = QHBoxLayout()
+        main_layout.addWidget(analysis_gb)
+        main_layout.addWidget(values_gb)
+        main_layout.addWidget(self.detector_settings)
+        #main_layout.addWidget(self.slowness_settings)
+        main_layout.addStretch()
+
+        self.setLayout(main_layout)
+
+    def to_dict(self):
+        # s_dict is the standard settings for analysis
+        # g_dict is the settings for the gui
+        s_dict = {}
+        s_dict['win_length']  = self.windowLength_spin.value()
+        s_dict['win_step'] = self.windowStep_spin.value()
+        s_dict['method'] = self.method_cb.currentText()
+        # s_dict['sub_win_check'] = self.subwindow_cb.isChecked()   CURRENTLY NOT USED
+        # s_dict['sub_win_length'] = self.subWinLength_spin.value() CURRENTLY NOT USED
+        s_dict['backAz_resolution'] = self.backaz_resol_spin.value()
+        s_dict['backAz_start'] = self.backaz_start_spin.value()
+        s_dict['backAz_end'] = self.backaz_end_spin.value()
+        s_dict['traceV_resolution'] = self.tracev_resol_spin.value()
+        s_dict['traceV_min'] = self.tracev_min_spin.value()
+        s_dict['traceV_max'] = self.tracev_max_spin.value()
+        s_dict['signal_start'] = self.sigStart_label.text()
+        s_dict['signal_end'] = float(self.sigStart_label.text()) + float(self.sigDuration_label.text())
+        s_dict['noise_start'] = self.noiseStart_label.text()
+        s_dict['noise_end'] = float(self.noiseStart_label.text()) + float(self.noiseDuration_label.text())
+        s_dict['gui_bf_colormap'] = self.colormap_cb.currentText()
+        s_dict['detector_settings'] = self.detector_settings.to_dict()
+
+        return s_dict
+
+    def from_dict(self, s_dict):
+        sd = s_dict['beamforming_widget']
+        self.windowLength_spin.setValue(float(sd['win_length']))
+        self.windowStep_spin.setValue(float(sd['win_step']))
+        self.method_cb.setCurrentText(sd['method'])
+        # self.subwindow_cb.setChected...       CURRENTLY NOT USED
+        # self.subWinLength_spin.setValue(float(sd['sub_win_length'])) CURRENTLY NOT USED
+        self.backaz_resol_spin.setValue(float(sd['backAz_resolution']))
+        self.backaz_start_spin.setValue(float(sd['backAz_start']))
+        self.backaz_end_spin.setValue(float(sd['backAz_end']))
+        self.tracev_resol_spin.setValue(float(sd['traceV_resolution']))
+        self.tracev_min_spin.setValue(float(sd['traceV_min']))
+        self.tracev_max_spin.setValue(float(sd['traceV_max']))
+        # NOT SURE I want to save and reload the signal start and ends...ask Phil
+        # if sd['signal_start'] == "None" : sd['signal_start'] = '0.0'
+        # if sd['signal_end'] == "None" : sd['signal_end'] = '0.0'
+        # self.sigStart_label.setText(sd['signal_start'])
+        # self.sigDuration_label.setText(str(float(sd['signal_end']) - float(sd['signal_start'])))
+        # if sd['noise_start'] == 'None' : sd['noise_start'] = '0.0'
+        # if sd['noise_end'] == 'None' : sd['noise_end'] = '0.0'
+        # self.noiseStart_label.setText(sd['noise_start'])
+        # self.noiseDuration_label.setText(str(float(sd['noise_end']) - float(sd['noise_start'])))
+
+        self.colormap_cb.setCurrentText(sd['gui_bf_colormap'])
+
+        self.detector_settings.from_dict(sd)
 
     def set_defaults(self):
         default_settings = {'winlen_spin': 10.0,
@@ -172,8 +251,6 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.tracev_resol_spin.setValue(default_settings['traceVelRes_spin'])
         self.tracev_min_spin.setValue(default_settings['traceVelmin_spin'])
         self.tracev_max_spin.setValue(default_settings['traceVelmax_spin'])
-        
-
 
     def HLine(self):
         hl = QFrame()
@@ -293,3 +370,41 @@ class IPBeamformingSettingsWidget(IPBaseWidgets.IPSettingsWidget):
             self.subwindow_cb.setChecked(False)
             self.subwindow_cb.setEnabled(False)
             self.subWinLength_spin.setEnabled(False)
+
+
+class IPSlownessSettingsWidget(QGroupBox):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setTitle("Slowness Plot")
+        self.beamformingWidget = parent
+
+        self.buildUI()
+
+    def buildUI(self):
+        
+        colormap_label = QLabel("Color Map: ")
+        self.colormap_cb = QComboBox()
+
+        available_maps = pg.colormap.listMaps(source='matplotlib')
+        self.colormap_cb.addItems(available_maps)
+        self.colormap_cb.setCurrentText('jet')
+
+        #TODO:  Hardwire resolution?  Currently not displayed
+        resolution_label = QLabel("Resolution:")
+        self.resolution_spin = QSpinBox()
+        self.resolution_spin.setRange(10,1000)
+        self.resolution_spin.setMaximumWidth(70)
+        self.resolution_spin.setValue(300)
+        self.resolution_spin.setToolTip("Number of points (horizontal and vertical) that make up the slowness image.\nIf you want to 'smooth' the plot, reduce the size of the trace velocity step \nsize and the azimuth step size in the beamformer settings.")
+
+        form1_layout = QFormLayout()
+        form1_layout.addRow(colormap_label, self.colormap_cb)
+
+        self.setLayout(form1_layout)
+
+    def settings(self):
+        '''returns the current settings'''
+        settings = {'cmap': self.colormap_cb.currentText()}
+
+        return settings

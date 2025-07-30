@@ -103,7 +103,7 @@ class IPEventQueryWidget(QFrame):
         self.connect_signals_and_slots()
 
     @pyqtSlot(Session)
-    def set_settion(self, session):
+    def set_session(self, session):
         self.session = session
 
     def connect_signals_and_slots(self):
@@ -120,14 +120,14 @@ class IPEventQueryWidget(QFrame):
         self.query_textEdit.setPlainText(str(q))
 
     # def get_current_session(self):
-    #     return self.parent.ipdatabase_connect_widget.session
+    #     return self.parent.ipdatabase_settings_widget.session
 
     def get_tables(self):
-        table_dictionary= self.parent.ipdatabase_connect_widget.table_dialog.get_tables_from_text()
+        table_dictionary= self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
         return table_dictionary
 
     def get_schema(self):
-        return self.parent.ipdatabase_connect_widget.schema_type_combo.currentText()
+        return self.parent.ipdatabase_settings_widget.connect_widget.schema_type_combo.currentText()
 
     def query_database(self, asquery=False):
         if self.session is None:
@@ -274,7 +274,7 @@ class IPDatabaseQueryWidget(QFrame):
         else:
             cha = self.cha_edit.text()
 
-        tables = self.parent.ipdatabase_connect_widget.table_dialog.get_tables_from_text()
+        tables = self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
         try:
             new_query = database.query_db(self.session, tables, start_time=start_time, end_time=end_time, sta=sta, cha=cha, return_type='wfdisc_rows', asquery=True)
             self.query_textEdit.setPlainText(str(new_query))
@@ -287,6 +287,13 @@ class IPDatabaseQueryWidget(QFrame):
         starttime = UTCDateTime(starttime_str)
         stoptime = UTCDateTime(starttime) + self.duration_edit.value()
         return starttime, stoptime
+    
+    @pyqtSlot(dict)
+    def update_time(self, origin):
+        self.start_date_edit.setDate(origin['UTC Date'])
+        self.start_time_edit.setTime(origin['UTC Time'])
+
+
 
     def query_database(self):
 
@@ -316,7 +323,7 @@ class IPDatabaseQueryWidget(QFrame):
         else:
             cha = self.cha_edit.text()
 
-        tables = self.parent.ipdatabase_connect_widget.table_dialog.get_tables_from_text()
+        tables = self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
         
         wfs = database.query_db(self.session, tables, start_time=start_time, end_time=end_time, sta=sta, cha=cha, return_type='wfdisc_rows')
         

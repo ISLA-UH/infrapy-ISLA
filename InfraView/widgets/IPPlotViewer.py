@@ -6,18 +6,20 @@ from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (QWidget, QDoubleSpinBox, QLabel, 
                              QHBoxLayout, QVBoxLayout,
                              QScrollArea)
+from PyQt5.QtGui import QPalette
 
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPPlotItem
 from InfraView.widgets import IPWaveformSelectorWidget
 from InfraView.widgets import IPEventLine
-from InfraView.widgets import IPUtils
+from InfraView.widgets import IPUtils as utils
 
 from obspy.core import UTCDateTime
 from obspy.core.stream import Stream
 
 import pyproj
 
-class IPPlotViewer(IPUtils.IPSplitter):
+class IPPlotViewer(IPBaseWidgets.IPSplitter):
 
     def __init__(self, parent):
         super().__init__(orientation=Qt.Horizontal, parent=parent)
@@ -35,7 +37,6 @@ class IPPlotViewer(IPUtils.IPSplitter):
         self.lr_settings_widget = IPLinearRegionSettingsWidget(self)
         
         rhs_widget = QWidget()
-        rhs_widget.setStyleSheet("background-color:white;")
         rhs_layout = QVBoxLayout()
 
         rhs_layout.addWidget(self.title)
@@ -60,12 +61,8 @@ class IPPlotViewer(IPUtils.IPSplitter):
         self.pl_widget.filtered_plot_lines.clear()
         self.pl_widget.clear()
         self.waveform_selector.clear_layout()
-        self.parent.spectraWidget.clearPlot()
+        self.parent.parent.singleSensorWidget.clearWaveformPlots()
         self.title.setText("")
-
-    @pyqtSlot(Stream, Stream)
-    def update(self, sts, filtered_sts):
-        pass
 
     @pyqtSlot(dict)
     def show_hide_lines(self, current_filter_display_settings):
@@ -110,6 +107,44 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.connect_signals_and_slots()
         self.setMouseTracking(True)
 
+    @pyqtSlot(str)
+    def update_theme(self, t):
+        if t == 'light':
+            self.bg = utils.ip_white
+            self.disabled = utils.ip_light_grey
+            self.marker_color = utils.ip_black
+            self.setBackground(self.bg)
+        elif t == 'dark':
+            self.bg = utils.ip_darker_grey
+            self.disabled = utils.ip_dark_grey
+            self.setBackground(self.disabled)
+            self.marker_color = utils.ip_white
+
+        self.update_plot_colors()
+
+    def update_plot_colors(self):
+        for idx, plot in enumerate(self.plot_list):
+            vb = plot.getViewBox()
+            if idx == self.active_plot:
+                plot.setBackgroundColor(self.bg)
+                vb.setBorder(pg.mkPen(0,0,0), width=10)
+            else:
+                plot.setBackgroundColor(self.disabled)
+                vb.setBorder(None)
+
+            #cluge because setting background color covers axis for some reason
+            plot.getAxis("top").setZValue(0)
+            plot.getAxis("bottom").setZValue(0)
+            plot.getAxis("left").setZValue(0)
+            plot.getAxis("right").setZValue(0)
+
+        for line in self.v_lines:
+            line.setPen(self.marker_color)
+
+        for line in self.h_lines:
+            line.setPen(self.marker_color)
+        
+
     def connect_signals_and_slots(self):
         self.scene().sigMouseMoved.connect(self.myMouseMoved)
         self.scene().sigMouseClicked.connect(self.myMouseClicked)
@@ -133,8 +168,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             self.freqs.append(freqs)
             self.times.append(times)
             self.spectrograms.append(np.log10(spectrogram))
-
-        #self.update_images()
 
     def plot_traces(self,
                     sts,
@@ -208,7 +241,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
 
             # this will tell the single station widget to update when the LRIs finish being moved
             new_plot.getSignalRegion().sigRegionChangeFinished.connect(self.parent.parent.parent.singleSensorWidget.signal_region_changed)
-            new_plot.getNoiseRegion().sigRegionChangeFinished.connect(self.parent.parent.parent.singleSensorWidget.noise_region_changed)
 
             # cluge because setting background color covers axis for some reason
             new_plot.getAxis("top").setZValue(0)
@@ -219,9 +251,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             ####################################################################################
             # create the label for the new plot and pin it to the top left
             new_plot.setPlotLabel(trace.id)
-
-            # set the plot lines' color and width (if you chance something here, it needs to also
-            # be changed in updateTraces)
 
             # keep the new_plot reference in a list
             self.plot_list.append(new_plot)
@@ -236,7 +265,7 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             self.v_lines[idx].setZValue(10)
             self.h_lines[idx].setZValue(11)
 
-            self.position_labels.append(pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0)))
+            self.position_labels.append(pg.TextItem(color=(128,128,128), html=None, anchor=(1, 0)))
 
             my_plot.addItem(self.v_lines[idx], ignoreBounds=True)
             my_plot.addItem(self.h_lines[idx], ignoreBounds=True)
@@ -283,17 +312,15 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
                                               self.filtered_plot_lines,
                                               self.plot_list[self.active_plot].getSignalRegion().getRegion(),
                                               self.plot_list[self.active_plot].getNoiseRegion().getRegion())
-
-        for idx, plot in enumerate(self.plot_list):
-            # set the color of the plots
-            if idx == self.active_plot:
-                plot.setBackgroundColor(255, 255, 255)
-            else:
-                plot.setBackgroundColor(230, 230, 230)
+                
+        for idx, plot in enumerate(self.plot_list):   
             # add the checked plots in the waveformselector to the layout
             if values[idx]:
                 self.nextRow()
                 self.addItem(plot)
+
+        
+        self.update_plot_colors()
 
     def draw_plot_lines(self, current_filter_display_settings):
 
@@ -424,7 +451,6 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
                 for line in self.arrival_line_list:
                     line.setVisible(False)
 
-
     # This will be called whenever a signal is emitted from the eventwidget
     # saying something has changed
     @pyqtSlot()
@@ -480,11 +506,7 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         # This little bit links the axes of the newly created plot to those of the first one
         # so they scale the same (this could be optional)
         self.setXaxisCoupling(True)
-        # self.setYaxisCoupling(True)
-
-        #if len(self.plot_list) > 0 and self.latest_end_time is not None and self.earliest_start_time is not None:
-        #    self.plot_list[-1].setRange(xRange=(0, UTCDateTime(self.latest_end_time) - UTCDateTime(self.earliest_start_time)), padding=0)
-
+        
     def normalize_traces_to_largest(self, stream):
         my_max = 0
         max_i = 0
@@ -634,29 +656,17 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         for idx, my_plot in enumerate(self.plot_list):
             # we want to ignore clicks if they aren't actually in the plot area (ie ignore axis labels etc)
             mySceneBoundingRect = my_plot.sceneBoundingRect()
-
             if mySceneBoundingRect.contains(scenePos):
                 self.active_plot = idx
-                my_plot.setBackgroundColor(255, 255, 255)
+                
                 self.sig_active_plot_changed.emit(idx,
                                                   self.plot_lines,
                                                   self.filtered_plot_lines,
                                                   self.plot_list[0].getSignalRegion().getRegion(),
                                                   self.plot_list[0].getNoiseRegion().getRegion())
-
-            else:
-                my_plot.setBackgroundColor(230, 230, 230)
-
-            # cluge because setting background color covers axis for some reason
-            my_plot.getAxis("top").setZValue(0)
-            my_plot.getAxis("bottom").setZValue(0)
-            my_plot.getAxis("left").setZValue(0)
-            my_plot.getAxis("right").setZValue(0)
-        
-        # TODO
-
-        # self.updateWidgets()
-
+                
+        self.update_plot_colors()
+    
     # ------------------------------------------------------------------------------
     # Key press events...
 
@@ -690,10 +700,12 @@ class IPLinearRegionSettingsWidget(QWidget):
         self.noiseStartSpin.setMinimum(0)
         self.noiseStartSpin.setMaximum(1000000)
         self.noiseStartSpin.setSuffix(' s')
+
         self.noiseDurationSpin = QDoubleSpinBox()
         self.noiseDurationSpin.setMinimum(0)
         self.noiseDurationSpin.setMaximum(1000000)
         self.noiseDurationSpin.setSuffix(' s')
+        self.noiseSpinsChanged.emit((self.noiseStartSpin.value(), self.noiseDurationSpin.value()))
 
         self.noiseStartSpin.valueChanged.connect(self.myNoiseSpinsChanged)
         self.noiseDurationSpin.valueChanged.connect(self.myNoiseSpinsChanged)
@@ -707,6 +719,7 @@ class IPLinearRegionSettingsWidget(QWidget):
         self.signalDurationSpin.setMinimum(0)
         self.signalDurationSpin.setMaximum(1000000)
         self.signalDurationSpin.setSuffix(' s')
+        self.signalSpinsChanged.emit((self.signalStartSpin.value(), self.signalDurationSpin.value()))
 
         self.signalStartSpin.valueChanged.connect(self.mySignalSpinsChanged)
         self.signalDurationSpin.valueChanged.connect(self.mySignalSpinsChanged)

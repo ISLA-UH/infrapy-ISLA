@@ -3,70 +3,48 @@ import math
 
 import pyqtgraph as pg
 
-from PyQt5.QtWidgets import QComboBox, QLabel, QPushButton, QHBoxLayout, QFormLayout, QSpinBox
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 
-from InfraView.widgets import IPBaseWidgets
+# class IPSlownessSettingsWidget(QGroupBox):
 
-class IPSlownessSettingsWidget(IPBaseWidgets.IPSettingsWidget):
+#     def __init__(self, parent):
+#         super().__init__(parent)
+#         self.setTitle("Slowness Plot")
+#         self.beamformingWidget = parent
 
-    def __init__(self, parent):
-        super().__init__(parent)
+#         self.buildUI()
 
-        self.beamformingWidget = parent
+#     def buildUI(self):
         
-        self.buildUI()
+#         colormap_label = QLabel("Color Map: ")
+#         self.colormap_cb = QComboBox()
 
-    def buildUI(self):
-        self.update_button = QPushButton("Update")
-        self.update_button.setMaximumWidth(100)
-        self.update_button.setEnabled(False)
-        self.update_button.clicked.connect(self.deactivate_update_button)
-        self.update_button.clicked.connect(self.beamformingWidget.slownessPlot.update)
+#         available_maps = pg.colormap.listMaps(source='matplotlib')
+#         self.colormap_cb.addItems(available_maps)
+#         self.colormap_cb.setCurrentText('jet')
 
-        colormap_label = QLabel("Color Map: ")
-        self.colormap_cb = QComboBox()
+#         #TODO:  Hardwire resolution?  Currently not displayed
+#         resolution_label = QLabel("Resolution:")
+#         self.resolution_spin = QSpinBox()
+#         self.resolution_spin.setRange(10,1000)
+#         self.resolution_spin.setMaximumWidth(70)
+#         self.resolution_spin.setValue(300)
+#         self.resolution_spin.setToolTip("Number of points (horizontal and vertical) that make up the slowness image.\nIf you want to 'smooth' the plot, reduce the size of the trace velocity step \nsize and the azimuth step size in the beamformer settings.")
 
-        available_maps = pg.colormap.listMaps(source='matplotlib')
-        self.colormap_cb.addItems(available_maps)
-        self.colormap_cb.setCurrentText('jet')
-        self.colormap_cb.currentTextChanged.connect(self.activate_update_button)
+#         form1_layout = QFormLayout()
+#         form1_layout.addRow(colormap_label, self.colormap_cb)
 
-        resolution_label = QLabel("Resolution:")
-        self.resolution_spin = QSpinBox()
-        self.resolution_spin.setRange(10,1000)
-        self.resolution_spin.setMaximumWidth(70)
-        self.resolution_spin.setValue(300)
-        self.resolution_spin.setToolTip("Number of points (horizontal and vertical) that make up the slowness image.\nIf you want to 'smooth' the plot, reduce the size of the trace velocity step \nsize and the azimuth step size in the beamformer settings.")
-        self.resolution_spin.valueChanged.connect(self.activate_update_button)
+#         self.setLayout(form1_layout)
 
-        form1_layout = QFormLayout()
-        form1_layout.addRow(colormap_label, self.colormap_cb)
+#     def settings(self):
+#         '''returns the current settings'''
+#         settings = {'cmap': self.colormap_cb.currentText()}
 
-        form2_layout = QFormLayout()
-        form2_layout.addRow(resolution_label, self.resolution_spin)
+#         return settings
 
-        main_layout = QHBoxLayout()
-        main_layout.addLayout(form1_layout)
-        main_layout.addLayout(form2_layout)
-
-        main_layout.addWidget(self.update_button)
-        self.setLayout(main_layout)
-
-    def settings(self):
-        '''returns the current settings'''
-        settings = {'cmap': self.colormap_cb.currentText()}
-
-        return settings
-
-    def activate_update_button(self):
-        self.update_button.setEnabled(True)
-
-    def deactivate_update_button(self):
-        self.update_button.setEnabled(False)
 
 class IPSlownessImageItem(pg.ImageItem):
-    sig_info_changed = pyqtSignal(str)
+    sig_info_changed = pyqtSignal(str, str)
 
     def __init__(self, parent):
         super().__init__()
@@ -96,8 +74,9 @@ class IPSlownessImageItem(pg.ImageItem):
             az = np.degrees(np.arctan2(x, y))
 
             if vel > self.tracev_range[0] and vel < self.tracev_range[1]:
-                info_str = 'Velocity: {:3.2f} m/s \n Azimuth: {:3.2f} deg.'.format(vel, az)
-                self.sig_info_changed.emit(info_str)
+                info_str1 = 'Velocity: {:3.2f} m/s'.format(vel)     
+                info_str2 = 'Azimuth: {:3.2f} deg.'.format(az)
+                self.sig_info_changed.emit(info_str1, info_str2)
 
 class IPSlownessPlot(pg.PlotItem):
 
@@ -109,7 +88,7 @@ class IPSlownessPlot(pg.PlotItem):
         self.resolution = 0
         self.hr = 1.
         self.image_item = IPSlownessImageItem(self)
-        self.image_item.sig_info_changed.connect(self.update_info_label)
+        self.image_item.sig_info_changed.connect(self.update_info_labels)
         self.tracev_range = ()
 
         self.addItem(self.image_item)
@@ -128,8 +107,13 @@ class IPSlownessPlot(pg.PlotItem):
         self.o_circle.setPen(pg.mkPen(width=3, color='k'))
         self.addItem(self.o_circle)
 
-        self.info_label = pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0))
-        self.addItem(self.info_label, ignoreBounds=True)
+        self.info_label1 = pg.LabelItem(text="")
+        self.info_label1.setParentItem(self.vb)
+        self.info_label1.anchor(itemPos=(0,0), parentPos=(0,0))
+
+        self.info_label2 = pg.LabelItem(text="")
+        self.info_label2.setParentItem(self.vb)
+        self.info_label2.anchor(itemPos=(1,0), parentPos=(1,0))
 
         self.radial_list = []
 
@@ -144,6 +128,12 @@ class IPSlownessPlot(pg.PlotItem):
 
         cmap = pg.colormap.get('jet', source='matplotlib')
         self.image_item.setColorMap(cmap)
+
+    def update_theme(self, t):
+        if t == 'light':
+            self.setBackground((255,255,255))
+        elif t == 'dark':
+            self.setBackground((50,50,50))
     
     def set_image(self, image, resolution, tracev_range):
 
@@ -165,11 +155,9 @@ class IPSlownessPlot(pg.PlotItem):
         self.setAutoVisible(y=True, x=True)
         self.getViewBox().autoRange()
 
-        myRange = self.viewRange()
-        self.info_label.setPos(myRange[0][1], myRange[1][1])
-
-    def update_info_label(self, info_str):
-        self.info_label.setText(info_str)
+    def update_info_labels(self, info_str1, info_str2):
+        self.info_label1.setText(info_str1)
+        self.info_label2.setText(info_str2)
 
     def draw_radials(self):
         count = 8
@@ -202,9 +190,9 @@ class IPSlownessPlot(pg.PlotItem):
         #     circle.setZValue(10)
         #     self.addItem(circle)
 
-    def update(self):
-        settings = self.parent.slownessSettings.settings()
-        cmap = pg.colormap.get(settings['cmap'], source='matplotlib')
+    @pyqtSlot(str)
+    def set_colormap(self, map_name):
+        cmap = pg.colormap.get(map_name, source='matplotlib')
         self.image_item.setColorMap(cmap)
 
     def clear_slowness(self):

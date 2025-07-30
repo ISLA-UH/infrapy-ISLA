@@ -18,13 +18,12 @@ import scipy.signal as scs
 from pathlib import Path
 
 # import infraview widgets here
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPDetectionWidget
-from InfraView.widgets import IPDetectorSettingsWidget
 from InfraView.widgets import IPNewDetectionDialog
 from InfraView.widgets import IPPickLine
 from InfraView.widgets import IPPlotItem
 from InfraView.widgets import IPPolarPlot
-from InfraView.widgets import IPBeamformingSettingsWidget
 from InfraView.widgets import IPSaveBeamformingResultsDialog
 from InfraView.widgets import IPUtils
 
@@ -54,6 +53,7 @@ class IPBeamformingWidget(QWidget):
     _beam_collection = []   # This will hold the slowness plots for the current run
     _projection_collection = []
     _max_projection_data = None
+    beam_resolution = 300 # HARDCODED FOR NOW
 
     _t = []
     _trace_vel = []
@@ -66,6 +66,7 @@ class IPBeamformingWidget(QWidget):
     _mp_pool = None
 
     lanl_blue = IPUtils.lanl_primary
+    reb_blue = IPUtils.reb_powder_blue
     lanl_light_blue = IPUtils.lanl_blue
     lanl_green = IPUtils.lanl_green
     lanl_orange = IPUtils.lanl_orange
@@ -112,10 +113,10 @@ class IPBeamformingWidget(QWidget):
         self.fstatPlot.setLabel('left', 'F-Statistic')
         self.fstat_marker = pg.PlotDataItem([],[], symbol='+', symbolSize='25')
         self.fstatPlot.addItem(self.fstat_marker)
-        self.fstat_marker_label = pg.TextItem('', color=(150,150,150), anchor=(0,1))
+        self.fstat_marker_label = pg.TextItem('', anchor=(0,1))
         self.fstat_marker_label.setZValue(15)
         self.set_textitem_fontsize(self.fstat_marker_label, 10)
-        self.fstat_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=self.lanl_blue)
+        self.fstat_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=IPUtils.reb_powder_blue)
 
         self.threshold_line = pg.InfiniteLine(pos=0.0, angle=0.0, pen=pg.mkPen('b', width=2, moveable=True, style=QtCore.Qt.DotLine))
         self.threshold_label = pg.InfLineLabel(line=self.threshold_line, text='', movable=True, position=0.04, anchors=[(0.5,1), (0.5,1)])
@@ -125,7 +126,7 @@ class IPBeamformingWidget(QWidget):
         self.threshold_label.textItem.setFont(t_font)
         self.fstatPlot.addItem(self.threshold_line)
         # this is the label that pops up to alert someone that the program is calculating the threshold
-        self.threshold_calculating_label = pg.TextItem('Calculating Threshold...', color=IPUtils.lanl_screen_text_black)
+        self.threshold_calculating_label = pg.TextItem('Calculating Threshold...', color=(128,128,128))
 
         self.traceVPlot = IPPlotItem.IPPlotItem(mode='waveform', est=None)
         self.traceVPlot.hideButtons()
@@ -135,7 +136,7 @@ class IPBeamformingWidget(QWidget):
         self.traceVPlot.setLabel('left', 'Trace Velocity (m/s)')
         self.traceV_marker = pg.PlotDataItem([],[], symbol='+', symbolSize='25')
         self.traceVPlot.addItem(self.traceV_marker)
-        self.traceV_marker_label = pg.TextItem('', color=(150,150,150), anchor=(0,1))
+        self.traceV_marker_label = pg.TextItem('', anchor=(0,1))
         self.traceV_marker_label.setZValue(15)
         self.set_textitem_fontsize(self.traceV_marker_label, 10)
         self.traceV_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=self.lanl_green)
@@ -152,7 +153,7 @@ class IPBeamformingWidget(QWidget):
         self.backAzPlot.setLabel('left', 'Back Azimuth (deg)')
         self.backAz_marker = pg.PlotDataItem([], [], symbol='+', symbolSize='25')
         self.backAzPlot.addItem(self.backAz_marker)
-        self.backAz_marker_label = pg.TextItem('', color=(150,150,150), anchor=(0,1))
+        self.backAz_marker_label = pg.TextItem('', anchor=(0,1))
         self.backAz_marker_label.setZValue(15)
         self.set_textitem_fontsize(self.backAz_marker_label, 10)
         self.backAz_slowness_marker = pg.PlotDataItem([], [], symbol = 'o', symbolSize='10', color=self.lanl_orange)
@@ -189,11 +190,10 @@ class IPBeamformingWidget(QWidget):
         # --------------------------------------------
         # the slownessWidget will hold the slowness plot and the projection plot
 
-        slownessWidget = pg.GraphicsLayoutWidget()
+        self.slownessWidget = pg.GraphicsLayoutWidget()
 
         # Create the slowness plot and its dataitem
         self.slownessPlot = IPPolarPlot.IPSlownessPlot(self)
-        self.slownessSettings = IPPolarPlot.IPSlownessSettingsWidget(self)
 
         self.spi = pg.ScatterPlotItem(pxMode=False, pen=pg.mkPen(None))
         slowness_pen = pg.mkPen(color=(60, 60, 60), width=2)
@@ -228,32 +228,24 @@ class IPBeamformingWidget(QWidget):
         self.projectionPlot.setXRange(-180, 180)
         self.projectionPlot.getAxis('bottom').setTicks([[(-180, '-180'), (-90, '-90'), (0, '0'), (90, '90'), (180, '180')]])
 
-        self.slowness_time_label = pg.LabelItem('t = ', color=QColor(44, 44, 44))
-        self.slowness_backAz_label = pg.LabelItem('Back Azimuth (deg) = ', color=QColor(44, 44, 44))
-        self.slowness_traceV_label = pg.LabelItem('Trace Velocity (m/s) = ', color=QColor(44, 44, 44))
+        self.slowness_time_label = pg.LabelItem('t = ', color=QColor(128,128,128))
+        self.slowness_backAz_label = pg.LabelItem('Back Azimuth (deg) = ', color=(128,128,128))
+        self.slowness_traceV_label = pg.LabelItem('Trace Velocity (m/s) = ', color=(128,128,128))
 
-        slownessWidget.addItem(self.slownessPlot)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.slowness_time_label)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.slowness_backAz_label)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.slowness_traceV_label)
-        slownessWidget.nextRow()
-        slownessWidget.addItem(self.projectionPlot)
-
+        self.slownessWidget.addItem(self.slownessPlot)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.slowness_time_label)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.slowness_backAz_label)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.slowness_traceV_label)
+        self.slownessWidget.nextRow()
+        self.slownessWidget.addItem(self.projectionPlot)
+        
 
         # ---------------------------------------------
-        # the bottomWidget will hold the beamforming settings widget, and the detection widget...
+        # Add the detection widget to the bottom
         bottomWidget = QWidget()
-        self.bottomTabWidget = QTabWidget()
-
-        self.bottomSettings = IPBeamformingSettingsWidget.IPBeamformingSettingsWidget(self)
-        self.bottomSettings_scrollarea = QScrollArea()
-        self.bottomSettings_scrollarea.setWidget(self.bottomSettings)
-        
-        self.detector_settings = IPDetectorSettingsWidget.IPDetectorSettingsWidget(self)
-        
         self.detectionWidget = IPDetectionWidget.IPDetectionWidget(self)
 
         bottomLayout = QHBoxLayout()
@@ -263,33 +255,25 @@ class IPBeamformingWidget(QWidget):
 
         # ---------------------------------------------
 
-        self.splitterTop = IPUtils.IPSplitter(Qt.Horizontal)
+        self.splitterTop = IPBaseWidgets.IPSplitter(Qt.Horizontal)
         self.splitterTop.addWidget(self.lhWidget)
-        self.splitterTop.addWidget(slownessWidget)
-        self.splitterBottom = IPUtils.IPSplitter(Qt.Horizontal)
+        self.splitterTop.addWidget(self.slownessWidget)
+        self.splitterBottom = IPBaseWidgets.IPSplitter(Qt.Horizontal)
         self.splitterBottom.addWidget(bottomWidget)
 
         # ---------------------------------------------
 
-        self.main_splitter = IPUtils.IPSplitter(Qt.Vertical)
+        self.main_splitter = IPBaseWidgets.IPSplitter(Qt.Vertical)
         self.main_splitter.addWidget(self.splitterTop)
         self.main_splitter.addWidget(self.splitterBottom)
 
         self.main_layout = QVBoxLayout()
         self.main_layout.setMenuBar(self.toolbar)
-        self.main_layout.addWidget(self.detector_settings)
-        self.detector_settings.setVisible(False)
-        self.main_layout.addWidget(self.bottomSettings)
-        self.bottomSettings.setVisible(False)
-        self.main_layout.addWidget(self.slownessSettings)
-        self.slownessSettings.setVisible(False)
         self.main_layout.addWidget(self.main_splitter)
 
         self.setLayout(self.main_layout)
 
         self.addCrosshairs()
-
-        self.connectSignalsAndSlots()
 
         # Create a thread for the beamforming and threshold to run in
         self.bfThread = QThread()
@@ -300,20 +284,35 @@ class IPBeamformingWidget(QWidget):
         self.new_detections_dialog = IPNewDetectionDialog.IPNewDetectionsDialog(self)
         self.save_results_dialog = IPSaveBeamformingResultsDialog.IPSaveBeamformingResultsDialog(self)
 
+    def set_controlling_widget(self, controlling_widget):
+        self.bottomSettings = controlling_widget
+        self.connectSignalsAndSlots()
+
+    def connectSignalsAndSlots(self):
+        # keep as many signal and slot connections as possible together in one place
+        self.lhWidget.scene().sigMouseMoved.connect(self.myMouseMoved)
+        self.lhWidget.scene().sigMouseClicked.connect(self.myMouseClicked)
+        self.detectionWidget.signal_detections_changed.connect(self.plotDetectionLines)
+
+        self.bottomSettings.colormap_cb.currentTextChanged.connect(self.slownessPlot.set_colormap)
+
+    @pyqtSlot(str)
+    def update_theme(self, t):
+    
+        if t == 'light':
+            self.lhWidget.setBackground((255,255,255))
+            self.slownessWidget.setBackground((255,255,255))
+        elif t == 'dark':
+            self.lhWidget.setBackground(IPUtils.ip_dark_grey)
+            self.slownessWidget.setBackground(IPUtils.ip_dark_grey)
+
     def make_toolbar(self):
         self.toolbar = QToolBar()
-        # self.toolbar.setStyleSheet("QToolButton:!hover { padding-left:5px; padding-right:5px; padding-top:2px; padding-bottom:2px} QToolBar {background-color: rgb(0,107,166)}")
-        # self.toolbar.setStyleSheet("QToolButton:!hover {background-color:blue} QToolButton:hover { background-color: lightgray }")
-
+        
         toolButton_start = QToolButton()
         toolButton_stop = QToolButton()
         toolButton_clear = QToolButton()
-        toolButton_export = QToolButton()
-        self.toolButton_bfsettings = QToolButton()
-        self.toolButton_detsettings = QToolButton()
-        self.toolButton_slowsettings = QToolButton()
         toolButton_runDetector = QToolButton()
-        toolButton_resetZoom = QToolButton()
 
         self.runAct = QAction(QIcon.fromTheme("media-playback-start"), "Run Beamforming", self)
         self.runAct.triggered.connect(self.runBeamforming)
@@ -330,84 +329,15 @@ class IPBeamformingWidget(QWidget):
         toolButton_clear.setToolButtonStyle(Qt.ToolButtonTextOnly)
         toolButton_clear.setDefaultAction(self.clearAct)
 
-        self.exportAct = QAction(QIcon.fromTheme("document-save-as"), 'Export Results', self)
-        self.exportAct.triggered.connect(self.exportResults)
-        toolButton_export.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        toolButton_export.setDefaultAction(self.exportAct)
-
-        self.beamformSettingsAct = QAction("Beamformer Settings", self)
-        self.beamformSettingsAct.triggered.connect(self.showhide_bfsettings)
-        self.toolButton_bfsettings.setDefaultAction(self.beamformSettingsAct)
-
-        self.detectorSettingsAct = QAction("Detector Settings", self)
-        self.detectorSettingsAct.triggered.connect(self.showhide_detsettings)
-        self.toolButton_detsettings.setDefaultAction(self.detectorSettingsAct)
-
         self.runDetectorAct = QAction("Run Detector")
         self.runDetectorAct.triggered.connect(self.run_detector)
         toolButton_runDetector.setDefaultAction(self.runDetectorAct)
         toolButton_runDetector.setToolTip("Run/Rerun Detector")
 
-        self.resetZoomAct = QAction("Reset Zoom")
-        self.resetZoomAct.triggered.connect(self.reset_zoom)
-        toolButton_resetZoom.setDefaultAction(self.resetZoomAct)
-
-        self.slownessSettingsAct = QAction("Slowness Settings", self)
-        self.slownessSettingsAct.triggered.connect(self.showhide_slownessSettings)
-        self.toolButton_slowsettings.setDefaultAction(self.slownessSettingsAct)
-
         self.toolbar.addWidget(toolButton_start)
         self.toolbar.addWidget(toolButton_stop)
         self.toolbar.addWidget(toolButton_clear)
-        self.toolbar.addWidget(self.toolButton_bfsettings)
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(self.toolButton_detsettings)
         self.toolbar.addWidget(toolButton_runDetector)
-
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(toolButton_resetZoom)
-        self.toolbar.addWidget(toolButton_export)
-
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(self.toolButton_slowsettings)
-
-    def showhide_slownessSettings(self):
-        self.detector_settings.setVisible(False)
-        self.toolButton_detsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        self.bottomSettings.setVisible(False)
-        self.toolButton_bfsettings.setStyleSheet("color: rgba(20,20,20,255);")
-
-        self.slownessSettings.setVisible(self.slownessSettings.isHidden())
-
-        if self.slownessSettings.isHidden():
-            self.toolButton_slowsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        else:
-            self.toolButton_slowsettings.setStyleSheet("color: rgba(0,0,180,255);")
-
-    def showhide_bfsettings(self):
-        self.detector_settings.setVisible(False)
-        self.toolButton_detsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        self.slownessSettings.setVisible(False)
-        self.toolButton_slowsettings.setStyleSheet("color: rgba(20,20,20,255);")
-
-        self.bottomSettings.setVisible(self.bottomSettings.isHidden())
-        if self.bottomSettings.isHidden():
-            # change font color of button
-            self.toolButton_bfsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        else:
-            self.toolButton_bfsettings.setStyleSheet("color: rgba(0,0,180,255)")
-
-    def showhide_detsettings(self):
-        self.detector_settings.setVisible(self.detector_settings.isHidden())
-        self.bottomSettings.setVisible(False)
-        self.toolButton_slowsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        self.slownessSettings.setVisible(False)
-        self.toolButton_bfsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        
-        if self.detector_settings.isHidden():
-            self.toolButton_detsettings.setStyleSheet("color: rgba(20,20,20,255);")
-        else:
-            self.toolButton_detsettings.setStyleSheet("color: rgba(0,0,180,255);")
 
     def addCrosshairs(self):
         # This adds the crosshairs that follow the mouse around, as well as the position labels which display the
@@ -415,8 +345,8 @@ class IPBeamformingWidget(QWidget):
         
         self.vline = pg.InfiniteLine(angle=90, movable=False, pen='k')
         self.hline = pg.InfiniteLine(angle=0, movable=False, pen='k')
-        self.position_label = pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0))
-        self.value_label = pg.TextItem(color=(0, 0, 0), html=None, anchor=(1, 0))
+        self.position_label = pg.TextItem(html=None, anchor=(1, 0))
+        self.value_label = pg.TextItem(html=None, anchor=(1, 0))
 
         self.vline.setZValue(10)
         self.hline.setZValue(11)
@@ -425,12 +355,6 @@ class IPBeamformingWidget(QWidget):
         self.waveformPlot.addItem(self.hline, ignoreBounds=True)
         self.waveformPlot.addItem(self.position_label, ignoreBounds=True)
         self.waveformPlot.addItem(self.value_label, ignoreBounds=True)
-
-    def connectSignalsAndSlots(self):
-        # keep as many signal and slot connections as possible together in one place
-        self.lhWidget.scene().sigMouseMoved.connect(self.myMouseMoved)
-        self.lhWidget.scene().sigMouseClicked.connect(self.myMouseClicked)
-        self.detectionWidget.signal_detections_changed.connect(self.plotDetectionLines)
 
     def setStreams(self, streams):
         # keep a local reference for the streams that will be analyzied
@@ -581,24 +505,28 @@ class IPBeamformingWidget(QWidget):
         self.waveformPlot.setXRange(self.region_range[0], self.region_range[1], padding=0)
 
     def keyPressEvent(self, evt):
-        if evt.key() == Qt.Key_Left:
-            if self.idx == 0:
+        try:
+            if evt.key() == Qt.Key_Left:
+                if self.idx == 0:
+                    return
+                new_idx = self.idx - 1
+            elif evt.key() == Qt.Key_Right:
+                if self.idx == len(self.proj_indexing):
+                    return
+                new_idx = self.idx + 1
+            else:
+                evt.accept()
                 return
-            new_idx = self.idx - 1
-        elif evt.key() == Qt.Key_Right:
-            if self.idx == len(self.proj_indexing):
-                return
-            new_idx = self.idx + 1
-        else:
-            evt.accept()
-            return
 
-        self.plot_projection_at_idx(new_idx)
-        self.plot_slowness_at_idx(new_idx)
-        self.update_markers(new_idx)
-        self.update_time_range(new_idx)
-        
-        evt.accept()
+            self.plot_projection_at_idx(new_idx)
+            self.plot_slowness_at_idx(new_idx)
+            self.update_markers(new_idx)
+            self.update_time_range(new_idx)
+            
+            evt.accept()
+        except AttributeError:
+            # no slowness plots yet, so we can just bail out
+            return
 
     def myMouseMoved(self, evt):
         # This takes care of the crosshairs
@@ -897,7 +825,7 @@ class IPBeamformingWidget(QWidget):
         method = self.bottomSettings.getMethod()
         if method == 'bartlett':
             symb = 'o'
-            fcolor = self.lanl_blue
+            fcolor = self.reb_blue
             tcolor = self.lanl_green
             bcolor = self.lanl_orange
         elif method == 'gls':
@@ -965,7 +893,6 @@ class IPBeamformingWidget(QWidget):
         baz_start, baz_end = self.bottomSettings.getBackAzRange()
         if baz_start >= baz_end:
             IPUtils.errorPopup('The back azimuth start angle must be less than the end angle. Please correct this in the Beamformer Settings tab.')
-            self.bottomTabWidget.setCurrentIndex(self.settingstab_idx)
             # and bail out before going farther
             return
 
@@ -973,11 +900,10 @@ class IPBeamformingWidget(QWidget):
         tv_min, tv_max = self.bottomSettings.getTraceVRange()
         if tv_min >= tv_max:
             IPUtils.errorPopup('The minimum trace velocity must be less than the max.  Please correct this in the Beamformer Settings tab.')
-            self.bottomTabWidget.setCurrentIndex(self.settingstab_idx)
             return
         
         # setup the Threshold worker
-        self.thWorker = ThresholdWorkerObject(self.detector_settings.is_auto_threshold(),
+        self.thWorker = ThresholdWorkerObject(self.bottomSettings.detector_settings.is_auto_threshold(),
                                               self._mp_pool,
                                               self.bottomSettings.getMethod(),
                                               self.streams,
@@ -992,11 +918,11 @@ class IPBeamformingWidget(QWidget):
                                               self.bottomSettings.getBackAzRange(),
                                               self.bottomSettings.getBackAzResolution(),
                                               self.parent.waveformWidget.stationViewer.get_inventory(),
-                                              self.detector_settings.pval_spin.value())
+                                              self.bottomSettings.detector_settings.pval_spin.value())
         
         self.thWorker.moveToThread(self.threshThread)
         self.thWorker.signal_threshold_calc_is_running.connect(self.show_calculating_threshold_label)
-        self.thWorker.signal_threshold_calculated.connect(self.detector_settings.set_auto_threshold_level)
+        self.thWorker.signal_threshold_calculated.connect(self.bottomSettings.detector_settings.set_auto_threshold_level)
 
         self.bfWorker = BeamformingWorkerObject(self.streams,
                                                 self.resultData,
@@ -1014,8 +940,8 @@ class IPBeamformingWidget(QWidget):
                                                 self.bottomSettings.getTraceVelResolution(),
                                                 self.bottomSettings.getTraceVRange(),
                                                 self.bottomSettings.getBackAzRange(),
-                                                self.detector_settings.is_auto_threshold(),
-                                                self.detector_settings.pval_spin.value())
+                                                self.bottomSettings.detector_settings.is_auto_threshold(),
+                                                self.bottomSettings.detector_settings.pval_spin.value())
 
         self.bfWorker.moveToThread(self.bfThread)
 
@@ -1030,7 +956,7 @@ class IPBeamformingWidget(QWidget):
         self.bfWorker.signal_projectionUpdated.connect(self.updateProjection)
         self.bfWorker.signal_timeWindowChanged.connect(self.updateWaveformTimeWindow)
         self.bfWorker.signal_runFinished.connect(self.runFinished)
-        self.bfWorker.signal_noise_fvals_complete.connect(self.detector_settings.calculate_auto_threshold_level)
+        self.bfWorker.signal_noise_fvals_complete.connect(self.bottomSettings.detector_settings.calculate_auto_threshold_level)
         self.bfWorker.signal_error_popup.connect(IPUtils.errorPopup)
         self.bfWorker.signal_reset_beamformer.connect(self.reset_run_buttons)
 
@@ -1042,7 +968,7 @@ class IPBeamformingWidget(QWidget):
         # disable some buttons
         self.runAct.setEnabled(False)
         self.clearAct.setEnabled(False)
-        self.exportAct.setEnabled(False)
+        # self.exportAct.setEnabled(False)
         self.stopAct.setEnabled(True)
 
         # reset the run_step
@@ -1082,8 +1008,6 @@ class IPBeamformingWidget(QWidget):
     def updateSlowness(self, slowness):
         # adds slowness to the slowness_collection
         self.slowness = slowness
-
-        self.beam_resolution = self.slownessSettings.resolution_spin.value()
 
         sj_vals = np.linspace(-1/self.bottomSettings.tracev_min_spin.value(), 
                                1/self.bottomSettings.tracev_min_spin.value(), 
@@ -1223,7 +1147,7 @@ class IPBeamformingWidget(QWidget):
     def reset_run_buttons(self):
         self.runAct.setEnabled(True)
         self.clearAct.setEnabled(True)
-        self.exportAct.setEnabled(True)
+        # self.exportAct.setEnabled(True)
         self.stopAct.setEnabled(False)
 
     @pyqtSlot()
@@ -1290,15 +1214,15 @@ class IPBeamformingWidget(QWidget):
         channel_count = len(self.streams)
 
         # minimum number of points above threshold to get a detection
-        min_seq = math.ceil(self.detector_settings.min_peak_width.value()/self.bottomSettings.windowStep_spin.value())
+        min_seq = math.ceil(self.bottomSettings.detector_settings.min_peak_width.value()/self.bottomSettings.windowStep_spin.value())
         if min_seq < 2:
             min_seq = 2
 
         # get the threshold and add line to the plot
-        if self.detector_settings.is_auto_threshold():
-            threshold = self.detector_settings.get_auto_threshold_level()
+        if self.bottomSettings.detector_settings.is_auto_threshold():
+            threshold = self.bottomSettings.detector_settings.get_auto_threshold_level()
         else:
-            threshold = self.detector_settings.get_manual_threshold_level()
+            threshold = self.bottomSettings.detector_settings.get_manual_threshold_level()
 
         self.plot_threshold_line(threshold=threshold)
 
@@ -1308,11 +1232,11 @@ class IPBeamformingWidget(QWidget):
                                             det_window_length, 
                                             tb_prod, 
                                             channel_count, 
-                                            det_p_val=self.detector_settings.pval_spin.value(), 
+                                            det_p_val=self.bottomSettings.detector_settings.pval_spin.value(), 
                                             min_seq=min_seq, 
-                                            back_az_lim=self.detector_settings.back_az_limit.value(),
+                                            back_az_lim=self.bottomSettings.detector_settings.back_az_limit.value(),
                                             fixed_thresh=threshold,
-                                            merge_dets=self.detector_settings.merge_detections_cb.isChecked())
+                                            merge_dets=self.bottomSettings.detector_settings.merge_detections_cb.isChecked())
 
             
             for w in w_array:

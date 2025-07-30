@@ -3,17 +3,16 @@ import os, json
 from PyQt5.QtWidgets import (QDateEdit, QPushButton, QLabel, QLineEdit, QFileDialog, QHBoxLayout,
                              QFormLayout, QDoubleSpinBox, QVBoxLayout, QTimeEdit, QWidget,
                              QCheckBox)
-from PyQt5.QtCore import QDir, QTime, QDate, QSettings, pyqtSignal, QDateTime
+from PyQt5.QtCore import QDir, QTime, QDate, QSettings, pyqtSignal, pyqtSlot, QDateTime
 from PyQt5.QtGui import QIcon
 
 from InfraView.widgets import IPEventBrowser
-from InfraView.widgets import IPBaseWidgets
 
 from obspy.core import UTCDateTime
 import pyproj
 
 
-class IPEventWidget(IPBaseWidgets.IPSettingsWidget):
+class IPEventWidget(QWidget):
 
     sigEventWidgetChanged = pyqtSignal(dict)
     sigEventCleared = pyqtSignal()
@@ -228,7 +227,9 @@ class IPEventWidget(IPBaseWidgets.IPSettingsWidget):
                     # if there is no open project, update the global settings 
                     self.settings.setValue("last_eventfile_directory", os.path.dirname(self.savefile[0]))
 
+    @pyqtSlot(dict)
     def setEvent(self, event):
+        # technically this is an origin... i named it wront
         # event is a dictionary containing the relevant information
         self.event_name_edit.setText(str(event['Name']))
         d = QDate(event['UTC Date'].year, event['UTC Date'].month, event['UTC Date'].day)

@@ -72,9 +72,7 @@ class IPCustomViewBox(pg.ViewBox):
     def getMenu(self):
         if self.menu is None:
             self.menu = QMenu()
-            # self.viewAll = QAction("View All", self.menu)
             self.exportImage = QAction("Export Image", self.menu)
-            # self.exportImage.triggered.connect(self.export)
             self.menu.addAction(self.exportImage)
         return self.menu
 
@@ -120,7 +118,6 @@ class IPPlotItem(pg.PlotItem):
             self.enableAutoRange(self.yaxis(), enable=True)
         
             self.setLogMode(x=True, y=False)
-            self.setXRange(np.log(1), np.log(2))
 
         else:
             super().__init__()
@@ -159,8 +156,15 @@ class IPPlotItem(pg.PlotItem):
             elif mode == 'plain':
                 pass
 
-    def setBackgroundColor(self, r, g, b):
-        self.vb.setBackgroundColor(QColor(r, g, b))
+    # def setBackgroundColor(self, r, g, b):
+    #     self.vb.setBackgroundColor(QColor(r, g, b))
+
+    def setBackgroundColor(self, color):
+        self.vb.setBackgroundColor(color)
+
+    def backgroundColor(self):
+        # return the current background color of the viewbox
+        return self.vb.state['background']
 
     def setEarliestStartTime(self, est):
         self.getAxis('bottom').set_earliest_start_time(est)
@@ -283,7 +287,6 @@ class IPLinearRegionItem_Noise(LinearRegionItem):
     def lineMovedFinished(self):
         self.sig_IPRegion_Change_finished.emit(self.getRegion())
         super().lineMovedFinished()
-
 
 
 class IPLinearRegionItem_Signal(LinearRegionItem):

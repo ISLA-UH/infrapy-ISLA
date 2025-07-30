@@ -3,7 +3,7 @@ import numpy as np
 
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt, pyqtSlot, QSettings
-from PyQt5.QtWidgets import (QWidget, QGridLayout, QTabWidget)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTabWidget)
 
 from InfraView.widgets import (IPFilterSettingsWidget,
                                IPPlotViewer,
@@ -17,6 +17,7 @@ import obspy
 from obspy.core.stream import Stream
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPUtils
 
 
@@ -41,35 +42,41 @@ class IPWaveformWidget(QWidget):
 
     def buildUI(self):
 
+        self.arrayViewer = IPStationView.IPArrayView(self)
+
         self.stationViewer = IPStationView.IPStationView(self)
         self.statsViewer = IPStatsView.IPStatsView(self)
         self.info_tabs = QTabWidget()
         self.info_tabs.addTab(self.stationViewer, 'Inventory')
         self.info_tabs.addTab(self.statsViewer, 'Trace Info')
 
-        self.filterSettingsWidget = IPFilterSettingsWidget.IPFilterSettingsWidget(self)
-        self.spectraWidget = IPPSDWidget.IPPSDWidget(self)
+        self.psdWidget = IPPSDWidget.IPPSDWidget(self)
 
         self.plotViewer = IPPlotViewer.IPPlotViewer(self)
 
-        self.lh_splitter = IPUtils.IPSplitter(orientation=Qt.Vertical, parent=self)
+        self.lh_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Vertical, parent=self)
+        self.lh_splitter.setHandleWidth(1)
         self.lh_splitter.addWidget(self.plotViewer)
         self.lh_splitter.addWidget(self.info_tabs)
 
-        self.rh_splitter = IPUtils.IPSplitter(orientation=Qt.Vertical, parent=self)
-        self.rh_splitter.addWidget(self.spectraWidget)
-        self.rh_splitter.addWidget(self.filterSettingsWidget)
+        self.rh_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Vertical, parent=self)
+        self.rh_splitter.addWidget(self.psdWidget)
+        self.rh_splitter.addWidget(self.arrayViewer)
 
-        self.main_splitter = IPUtils.IPSplitter(orientation=Qt.Horizontal, parent=self)
+        self.main_splitter = IPBaseWidgets.IPSplitter(orientation=Qt.Horizontal, parent=self)
         self.main_splitter.addWidget(self.lh_splitter)
         self.main_splitter.addWidget(self.rh_splitter)
 
-        main_layout = QGridLayout()
+        main_layout = QVBoxLayout()
         main_layout.addWidget(self.main_splitter)
 
         self.setLayout(main_layout)
 
-        self.connect_signals_and_slots()
+    @pyqtSlot(str)
+    def update_theme(self, t):
+        self.plotViewer.pl_widget.update_theme(t)
+        self.psdWidget.update_theme(t)
+        self.arrayViewer.update_theme(t)
 
     def connect_signals_and_slots(self):
         self.filterSettingsWidget.sig_filter_changed.connect(self.update_filtered_data)
@@ -80,16 +87,22 @@ class IPWaveformWidget(QWidget):
         self.plotViewer.waveform_selector.sig_remove_trace_by_id.connect(self.remove_trace_by_id)
         self.plotViewer.waveform_selector.sig_remove_station_by_name.connect(self.stationViewer.remove_station_from_inv)
 
-        self.plotViewer.lr_settings_widget.noiseSpinsChanged.connect(self.parent.beamformingWidget.bottomSettings.setNoiseValues)
-        self.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.parent.beamformingWidget.bottomSettings.setSignalValues)
         self.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.parent.beamformingWidget.updateWaveformRange)
         self.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.parent.singleSensorWidget.updateSignalRange)
-        # self.plotViewer.lr_settings_widget.noiseSpinsChanged.connect(self.parent.singleSensorWidget.updateNoiseRange)
         self.plotViewer.pl_widget.sig_active_plot_changed.connect(self.update_widgets)
 
-        self.spectraWidget.f1_Spin.valueChanged.connect(self.parent.beamformingWidget.bottomSettings.setFmin)
-        self.spectraWidget.f2_Spin.valueChanged.connect(self.parent.beamformingWidget.bottomSettings.setFmax)
-        self.spectraWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.parent.beamformingWidget.bottomSettings.setFreqValues)
+        self.stationViewer.inventory_changed.connect(self.arrayViewer.set_data)
+        self.stationViewer.sig_inventory_cleared.connect(self.arrayViewer.clear)
+
+        self.psdSettingsWidget.fft_N_Spin.valueChanged.connect(self.psdWidget.updatePSDs)
+        self.psdSettingsWidget.window_cb.currentIndexChanged.connect(self.psdWidget.updatePSDs)
+        self.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.parent.settings_manager.settings_widget_dict['beamforming'].setFreqValues)
+
+    def set_controlling_widget(self, widget):
+        self.filterSettingsWidget = widget.filterSettingsWidget
+        self.psdSettingsWidget = widget.psdSettingsWidget
+        self.psdWidget.set_controlling_widget(self.psdSettingsWidget)
+        self.connect_signals_and_slots()
 
     def get_project(self):
         return self.parent.getProject()
@@ -123,7 +136,7 @@ class IPWaveformWidget(QWidget):
 
             # self.sig_stream_changed.emit(self.waveformWidget._sts)
 
-            self.parent.mainTabs.setCurrentIndex(0)
+            self.parent.menuBar.activate_waveforms(True)
 
             self.parent.setStatus("Ready", 5000)
             
@@ -142,7 +155,7 @@ class IPWaveformWidget(QWidget):
 
         for trace in self._sts.select(id=trace_id):
             self._sts.remove(trace)
-            self.removeStation(trace.stats['network'], trace.stats['station'])
+            self.stationViewer.remove_station(station=trace.stats['station'], channel=trace.stats['channel'])
 
         self.statsViewer.setStats(self._sts)
 
@@ -373,13 +386,13 @@ class IPWaveformWidget(QWidget):
         # empty out the child widgets
         self.statsViewer.clear()
         self.plotViewer.clear()
-        self.spectraWidget.clearPlot()
+        self.psdWidget.clearPlot()
 
     @pyqtSlot(object)
     def update_signal_PSD(self, signal_region_item):
 
         if len(self._sts) == 0:
-            self.spectraWidget.clearPlot()
+            self.psdWidget.clearPlot()
             return
 
         signal_region = signal_region_item.getRegion()
@@ -391,13 +404,13 @@ class IPWaveformWidget(QWidget):
         start = int(signal_region[0] / dt)
         stop = int(signal_region[1] / dt)
 
-        self.spectraWidget.updateSignalPSD(self._sts[active_plot][start:stop])
+        self.psdWidget.updateSignalPSD(self._sts[active_plot][start:stop])
 
     @pyqtSlot(object)
     def update_noise_PSD(self, noise_region_item):
 
         if len(self._sts) == 0:
-            self.spectraWidget.clearPlot()
+            self.psdWidget.clearPlot()
             return
 
         noise_region = noise_region_item.getRegion()
@@ -409,18 +422,19 @@ class IPWaveformWidget(QWidget):
         start = int(noise_region[0] / dt)
         stop = int(noise_region[1] / dt)
 
-        self.spectraWidget.updateNoisePSD(self._sts[active_plot][start:stop])
+        self.psdWidget.updateNoisePSD(self._sts[active_plot][start:stop])
 
     @pyqtSlot(int, list, list, tuple, tuple)
     def update_widgets(self, index, lines, filtered_lines, signal_region, noise_region):
         # the -1 is sent if none of the plots are visible
         if len(self._sts) < 1 or index == -1:
-            self.spectraWidget.set_title('...')
-            self.spectraWidget.clearPlot()
+            self.psdWidget.set_title('...')
+            self.psdWidget.clearPlot()
 
         else:
-            self.spectraWidget.set_title(self._sts[index].id)
-            self.spectraWidget.set_fs(self._sts[index].stats.sampling_rate)
+            self.psdWidget.set_title(self._sts[index].id)
+            self.psdSettingsWidget.set_fs(self._sts[index].stats.sampling_rate)
+            self.psdSettingsWidget.set_fs(self._sts[index].stats.sampling_rate)
 
             noise_region_item = self.plotViewer.pl_widget.plot_list[index].getNoiseRegion()
             noise_region_item.sigRegionChanged.emit(noise_region_item)
@@ -432,10 +446,8 @@ class IPWaveformWidget(QWidget):
             if current_filter_display_settings['apply']:
                 self.parent.beamformingWidget.setWaveform(filtered_lines[index], signal_region, plot_label=plot_title)
                 self.parent.singleSensorWidget.setSignalWaveform(filtered_lines[index], signal_region, plot_label=plot_title)
-                # self.parent.singleSensorWidget.setNoiseWaveform(filtered_lines[index], noise_region, plot_label=plot_title)
             else:
                 self.parent.beamformingWidget.setWaveform(lines[index], signal_region, plot_label=plot_title)
                 self.parent.singleSensorWidget.setSignalWaveform(lines[index], signal_region, plot_label=plot_title)
-                # self.parent.singleSensorWidget.setNoiseWaveform(lines[index], noise_region, plot_label=plot_title)
 
             

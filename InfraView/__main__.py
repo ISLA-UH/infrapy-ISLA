@@ -8,23 +8,22 @@ import sys
 import platform
 
 from pathlib import Path
-from InfraView.widgets.IPApplicationWindow import *
+
+from InfraView.widgets.IPApplicationWindow import IPApplicationWindow
 
 
 def main():
     progname = "InfraView"
-    progversion = "0.4.0"
-
-    qApp = QtWidgets.QApplication(sys.argv)
-    icon_file = str(Path(__file__).parent / 'graphics' / 'icons' / 'start_64')
-    qApp.setWindowIcon(QIcon(icon_file))
+    progversion = "0.4.1"
 
     my_system = platform.system()
     my_release = platform.release()
 
-    aw = IPApplicationWindow(qApp, progname, progversion)
+    qApp = QtWidgets.QApplication(sys.argv)
+    icon_file = str(Path(__file__).parent / 'resources' / 'graphics' / 'icons' / 'start_64')
+    qApp.setWindowIcon(QIcon(icon_file))
 
-    aw.setWindowTitle("%s" % progname)
+    aw = IPApplicationWindow(qApp, progname, progversion)
     aw.show()
 
     sys.exit(qApp.exec())

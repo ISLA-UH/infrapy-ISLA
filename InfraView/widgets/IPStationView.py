@@ -15,6 +15,7 @@ from obspy.core.inventory import Inventory
 
 import numpy as np
 
+from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPStationMatchDialog
 from InfraView.widgets import IPUtils
 
@@ -47,15 +48,14 @@ class IPStationView(QWidget):
 
     def buildUI(self):
 
+        self.setAutoFillBackground(True)
+
         self.buildIcons()
 
         self.station_TabWidget = QTabWidget()
         self.station_TabWidget.setMinimumSize(200,0)
         self.station_TabWidget.setTabsClosable(True)
         self.station_TabWidget.tabCloseRequested.connect(self.remove_station_from_inv)
-
-        self.arrayViewWidget = IPArrayView(self)
-        self.arrayViewWidget.setMinimumSize(200, 0)
 
         self.clearButton = QPushButton('Clear')
         button_font = self.clearButton.font()
@@ -88,15 +88,8 @@ class IPStationView(QWidget):
         savebuttonLayout.addWidget(self.reconcileButton)
         savebuttonLayout.addStretch()
 
-        mainHSplitter = IPUtils.IPSplitter(Qt.Horizontal,self)
-
-        mainHSplitter.addWidget(self.station_TabWidget)
-        mainHSplitter.addWidget(self.arrayViewWidget)
-
-        mainHSplitter.setSizes([100000,100000])
-
         mainLayout = QHBoxLayout()
-        mainLayout.addWidget(mainHSplitter)
+        mainLayout.addWidget(self.station_TabWidget)
         mainLayout.addLayout(savebuttonLayout)
 
         # go ahead and make an instance of the matchDialog for later use
@@ -120,9 +113,6 @@ class IPStationView(QWidget):
         self.saveAsButton.clicked.connect(self.saveStationsAs)
         self.loadButton.clicked.connect(self.loadStations)
         self.reconcileButton.clicked.connect(self.reconcileStations)
-
-        self.inventory_changed.connect(self.arrayViewWidget.set_data)
-        self.sig_inventory_cleared.connect(self.arrayViewWidget.clear)
 
     def get_inventory(self):
         return self.inv
@@ -223,8 +213,6 @@ class IPStationView(QWidget):
         self.inv = self.inv.remove(station=sta_name)
         
         self.update_station_view()
-
-    
 
     def saveStations(self):
     
@@ -347,8 +335,8 @@ class IPStationView(QWidget):
         # ready to update the view
         self.update_station_view()
 
-    def remove_station(self, station):
-        self.inv = self.inv.remove(station=station, keep_empty=False)
+    def remove_station(self, station, channel='*'):
+        self.inv = self.inv.remove(station=station, channel=channel, keep_empty=False)
         self.update_station_view()
     
 
@@ -492,9 +480,10 @@ class IPArrayView(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
 
-        pal = self.palette()
-        pal.setColor(QPalette.Window, Qt.white)
-        self.setPalette(pal)
+        # self.setAutoFillBackground(True)
+        # pal = self.palette()
+        # pal.setColor(QPalette.Window, Qt.white)
+        # self.setPalette(pal)
 
         self.sta_spi = None
         self.chan_spi = None
@@ -543,6 +532,13 @@ class IPArrayView(QWidget):
         main_layout.addWidget(self.station_plot)
 
         self.setLayout(main_layout)
+
+    @pyqtSlot(bool)
+    def update_theme(self, t):
+        if t == 'light':
+            self.station_plot.setBackground((255,255,255))
+        elif t == 'dark':
+            self.station_plot.setBackground(IPUtils.ip_dark_grey)
 
     
     @pyqtSlot(bool)

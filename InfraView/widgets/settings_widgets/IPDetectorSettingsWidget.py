@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import (QCheckBox, QDoubleSpinBox, QSpinBox,
+from PyQt5.QtWidgets import (QCheckBox, QDoubleSpinBox, QSpinBox, QGroupBox,
                              QFormLayout, QHBoxLayout, QButtonGroup)
 
 from PyQt5.QtCore import pyqtSlot
@@ -7,22 +7,24 @@ from InfraView.widgets import IPBaseWidgets
 # import infrapy modules here
 from infrapy.detection import beamforming_new
 
-class IPDetectorSettingsWidget(IPBaseWidgets.IPSettingsWidget):
+class IPDetectorSettingsWidget(QGroupBox):
 
     auto_threshold_level = None
 
     def __init__(self, parent):
         super().__init__(parent)
+        self.setTitle("Detector")
         self.buildUI()
 
     def buildUI(self):
     
-        self.det_type_group = QButtonGroup(self)
-        self.det_type_group.setExclusive(True)
-        self.det_type_group.buttonClicked.connect(self.update_widget)
+        # self.det_type_group = QButtonGroup(self)
+        # self.det_type_group.setExclusive(True)
+        # self.det_type_group.buttonClicked.connect(self.update_widget)
 
         self.auto_checkbox = QCheckBox()
         self.auto_checkbox.setChecked(True)
+        self.auto_checkbox.toggled.connect(self.update_widget)
         self.auto_checkbox.setToolTip('If auto is selected, the program will estimate the background f-stat from the noise region selected on in the waveform window.')
 
         self.pval_spin = QDoubleSpinBox()
@@ -46,7 +48,6 @@ class IPDetectorSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.min_peak_width.setMinimum(1)
         self.min_peak_width.setToolTip("This determines the number of seconds above threshold in the f-statistic plot required for a valid detection. Actual value will be ceil(min_peak_width/window_step)")
 
-        self.manual_checkbox = QCheckBox()
         self.manual_value = QDoubleSpinBox()
         self.manual_value.setValue(1.0)
         self.manual_value.setEnabled(False)
@@ -59,34 +60,54 @@ class IPDetectorSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         form_layout_col1 = QFormLayout()
         form_layout_col2 = QFormLayout()
-        form_layout_col3 = QFormLayout()
-        form_layout_col4 = QFormLayout()
 
-        self.det_type_group.addButton(self.auto_checkbox)
-        self.det_type_group.addButton(self.manual_checkbox)
+        # self.det_type_group.addButton(self.auto_checkbox)
 
-        form_layout_col1.addRow("Automatically calculate threshold: ", self.auto_checkbox)
+        form_layout_col1.addRow("Auto threshold: ", self.auto_checkbox)
+        form_layout_col1.addRow("Manual threshold level: ", self.manual_value)
         form_layout_col1.addRow("Detection p-value: ", self.pval_spin)
-
-        form_layout_col2.addRow("Manually set threshold: ", self.manual_checkbox)
-        form_layout_col2.addRow("Manual threshold level: ", self.manual_value)
+        form_layout_col1.addRow("Merge nearby detections", self.merge_detections_cb)
         
-        form_layout_col3.addRow("Back azimuth scatter limit: ", self.back_az_limit)
-        form_layout_col3.addRow("Minimum peak width: ", self.min_peak_width)
-
-        form_layout_col4.addRow("Merge nearby detections", self.merge_detections_cb)
+        
+        form_layout_col2.addRow("Back az. scatter limit: ", self.back_az_limit)
+        form_layout_col2.addRow("Minimum peak width: ", self.min_peak_width)
         
         main_layout.addLayout(form_layout_col1)
         main_layout.addLayout(form_layout_col2)
-        main_layout.addLayout(form_layout_col3)
-        main_layout.addLayout(form_layout_col4)
-        main_layout.addStretch()
 
         self.setLayout(main_layout)
 
-    @pyqtSlot()
+    def to_dict(self):
+        s_dict = {}
+        s_dict['pval'] = self.pval_spin.value()
+        s_dict['back_az_limit'] = self.back_az_limit.value()
+        s_dict['min_peak_width'] = self.min_peak_width.value()
+        s_dict['merge'] = self.merge_detections_cb.isChecked()
+        
+        if self.auto_checkbox.isChecked():
+            s_dict['manual_level'] =  None
+        else:
+            s_dict['manual_level'] =  self.manual_value.value()
+
+        return s_dict
+    
+    def from_dict(self, s_dict):
+        sd = s_dict['detector_settings']
+        self.pval_spin.setValue(float(sd['pval']))
+        self.back_az_limit.setValue(float(sd['back_az_limit']))
+        self.min_peak_width.setValue(float(sd['min_peak_width']))
+        self.merge_detections_cb.setChecked(sd['merge'].lower() == 'true')
+
+        if sd['manual_level'] != 'None':
+            self.manual_value.setValue(float(sd['manual_level']))
+            self.auto_checkbox.setChecked(False)
+        else:
+            self.auto_checkbox.setChecked(True)
+            self.manual_value.setValue(1.0)
+
+
     def update_widget(self):
-        self.manual_value.setEnabled(self.manual_checkbox.isChecked())
+        self.manual_value.setEnabled(not self.auto_checkbox.isChecked())
         self.pval_spin.setEnabled(self.auto_checkbox.isChecked())
 
     def is_auto_threshold(self):

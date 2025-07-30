@@ -110,7 +110,9 @@ def det2dict(f, t, Sxx_log, det_pnts, trace, peaks_history, thresh_history, time
 
 
 def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_window_step,
-            clustering_freq_scaling, clustering_eps, clustering_min_samples, pl, t_skip, verbose=False):
+            clustering_freq_scaling, clustering_eps, clustering_min_samples, clustering_window_len,
+            pl, t_skip, verbose=False):
+
     """Run the spectral detection (sd) methods
  
         NEED TO UPDATE THIS NOW THAT WE'VE SEPARATED FUNCTIONS
@@ -137,6 +139,8 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
             Linkage distance for DBSCAN (eps)
         clustering_min_sample: int
             Count of required members in a cluster in DBSCAN
+        clustering_window_len : float
+            Length of window used in DBSCAN (avoids memory issues)
         pl: multiprocessing.Pool
             Multiprocessing pool for simultaneous analysis of windows
  
@@ -144,7 +148,7 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
         ----------
         dets: iterable of dicts
             List of dictionaries containing detection info
-        """
+    """
  
     if verbose:
         print('\n' + "Running spectral detection (sd) analysis...")
@@ -198,16 +202,39 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
     # Cluster into detections
     if verbose:
         print("Clustering into detections...")
-    spec_dets_logf = np.stack((spec_dets[:, 0], clustering_freq_scaling * np.log10(spec_dets[:, 1]))).T
-    clustering = DBSCAN(eps=clustering_eps, min_samples=clustering_min_samples).fit(spec_dets_logf)
- 
+
+    cluster_results = []
+    for dt in np.arange(0, np.max(spec_dets[:, 0]), clustering_window_len):
+        t1 = dt
+        t2 = dt + clustering_window_len * 1.2
+        
+        tm_mask = np.logical_and(t1 <= spec_dets[:, 0], spec_dets[:, 0] <= t2)
+        spec_dets_logf = np.stack((spec_dets[tm_mask, 0], clustering_freq_scaling * np.log10(spec_dets[tm_mask, 1]))).T
+
+        clustering = DBSCAN(eps=clustering_eps, min_samples=clustering_min_samples).fit(spec_dets_logf)
+        cluster_results += [spec_dets[tm_mask][clustering.labels_ == k] for k in range(0, max(clustering.labels_) + 1)]
+
+    cluster_cnt = len(cluster_results)
+    for n1 in range(cluster_cnt):
+        for n2 in range(n1 + 1, cluster_cnt):
+            if len(list(cluster_results[n1])) > 0 and len(list(cluster_results[n2])) > 0:
+                set1 = set([tuple(x) for x in cluster_results[n1]])
+                set2 = set([tuple(x) for x in cluster_results[n2]])
+                overlap = np.array([x for x in set1 & set2]).shape[0]
+
+                if overlap > 5:
+                    cluster_results[n1] = np.array(list(set1.union(set2)))
+                    cluster_results[n2] = np.array([])
+
+    cluster_results = [cl for cl in cluster_results if len(list(cl)) > 0]
+
     if verbose:
-        print("Identified " + str(max(clustering.labels_) + 1) + " detections." + '\n')
+        print("Identified " + str(len(cluster_results)) + " detections." + '\n')
  
-    return spec_dets, clustering, history_info
+    return spec_dets, cluster_results, history_info
  
-def cli_sd(trace, spec_option, morlet_omega0, freq_band, spec_overlap, p_val, adaptive_window_length, adaptive_window_step, clustering_freq_scaling, clustering_eps, clustering_min_samples, pl):
- 
+def cli_sd(trace, spec_option, morlet_omega0, freq_band, spec_overlap, p_val, adaptive_window_length, adaptive_window_step, clustering_freq_scaling, clustering_eps, clustering_min_samples, cluster_window_len, pl):
+
     # Compute spectrogram from the trace
     dt = trace.stats.delta
     nperseg = int((4.0 / freq_band[0]) / dt)
@@ -230,9 +257,9 @@ def cli_sd(trace, spec_option, morlet_omega0, freq_band, spec_overlap, p_val, ad
         print("Error: unrecognized spectrogram option: " + spec_option + ".")
         return []
    
-    spec_dets, clustering, history = run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_window_step, clustering_freq_scaling, clustering_eps, clustering_min_samples, pl, t_skip, verbose=True)
+    _, cluster_results, history = run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_window_step, clustering_freq_scaling, clustering_eps, clustering_min_samples, cluster_window_len, pl, t_skip, verbose=True)
  
     times_history = [UTCDateTime(trace.stats.starttime) + tn for tn in history[2]]
-    det_list = [det2dict(f, t, Sxx_log, spec_dets[clustering.labels_ == k], trace, history[0], history[1], times_history) for k in range(max(clustering.labels_) + 1)]
+    det_list = [det2dict(f, t, Sxx_log, cluster_results[k], trace, history[0], history[1], times_history) for k in range(len(cluster_results))]
  
     return det_list

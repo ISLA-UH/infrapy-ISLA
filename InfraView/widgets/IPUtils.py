@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMessageBox, QSplitter
+from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QValidator
 from PyQt5.QtCore import Qt, pyqtSlot
 
@@ -9,7 +9,8 @@ import pyqtgraph as pg
 
 # Define some useful colors here
 reb_blue = pg.mkColor(80, 159, 250)
-reb_red = pg.mkColor(255, 71, 71)   
+reb_red = pg.mkColor(255, 71, 71)  
+reb_powder_blue = pg.mkColor(0, 107, 166) 
 
 lanl_primary = pg.mkColor("#000F7E")
 lanl_gradient = pg.mkColor("#090238")
@@ -29,6 +30,14 @@ lanl_orange_tint = pg.mkColor("#FF9129")
 lanl_green = pg.mkColor("#00AA64")
 lanl_green_tint = pg.mkColor("#2CC486")
 
+ip_darker_grey = pg.mkColor("#202020")
+ip_dark_grey = pg.mkColor("#303030")
+ip_dark_grey_hex = "#303030"
+ip_mid_grey = pg.mkColor(128,128,128)
+ip_light_grey = pg.mkColor(220,220,220)
+ip_black = pg.mkColor(0,0,0)
+ip_white = pg.mkColor(255,255,255)
+
 # arrays of QColors
 # blue to red... one white color removed
 blue_to_red = [pg.mkColor("#1984c5"), pg.mkColor("#c23728"), pg.mkColor("#22a7f0"), pg.mkColor("#63bff0"), pg.mkColor("#a7d5ed"), pg.mkColor("#e1a692"), pg.mkColor("#de6e56"), pg.mkColor("#e14b31")]
@@ -42,13 +51,6 @@ def errorPopup(message, title="Oops..."):
     msgBox.setText(message)
     msgBox.setWindowTitle(title)
     msgBox.exec_()
-
-class IPSplitter(QSplitter):
-
-    def __init__(self, orientation, parent=None):
-        super().__init__(orientation, parent)
-
-        self.setStyleSheet("QSplitter::handle{ background-color: #DDD}")
 
 
 class CapsValidator(QValidator):
