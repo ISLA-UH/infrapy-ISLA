@@ -178,20 +178,14 @@ class IPSingleSensorWidget(QWidget):
         self.sdThread.start()
         self.signal_start_sd_calc.emit()
 
-        # # NOTE: the clustering window is hardcoded here to 600.  TODO read this from config file
-        # clustering_window_len = 600
-        # spec_dets, clustering_pts, _ = spectral.run_sd(self.f_s, self.signal_t_window, signal_Sxx_window, 
-        #                                            freq_band, pval, adaptive_window_length , 
-        #                                            adaptive_window_step, clustering_freq_scaling, 
-        #                                            clustering_eps, clustering_min_samples, 
-        #                                            clustering_window_len,
-        #                                            self.mp_pool, t_skip, verbose=False)
-        
-        # self.detection_run_finished(spec_dets, clustering_pts)
-
-    @pyqtSlot(np.ndarray, list)
-    def detection_run_finished(self, spec_dets, clustering_pts):
-        self.detectionPlot.plot_data(spec_dets, 
+    @pyqtSlot(np.ndarray, list, str)
+    def detection_run_finished(self, spec_dets, clustering_pts, err_msg):
+        if err_msg:
+            # didn't find anything exit tread.
+            self.sdThread.exit()
+            IPUtils.errorPopup(err_msg)
+        else:
+            self.detectionPlot.plot_data(spec_dets, 
                                     self.signal_t_window[1]-self.signal_t_window[0], 
                                     self.waveformPlot.get_start_time(), 
                                     [self.t_s[0],self.t_s[-1]], 
@@ -287,7 +281,7 @@ class IPSingleSensorWidget(QWidget):
 
 class IPSpectralDetectorWorkerObject(QObject):
 
-    signal_runFinished = pyqtSignal(np.ndarray, list)
+    signal_runFinished = pyqtSignal(np.ndarray, list, str)
 
     def __init__(self, 
                  f_s, 
@@ -324,8 +318,11 @@ class IPSpectralDetectorWorkerObject(QObject):
         self.thread_stopped = False
 
         try:
-            # NOTE: the clustering window is hardcoded here to 600.  TODO read this from config file
+            # NOTE: the clustering window is hardcoded here to 600.  TODO read this from config file?
             clustering_window_len = 600
+            spec_dets = np.empty(0)
+            clustering_pts = []
+            err_msg = ""
             spec_dets, clustering_pts, _ = spectral.run_sd(self.f_s, 
                                                            self.signal_t_window, 
                                                            self.signal_Sxx_window, 
@@ -339,12 +336,17 @@ class IPSpectralDetectorWorkerObject(QObject):
                                                             clustering_window_len, 
                                                             self.mp_pool, 
                                                             self.t_skip)
-        except Exception as e:
-            traceback.print_exc()
-            IPUtils.errorPopup("Error calculating detections")
-            return
+            
 
-        self.signal_runFinished.emit(spec_dets, clustering_pts)
+        except ValueError:
+            err_msg = "Found no detections.  If you believe something is there, try expanding your analysis window to get better statistics for the background calculation."
+        except Exception as e:
+            err_msg = f"Error calculating detections:\n\t{str(e)}"
+
+        self.signal_runFinished.emit(spec_dets, clustering_pts, err_msg)
+        self.stop()            
+
+        
 
     @pyqtSlot()
     def stop(self):
