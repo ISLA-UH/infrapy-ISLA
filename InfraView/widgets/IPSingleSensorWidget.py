@@ -108,13 +108,13 @@ class IPSingleSensorWidget(QWidget):
         elif t == 'dark':
             self.glWidget.setBackground(IPUtils.ip_dark_grey)
 
-    @pyqtSlot(float)
+    @pyqtSlot()
     def update_values(self):
 
         new_fmin = self.spectrogram_settings_widget.fmin_spin.value()
         self.spec_overlap = 0.8
 
-        self.nperseg = int(5. * self.fs / new_fmin)
+        self.nperseg = int(6. * self.fs / new_fmin)
         if self.nperseg > 512:
             self.nperseg = 512
 
@@ -160,6 +160,8 @@ class IPSingleSensorWidget(QWidget):
         signal_t_range = self.signalSpecWidget.get_xrange()
         signal_window_mask = np.logical_and(signal_t_range[0] <= t_s, t_s <= signal_t_range[1])
         signal_Sxx_window = Sxx_log[:, signal_window_mask]
+
+        
 
         self.signal_t_window = t_s[signal_window_mask]
         self.t_s = t_s
@@ -346,8 +348,6 @@ class IPSpectralDetectorWorkerObject(QObject):
         self.signal_runFinished.emit(spec_dets, clustering_pts, err_msg)
         self.stop()            
 
-        
-
     @pyqtSlot()
     def stop(self):
         self.thread_stopped = True
@@ -357,7 +357,6 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
 
     sig_start_spec_calc = pyqtSignal()
     sig_start_stft_calc = pyqtSignal()
-    sig_fmax_changed = pyqtSignal(float)
 
     def __init__(self, parent, est=None):
         super().__init__(mode='spectrogram')
@@ -379,12 +378,37 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.setLabel(axis='left', text='Frequency (Hz)')
         #self.setLabel(axis='bottom', text='Time') # probably not needed, i think everyone knows what this axis is
         self.spec_img = pg.ImageItem( image=np.eye(3), levels=(0,1) ) # create example image
+        self.addItem(self.spec_img)
+
         self.color_bar = pg.ColorBarItem()
         self.color_bar.setImageItem(self.spec_img, insert_in=self)
         self.color_bar.setVisible(False)
-        self.addItem(self.spec_img)
+
+        # horizontal lines indicating filter min and max
+        # initial_pos = self.singleStationWidget.spectrogram_settings_widget.fmin_spin.value()
+        self.filter_min_line = pg.InfiniteLine(angle=0, pen='k', label="")
+        self.filter_min_line.label.setPosition(0.9)
+        self.filter_min_line.label.setColor((128,128,128))
+
+        # initial_pos = self.singleStationWidget.spectrogram_settings_widget.fmax_spin.value()
+        self.filter_max_line = pg.InfiniteLine(angle=0, pen='k', label="")
+        self.filter_max_line.label.setPosition(0.9)
+        self.filter_max_line.label.setColor((128,128,128))
+
+        self.spec_img.getViewBox().addItem(self.filter_min_line)
+        self.spec_img.getViewBox().addItem(self.filter_max_line)
 
         self.calc_spec_thread = QThread()
+
+    @pyqtSlot(float)
+    def fmin_changed(self, new_val):
+        self.filter_min_line.setValue(new_val)
+        self.filter_min_line.label.setText(f'fmin = {new_val}')
+
+    @pyqtSlot(float)
+    def fmax_changed(self, new_val):
+        self.filter_max_line.setValue(new_val)
+        self.filter_max_line.label.setText(f'fmax = {new_val}')
 
     def setPlotLabel(self, text):
         if self.labi is not None:
@@ -456,7 +480,6 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
             self.f, self.t, self.Sxx = self.calc_spec_worker_object.get_results()
             if self.f is not None:
                 self.plot_spectrogram(self.f, self.t, self.Sxx)
-                self.sig_fmax_changed.emit(self.f[-1])
         else:
             IPUtils.errorPopup("Error while calculating the spectrogram")
     
@@ -512,6 +535,7 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         # self.setLimits(xMin=0, xMax=t[-1], yMin=0, yMax=f[-1])
         self.full_range_y = [f[0], f[-1]]
         self.set_yaxis(self.full_range_y)
+        
 
 
 class IPDetectionStatusDialog(QDialog):

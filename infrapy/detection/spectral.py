@@ -204,7 +204,7 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
         print("Clustering into detections...")
 
     cluster_results = []
-    for dt in np.arange(0, np.max(spec_dets[:, 0]), clustering_window_len):
+    for dt in np.arange(t[0], t[-1], clustering_window_len):
         t1 = dt
         t2 = dt + clustering_window_len * 1.2
         

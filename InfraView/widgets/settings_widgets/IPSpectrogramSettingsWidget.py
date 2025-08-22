@@ -76,15 +76,15 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.fmin_spin = QDoubleSpinBox()
         self.fmin_spin.setMinimum(0.001)
         self.fmin_spin.setMaximum(10000.0)
-        self.fmin_spin.setValue(1.0)    
+        self.fmin_spin.setValue(10000)  # Set to strange value so will be guaranteed to trigger a valueChange when loaded.
         self.fmin_spin.setMinimumWidth(70)
         self.fmin_spin.setMaximumWidth(70)
 
         fmax_label = QLabel("Freq Max: ")
         self.fmax_spin = QDoubleSpinBox()
-        self.fmax_spin.setMinimum(1.0)
+        self.fmax_spin.setMinimum(0.002)
         self.fmax_spin.setMaximum(10000.0)
-        self.fmax_spin.setValue(10.0)    # this needs to be set when a spectrogram is created
+        self.fmax_spin.setValue(0.002)    # this needs to be set when a spectrogram is created
         self.fmax_spin.setMinimumWidth(70)
         self.fmax_spin.setMaximumWidth(70)
 
@@ -154,7 +154,7 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         self.cwt_fmin_spin = QDoubleSpinBox()
         self.cwt_fmin_spin.setMinimum(0.001)
         self.cwt_fmin_spin.setMaximum(10000.0)
-        self.cwt_fmin_spin.setValue(1.0)    
+        self.cwt_fmin_spin.setValue(10000.0)    # Set to strange value so will be guaranteed to trigger a valueChange when loaded.
         self.cwt_fmin_spin.setMinimumWidth(70)
         self.cwt_fmin_spin.setMaximumWidth(70)
 
@@ -281,30 +281,40 @@ class IPSpectrogramSettingsWidget(IPBaseWidgets.IPSettingsWidget):
 
         self.update_button.clicked.emit()
 
-
-
     def set_controlled_widget(self, widget):
         super().set_controlled_widget(widget)
         self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):
+        # This method is typically called exactly once.  set_controlled_widget MUST be called (successfully) before you call this.
+        
         self.update_button.clicked.connect(self.deactivate_update_button)
 
         self.spec_type_cb.currentTextChanged.connect(self.activate_update_button)
         self.spec_type_cb.currentTextChanged.connect(self.detector_selector)
 
-        #TODO these should update the Run Detector button, not the update button
+        #TODO these should update the Run Detector button, not the update button --- WAIT, Actually this might not be correct...
         self.pval_spin.valueChanged.connect(self.activate_update_button)
+
         self.fmin_spin.valueChanged.connect(self.activate_update_button)
+        self.fmin_spin.valueChanged.connect(self.controlled_widget.signalSpecWidget.fmin_changed)
+
         self.fmax_spin.valueChanged.connect(self.activate_update_button)
+        self.fmax_spin.valueChanged.connect(self.controlled_widget.signalSpecWidget.fmax_changed)
+
         self.clust_freq_scale_spin.valueChanged.connect(self.activate_update_button)
         self.clust_eps_spin.valueChanged.connect(self.activate_update_button)
         self.clust_min_samples_spin.valueChanged.connect(self.activate_update_button)
 
-        #TODO CWT should also update the Run Detector button
+        #TODO CWT should also update the Run Detector button --- WAIT, Actually this might not be correct...
         self.cwt_pval_spin.valueChanged.connect(self.activate_update_button)
+
         self.cwt_fmin_spin.valueChanged.connect(self.activate_update_button)
+        self.cwt_fmin_spin.valueChanged.connect(self.controlled_widget.signalSpecWidget.fmin_changed)
+
         self.cwt_fmax_spin.valueChanged.connect(self.activate_update_button)
+        self.cwt_fmax_spin.valueChanged.connect(self.controlled_widget.signalSpecWidget.fmax_changed)
+        
         self.cwt_clust_freq_scale_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_clust_eps_spin.valueChanged.connect(self.activate_update_button)
         self.cwt_clust_min_samples_spin.valueChanged.connect(self.activate_update_button)
