@@ -14,7 +14,7 @@ from InfraView.widgets.IPApplicationWindow import IPApplicationWindow
 
 def main():
     progname = "InfraView"
-    progversion = "0.4.1"
+    progversion = "0.4.1.0"
 
     my_system = platform.system()
     my_release = platform.release()
