@@ -16,11 +16,11 @@ The complete documentation can be found at https://infrapy.readthedocs.io/en/lat
 
 Infrapy can currently be installed on machines running newer versions of Linux, Apple OSX, and Windows.
 
-## Anaconda
+## Conda
 
-The installation of infrapy currently depends on Anaconda to resolve and download the correct python libraries. So if you don’t currently have anaconda installed on your system, please do that first.
+The installation of infrapy currently depends on miniconda/condaforge/etc to resolve and download the correct python libraries. So if you don’t currently have anaconda installed on your system, please do that first.
 
-Anaconda can be downloaded from https://www.anaconda.com/distribution/. Either 3.x or 2.x will work since the numbers refer to the Python version of the default environment. Infrapy’s installation will create a new environment and will install the version of Python that it needs into that environment.
+condaforge can be downloaded from https://conda-forge.org/download/. 
 
 ## Downloading
 
@@ -99,8 +99,9 @@ We supply a GUI application to help with quick data, beamforming, and location a
     >> conda activate infrapy_env
     >> infraview
 
-![Infraview Waveform Screenshot](https://raw.githubusercontent.com/LANL-Seismoacoustics/infrapy/master/infrapy/resources/PNG/Screenshot_waveforms.png)
+![Infraview Waveform Screenshot](https://raw.githubusercontent.com/LANL-Seismoacoustics/infrapy/master/infrapy/resources/PNG/Infraview_waveforms.png)
 
+![Infraview Beamforming Screenshot](https://raw.githubusercontent.com/LANL-Seismoacoustics/infrapy/master/infrapy/resources/PNG/Infraview_beamforming.png)
 
 ## Errors/issues
 
