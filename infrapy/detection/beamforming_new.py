@@ -1129,3 +1129,162 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
 def detect_signals(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val, min_seq=5, back_az_lim=15, fixed_thresh=None, return_thresh=False):
     return run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val, min_seq, back_az_lim, fixed_thresh, return_thresh)
 
+
+
+def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_window_len, window_step, method, back_az_vals, trc_vel_vals, array_data, delays):
+    """Run the beamforming analysis on a stream with various parameter specifications
+
+        Convert a stream to an array data set on a consistent set of time samples
+        and then run beamforming for the data and return the analysis window times 
+        with peak f-stat and direction of arrival (DOA) information (back azimuth
+        and trace velocity)
+
+        Note: following Laslo's work, the frequency domain Fisher ratio can be computed as:
+            F[nf] = abs(sig_est)**2 / np.mean(np.abs(residual), axis=1)**2 * (X.shape[1] - 1)
+
+        Parameters
+        ----------
+        signal_start_idx: int 
+            Index of the start of the signal in the array data
+        signal_end_idx: int
+            Index of the end of the signal in the array data
+        freq_band: 1darray
+            Iterable with minimum and maximum frequencies for analysis
+        window_length: float
+            Analysis window length in seconds
+        sub_window_length: float
+            Analysis sub-window length used in computing the covariance matrix for analysis of persistent signals
+        window_step: float
+            Time step between adjacent analysis windows
+        method: string
+            Beamforming method (options are "bartlett", "capon"/"mvdr", "GLS"/"gls", "bartlett_covar", and "MUSIC"/"music")
+        back_az_vals: 1darray
+            List of back azimuth values in the slowness grid
+        trc_vel_vals: 1darray
+            List of trace velocity values in the slowness grid
+        array_data: tuple
+            Tuple containing array data (x), time vector (t), start time (t0), and array geometry (geom)
+        delays: ndarray
+            Array of time delays for each sensor in the array
+
+
+        Returns:
+        ----------
+        beam_times : 1darray
+            Extracted frequency domain signal along the beam
+        beam_peaks : 2darray
+            Residual across the array once beamed signal is extracted
+        beam_power : 3darray
+            Beam power across the array for each analysis window NOTE: Needs further investigation on how to utilize
+        """
+    x, t, t0, geom = array_data
+    M, N = x.shape
+
+    beam_times = []
+    beam_peaks = []
+    beam_power = []
+
+    # Run BF the same way as InfraView, IPBeamformingWidget.py line 1562 -> 1622 ; this ensures beamforming is nromalized & returns additional info
+    
+    for window_start in np.arange(signal_start_idx, signal_end_idx, window_step):
+        if window_start + window_len > signal_end_idx:
+            break
+
+        # center time for this analysis window (numpy.datetime64)
+        beam_times.append(t0 + np.timedelta64(int(window_start + window_len / 2.0), 's'))
+
+        # FFT / covariance for this window (uses same defaults: subwindow overlap=0.5, hanning)
+        X, S, f = fft_array_data(x, t, window=[window_start, window_start + window_len], sub_window_len=sub_window_len)
+
+
+        # Run beamforming 
+        power = run(X,
+                             S,
+                             f,
+                             geom,
+                             delays,
+                             freq_band,
+                             method=method,
+                             normalize_beam=True,
+                             signal_cnt=1,
+                             pool=None,
+                             ns_covar_inv=None)
+        beam_power.append(power)
+        # Find peaks in beam power
+        peaks = find_peaks(power, back_az_vals, trc_vel_vals, signal_cnt=1)
+        beam_peaks.append([peaks[0][0], peaks[0][1], peaks[0][2]])
+
+    beam_times = np.array(beam_times)
+    beam_peaks = np.array(beam_peaks)
+    beam_power = np.array(beam_power)
+
+    # Convert peak metric to Fisher F-value ; if we wanted to use MUSIC this would need to be adjusted
+    if beam_peaks.size > 0:
+        beam_peaks[:, 2] = beam_peaks[:, 2] / (1.0 - beam_peaks[:, 2]) * (M - 1)
+
+    print(f"Beamforming Complete")
+    return beam_times, beam_peaks, beam_power
+
+
+
+def adjust_thresh_noise(array_data, window_len, sub_window_len, noise_len, window_step, freq_min, freq_max, method, back_az_vals, trc_vel_vals, delays, p_value, TB_prod):
+    """Run the beamforming analysis on a stream with various parameter specifications
+
+        Convert a stream to an array data set on a consistent set of time samples
+        and then run beamforming for the data and return the analysis window times 
+        with peak f-stat and direction of arrival (DOA) information (back azimuth
+        and trace velocity)
+
+        Note: following Laslo's work, the frequency domain Fisher ratio can be computed as:
+            F[nf] = abs(sig_est)**2 / np.mean(np.abs(residual), axis=1)**2 * (X.shape[1] - 1)
+
+        Parameters
+        ----------
+        array_data: tuple
+            Tuple containing array data (x), time vector (t), start time (t0), and array geometry (geom)
+        window_len: float
+            Analysis window length in seconds
+        sub_window_length: float
+            Analysis sub-window length used in computing the covariance matrix for analysis of persistent signals
+        noise_len: float
+            Noise window length for calculating f-stat
+        window_step: float
+            Time step between adjacent analysis windows
+        freq_min: float
+            Minimum frequency for analysis
+        freq_max: float
+            Maximum frequency for analysis
+        method: string
+            Beamforming method (options are "bartlett"; "capon"/"mvdr", "GLS"/"gls", "bartlett_covar", and "MUSIC"/"music" should be tested later
+        back_az_vals: 1darray
+            List of back azimuth values in the slowness grid
+        trc_vel_vals: 1darray
+            List of trace velocity values in the slowness grid
+        delays: ndarray
+            Array of time delays for each sensor in the array
+        p_value: float
+            Desired p-value for detection threshold calculation
+        TB_prod: float
+            Time-bandwidth product for the analysis
+        Returns:
+        ----------
+        det_thresh : float
+            Detection threshold based on noise statistics and specified p-value
+    """
+    x, t, t0, geom = array_data
+    M, N = x.shape
+    noise_fvals = []
+    for n_start in np.arange(0.0, noise_len, window_step):
+        if n_start + window_len > noise_len:
+            break
+        Xn, Sn, fn = fft_array_data(x, t, window=[n_start, n_start + window_len], sub_window_len=sub_window_len)
+        bp_n = run(Xn, Sn, fn, geom, delays, [freq_min, freq_max], method=method, normalize_beam=True, signal_cnt=1, pool=None, ns_covar_inv=None)
+        peaks_n = find_peaks(bp_n, back_az_vals, trc_vel_vals, signal_cnt=1)
+        if len(peaks_n) > 0:
+            noise_fvals.append(peaks_n[0][2] / (1.0 - peaks_n[0][2]) * (M - 1))
+    if len(noise_fvals) > 0:
+        noise_fvals = np.array(noise_fvals)
+        det_thresh = calc_det_thresh(noise_fvals, p_value, TB_prod, M)
+        return det_thresh
+    else:
+        return None
