@@ -7,7 +7,7 @@ V = 1100    # Nominal wave velocity in m/s
 fs = 1000.  # Sampling frequency in Hz
 dt = 1 / fs  # Sample interval in seconds
 # Data directory
-data_dir = "src/dsp/array_tdr/"
+data_dir = "./sandbox/array_tdr/"
 
 
 def xcorr_td(sig_01, sig_02, dt):
