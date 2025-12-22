@@ -4,9 +4,16 @@ from PyQt5.QtCore import QUrl
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QToolBar, QLineEdit, QAction
 
 
-
 class IPDocViewer(QWidget):
-    def __init__(self, parent):
+    """
+    class for ipdoc viewer
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
 
         self.webView = QWebEngineView()
@@ -21,7 +28,8 @@ class IPDocViewer(QWidget):
         self.index_file = self.html_home_dir + 'index.html'
         os.makedirs(self.html_home_dir, exist_ok=True)
 
-        self.compileLabel = QLabel("It appears you haven't compiled the documentation yet. Would you like to do it now?")
+        self.compileLabel = QLabel("It appears you haven't compiled the documentation yet. \
+                                   Would you like to do it now?")
         self.compileButton = QPushButton("Compile Documentation")
         self.compileButton.setFlat(True)
         self.compileButton.clicked.connect(self.compile_documentation)
@@ -46,7 +54,12 @@ class IPDocViewer(QWidget):
 
         self.setLayout(vLayout)
 
-    def create_toolbar(self):
+    def create_toolbar(self) -> QToolBar:
+        """
+        create toolbar
+
+        :return: created toolbar
+        """
         toolbar = QToolBar()
 
         back_action = QAction("Back", self)
@@ -67,14 +80,24 @@ class IPDocViewer(QWidget):
 
         return toolbar
 
-    def check_for_index_file(self):
+    def check_for_index_file(self) -> bool:
+        """
+        :return: whether index file exists
+        """
         return os.path.isfile(self.html_home_dir + 'index.html')
 
-    def on_url_changed(self, url):
+    def on_url_changed(self, url: str):
+        """
+        handle url change
+
+        :param url: new url
+        """
         print("new url: {}".format(url))
 
     def compile_documentation(self):
-        # run the make file and hope for the best
+        """
+        run the make file and hope for the best
+        """
         command = 'make -C ' + self.doc_dir + ' html'
         print(command)
         os.system(command)
@@ -89,13 +112,20 @@ class IPDocViewer(QWidget):
             self.compileButton.setVisible(True)
 
     def load_url(self):
+        """
+        load url from search bar
+        """
         url = self.search_bar.text()
         if not url.startswith("http"):
             url = "https://" + url
         self.webView.load(QUrl(url))
 
-    def load_html_file(self, file):
+    def load_html_file(self, file: str):
+        """
+        load html file
+
+        :param file: file to load
+        """
         with open(file, 'r') as f:
             html = f.read()
             self.webView.setHtml(html)
-

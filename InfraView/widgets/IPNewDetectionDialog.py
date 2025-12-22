@@ -1,17 +1,21 @@
+from typing import Optional, Tuple
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import (QDialog, QPushButton, QButtonGroup, QHBoxLayout, QVBoxLayout,
+from PyQt5.QtWidgets import (QDialog, QPushButton, QButtonGroup, QHBoxLayout, QVBoxLayout, QWidget,
                              QFormLayout, QCheckBox, QDialogButtonBox, QGroupBox, QLabel, QLineEdit)
 
 from PyQt5.QtCore import Qt
 
-class IPNewDetectionsDialog(QDialog):
 
+class IPNewDetectionsDialog(QDialog):
+    """
+    class for new detections dialog
+    """
     detections = []
     lat = None
     lon = None
     ele = None
     method = ''
-    fr = None
+    fr: Tuple[float, float] = (0., 0.)
 
     current_idx = 0
     detection_count = 0
@@ -20,12 +24,28 @@ class IPNewDetectionsDialog(QDialog):
     events = []     # list of strings
     notes = []      # list of strings
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super(IPNewDetectionsDialog, self).__init__(parent)
 
         self.buildUI()
 
-    def exec_(self, detections, lat, lon, ele, method, fr):
+    def exec_(self, detections: list, lat: float, lon: float, ele: float, method: str, fr: Tuple[float, float]):
+        """
+        add detections
+
+        :param detections: list of detections
+        :param lat: latitude in degrees
+        :param lon: longitude in degrees
+        :param ele: elevation in meters
+        :param method: detection method string
+        :param fr: frequency range tuple (f1, f2)
+        :return: parent exec_() result
+        """
         self.current_idx = 0
 
         self.detections = detections
@@ -39,7 +59,6 @@ class IPNewDetectionsDialog(QDialog):
         self.names = [''] * len(detections)
         self.notes = [''] * len(detections)
         self.events = [''] * len(detections)
-        
 
         self.lineEdit_detection_name.setText('')
         self.lineEdit_event.setText('')
@@ -53,7 +72,9 @@ class IPNewDetectionsDialog(QDialog):
         return super().exec_()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.setWindowTitle(self.tr('InfraView: New Detection(s)'))
 
         self.detection_group_box = QGroupBox()
@@ -103,7 +124,7 @@ class IPNewDetectionsDialog(QDialog):
 
         v_layout = QVBoxLayout()
         v_layout.addWidget(self.data_label)
-        #v_layout.addWidget(QWidget.HLine())  # This is a horizontal line
+        # v_layout.addWidget(QWidget.HLine())  # This is a horizontal line
         v_layout.addLayout(formBox)
         # v_layout.addWidget(QWidget.HLine())  # This is a horizontal line
         v_layout.addLayout(checkbox_layout)
@@ -119,34 +140,54 @@ class IPNewDetectionsDialog(QDialog):
         buttons.button(QDialogButtonBox.Ok).setText("Finish")
         buttons.accepted.connect(self.accept)
 
-        main_layout = QVBoxLayout()        
+        main_layout = QVBoxLayout()
         main_layout.addWidget(self.detection_group_box)
         main_layout.addWidget(buttons)
 
         self.setLayout(main_layout)
 
     def update_notes(self):
+        """
+        update notes
+        """
         self.notes[self.current_idx] = self.lineEdit_note.text()
 
     def update_events(self):
+        """
+        update events
+        """
         self.events[self.current_idx] = self.lineEdit_event.text()
 
     def update_names(self):
+        """
+        update names
+        """
         self.names[self.current_idx] = self.lineEdit_detection_name.text()
 
     def increment_current_idx(self):
+        """
+        increments current index
+        """
         self.current_idx = self.current_idx + 1
         self.update_widget()
 
     def decrement_current_idx(self):
+        """
+        decrements current index
+        """
         self.current_idx = self.current_idx - 1
         self.update_widget()
 
     def update_keep(self):
+        """
+        update keep status
+        """
         self.keep[self.current_idx] = self.keep_checkbox.isChecked()
 
     def update_widget(self):
-
+        """
+        update widgets
+        """
         d = self.detections[self.current_idx]
         self.detection_count = len(self.detections)
 
@@ -165,53 +206,86 @@ class IPNewDetectionsDialog(QDialog):
                        "Method: {meth}\n"
                        "Detection Start/Stop: ({start:.2f}, {stop:.2f})\n"
                        "Frequency Range: ({f1:.2f}, {f2:.2f})\n ").format(t=d[0],
-                                                                       fs=d[5],
-                                                                       tv=d[4],
-                                                                       baz=d[3],
-                                                                       la=self.lat,
-                                                                       lo=self.lon,
-                                                                       el=self.ele,
-                                                                       meth=self.method,
-                                                                       start=d[1],
-                                                                       stop=d[2],
-                                                                       f1=self.fr[0],
-                                                                       f2=self.fr[1])
+                                                                          fs=d[5],
+                                                                          tv=d[4],
+                                                                          baz=d[3],
+                                                                          la=self.lat,
+                                                                          lo=self.lon,
+                                                                          el=self.ele,
+                                                                          meth=self.method,
+                                                                          start=d[1],
+                                                                          stop=d[2],
+                                                                          f1=self.fr[0],
+                                                                          f2=self.fr[1])
         self.data_label.setText(data_string)
         self.lineEdit_detection_name.setText(self.names[self.current_idx])
         self.lineEdit_event.setText(self.events[self.current_idx])
         self.lineEdit_note.setText(self.notes[self.current_idx])
         self.keep_checkbox.setChecked(self.keep[self.current_idx])
 
-    def get_detections(self):
-        # This is called after the dialog is closed.  Will only return the detections that
-        # we're marked to keep
+    def get_detections(self) -> list:
+        """
+        This is called after the dialog is closed.  Will only return the detections that
+        we're marked to keep
+
+        :return: list of detections to keep
+        """
         detections_to_keep = [i for idx, i in enumerate(self.detections) if self.keep[idx]]
 
         return detections_to_keep
 
-    def get_names(self):
+    def get_names(self) -> list:
+        """
+        :return: list of names to keep
+        """
         names_to_keep = [i for idx, i in enumerate(self.names) if self.keep[idx]]
         return names_to_keep
 
-    def get_notes(self):
+    def get_notes(self) -> list:
+        """
+        :return: list of notes to keep
+        """
         notes_to_keep = [i for idx, i in enumerate(self.notes) if self.keep[idx]]
         return notes_to_keep
 
-    def get_events(self):
+    def get_events(self) -> list:
+        """
+        :return: list of events to keep
+        """
         events_to_keep = [i for idx, i in enumerate(self.events) if self.keep[idx]]
         return events_to_keep
-    
 
 
 class IPNewDetectionDialog(QDialog):
+    """
+    class for new detection
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
 
-    def __init__(self, parent):
+        :param parent: parent widget
+        """
         super(IPNewDetectionDialog, self).__init__(parent)
 
         self.__buildUI__()
 
-    def exec_(self, pick_time, f_stat, trace_vel, back_az, lat, lon, ele, method, fr):
+    def exec_(self, pick_time: float, f_stat: float, trace_vel: float, back_az: float, lat: float, lon: float,
+              ele: float, method: str, fr: tuple):
+        """
+        add detection
 
+        :param pick_time: pick time in UTC since epoch
+        :param f_stat: F statistic
+        :param trace_vel: trace velocity m/s
+        :param back_az: back azimuth in degrees
+        :param lat: latitude in degrees
+        :param lon: longitude in degrees
+        :param ele: elevation in meters
+        :param method: detection method
+        :param fr: frequency range as tuple
+        :return: parent exec_() result
+        """
         self.lineEdit_pick_name.setText('')
         self.lineEdit_event.setText('')
         self.lineEdit_note.setText('')
@@ -242,7 +316,9 @@ class IPNewDetectionDialog(QDialog):
         return super().exec_()
 
     def __buildUI__(self):
-
+        """
+        build the UI
+        """
         self.setWindowTitle(self.tr('InfraView: New Detection'))
 
         self.data_label = QLabel('')

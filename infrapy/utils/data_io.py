@@ -75,8 +75,7 @@ def wvfrms_from_fdsn(fdsn_opt, network, station, location, channel, starttime, e
     return stream, latlon
 
 
-
-def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, location=None, channel=None, starttime=None, endtime=None, local_latlon=None):
+def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, location=None, channel=None, starttime=None, endtime=None, local_latlon=None) -> Stream, np.ndarray:
     """
     Define an ObsPy stream from a specified local, FDSN, or database source.
     1) if specifying local data, use obspy.read to set up the stream
@@ -106,14 +105,12 @@ def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, locatio
     local_latlon: str
         File containing latlon info for local waveform data (need to add an option/method for a site file)
 
-
     Returns
     -------
     stream : obspy.core.stream.Stream
         Obspy stream containing specified waveform data
     latlon: 2darray
         Iterable with latitude and longitude info for each trace of the returned stream
-
     """
 
     # check that only one option is selected and issue warning if multiple data sources are specified
@@ -147,7 +144,7 @@ def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, locatio
     return stream, latlon
 
 
-def set_det_list(local_detect_label, merge=True):
+def set_det_list(local_detect_label, merge=True) -> list:
     """
     Read detections from a file (or files) using the [...].dets.json format used to output detections
 

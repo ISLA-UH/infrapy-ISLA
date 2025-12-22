@@ -6,7 +6,6 @@ from obspy.core.stream import Stream
 from obspy.core.trace import Trace
 from obspy.core.inventory import Inventory
 
-
 import numpy as np
 
 from PyQt5.QtWidgets import (QDialog, QDialogButtonBox, QWidget, QAbstractItemView, QLineEdit, QFormLayout,
@@ -19,15 +18,26 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot, QDate, Qt, QDateTime, QTime
 from InfraView.widgets import IPStationBrowser
 from InfraView.widgets import IPUtils
 
-class IPFDSNDialog(QDialog):
 
+class IPFDSNDialog(QDialog):
+    """
+    class for fdsn dialog
+    """
     fdsnWidget = None
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super(IPFDSNDialog, self).__init__(parent)
         self.buildUI()
 
     def buildUI(self):
+        """
+        build UI
+        """
         self.setWindowTitle(self.tr('InfraView: FDSN Import'))
 
         self.fdsnWidget = IPFDSNWidget()
@@ -45,21 +55,38 @@ class IPFDSNDialog(QDialog):
 
         self.resize(400, self.height())
 
-    def getStreams(self):
+    def getStreams(self) -> Stream:
+        """
+        :return: stream of waveforms
+        """
         # pass through to get the stream info
         return self.fdsnWidget.getStreams()
 
-    def getInventory(self):
+    def getInventory(self) -> Inventory:
+        """
+        :return: inventory of station
+        """
         # pass through to get the inventory info out
         return self.fdsnWidget.getInventory()
 
 
 class IPNewFDSNDialog(QDialog):
-    def __init__(self, parent):
+    """
+    class for new fdsn dialog
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__()
         self.buildUI()
 
     def buildUI(self):
+        """
+        build UI
+        """
         self.setWindowTitle("InfraView: Add FDSN Service")
         form_layout = QFormLayout()
         name_label = QLabel("Service Name")
@@ -72,7 +99,7 @@ class IPNewFDSNDialog(QDialog):
         form_layout.addRow(name_label, self.service_name_edit)
         form_layout.addRow(url_label, self.service_url_edit)
 
-         # OK and Cancel buttons
+        # OK and Cancel buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -85,7 +112,7 @@ class IPNewFDSNDialog(QDialog):
 
     def get_service(self):
         return self.service_name_edit.text(), self.service_url_edit.text()
-        
+
 
 class IPFDSNWidget(QWidget):
 
@@ -101,7 +128,9 @@ class IPFDSNWidget(QWidget):
         self.buildUI()
 
     def buildUI(self):
-
+        """
+        build UI
+        """
         # Put together the options container
         formLayout = QFormLayout()
         optionsContainer = QWidget()
@@ -109,7 +138,7 @@ class IPFDSNWidget(QWidget):
 
         # in order to allow for custom fdsn servers, we have to make our own fdsn dictionary that we can append to
         self.fdsn_dictionary = URL_MAPPINGS
-        #self.fdsn_dictionary.update({'BEER':'https://fdsnws.ilikebeer.com'})
+        # self.fdsn_dictionary.update({'BEER':'https://fdsnws.ilikebeer.com'})
 
         # First lets populate the client drop down
         self.cb = QComboBox()
@@ -132,29 +161,34 @@ class IPFDSNWidget(QWidget):
         service_layout.addWidget(self.new_service_button)
 
         validator = IPUtils.CapsValidator(self)
-        
+
         label_network_name = QLabel(self.tr('Network: '))
         self.networkNameBox = QLineEdit()
         self.networkNameBox.setMinimumWidth(170)
-        self.networkNameBox.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes. \nMultiple codes are comma-separated (e.g. "IU,TA").')
+        self.networkNameBox.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes.'
+                                       '\nMultiple codes are comma-separated (e.g. "IU,TA").')
         self.networkNameBox.setValidator(validator)
 
         label_station_name = QLabel(self.tr('Station: '))
         self.stationNameBox = QLineEdit()
         self.stationNameBox.setMinimumWidth(170)
-        self.stationNameBox.setToolTip('Wildcards OK \nOne or more SEED station codes. \nMultiple codes are comma-separated (e.g. "ANMO,PFO")')
+        self.stationNameBox.setToolTip('Wildcards OK \nOne or more SEED station codes. \nMultiple codes are '
+                                       'comma-separated (e.g. "ANMO,PFO")')
         self.stationNameBox.setValidator(validator)
 
         label_location_str = QLabel(self.tr('Location:'))
         self.location_Box = QLineEdit('*')
         self.location_Box.setMinimumWidth(170)
-        self.location_Box.setToolTip('Wildcards OK \nOne or more SEED location identifiers. \nMultiple identifiers are comma-separated (e.g. "00,01"). \nAs a special case “--“ (two dashes) will be translated to a string of two space characters to match blank location IDs.')
+        self.location_Box.setToolTip('Wildcards OK \nOne or more SEED location identifiers. \nMultiple identifiers '
+                                     'are comma-separated (e.g. "00,01"). \nAs a special case “--“ (two dashes) will '
+                                     'be translated to a string of two space characters to match blank location IDs.')
         self.location_Box.setValidator(validator)
 
         label_channel_str = QLabel(self.tr('Channel:'))
         self.channel_Box = QLineEdit('BDF')
         self.channel_Box.setMinimumWidth(170)
-        self.channel_Box.setToolTip('Wildcards OK \nOne or more SEED channel codes. \nMultiple codes are comma-separated (e.g. "BHZ,HHZ")')
+        self.channel_Box.setToolTip('Wildcards OK \nOne or more SEED channel codes. \nMultiple codes are '
+                                    'comma-separated (e.g. "BHZ,HHZ")')
         self.channel_Box.setValidator(validator)
 
         label_startDate = QLabel(self.tr('Start Date (UTC):'))
@@ -192,8 +226,8 @@ class IPFDSNWidget(QWidget):
         formLayout.addRow(label_service_name, service_layout)
 
         horizontalLineWidget = QWidget()
-        horizontalLineWidget.setFixedHeight(2);
-        horizontalLineWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed);
+        horizontalLineWidget.setFixedHeight(2)
+        horizontalLineWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         formLayout.addWidget(horizontalLineWidget)
 
         formLayout.addRow(label_network_name, self.networkNameBox)
@@ -226,6 +260,9 @@ class IPFDSNWidget(QWidget):
         self.channel_Box.textChanged.connect(self.stationDialog.stationBrowser.channel_edit.textChanged)
 
     def add_service(self):
+        """
+        add fdsn service
+        """
         if self.add_serviceDialog.exec_():
             name, url = self.add_serviceDialog.get_service()
             self.fdsn_dictionary[name] = url
@@ -235,10 +272,15 @@ class IPFDSNWidget(QWidget):
 
     @pyqtSlot(str)
     def service_changed(self, name):
+        """
+        function to handle service change
+        """
         self.cb.setToolTip(self.fdsn_dictionary[name])
 
     def onClicked_browserButton(self):
-
+        """
+        function to handle browser button click
+        """
         if self.stationDialog.exec_(self.startDate_edit.date(),
                                     network=self.networkNameBox.text(),
                                     station=self.stationNameBox.text(),
@@ -303,6 +345,9 @@ class IPFDSNWidget(QWidget):
     #     self.startTime_edit.setTime(qtime)
 
     def populateStationInfoFromStationList(self):
+        """
+        populate station info from station list
+        """
         items = self.stationListWidget.selectedItems()
         if len(items) < 1:
             return  # nothing to do
@@ -332,22 +377,37 @@ class IPFDSNWidget(QWidget):
         self.stationNameBox.setText(staString[:-2])
 
     def onActivated_cb(self, key):
-        if(key != 'choose...'):
+        """
+        function to handle combo box activation
+        """
+        if (key != 'choose...'):
             url = URL_MAPPINGS[key]
 
     def onClicked_replace(self):
+        """
+        function to handle click on replace button
+        """
         self.downloadWaveforms()
         if self.stream is not None and self.inventory is not None:
             self.sigTracesReplaced.emit(self.stream, self.inventory)
 
     def onClicked_append(self):
+        """
+        function to handle click on append button
+        """
         self.downloadWaveforms()
         if self.stream is not None and self.inventory is not None:
             self.sigTracesAppended.emit(self.stream, self.inventory)
 
     @pyqtSlot(str, str)
-    def add_custom_fdsn(self, name, url):
-        self.fdsn_dictionary.update({name : url})
+    def add_custom_fdsn(self, name: str, url: str):
+        """
+        function to add custom fdsn service
+
+        :param name: name of service
+        :param url: url of service
+        """
+        self.fdsn_dictionary.update({name: url})
         # for brevity, lets just clear the combobox and repopulate it
         self.cb.clear()
         for key in sorted(self.fdsn_dictionary.keys()):
@@ -356,13 +416,15 @@ class IPFDSNWidget(QWidget):
 
     # get waveform button was clicked
     def downloadWaveforms(self):
-
+        """
+        function to handle download waveforms
+        """
         # get the inputs...inputs
         service = self.cb.currentText()
-        if(service == 'choose...'):
+        if (service == 'choose...'):
             IPUtils.errorPopup('Please select a service to search')
             return
-    
+
         client = Client(self.fdsn_dictionary[service])
 
         # Clear old streams because we don't need them anymore
@@ -385,17 +447,16 @@ class IPFDSNWidget(QWidget):
 
         # Check for unfilled boxes
         if (network == '' or station == '' or channel == ''):
-            IPUtils.errorPopup('You are missing some important info...\nNetwork, Station, Location, and Channel are all required data.')
+            IPUtils.errorPopup('You are missing some important info...\nNetwork, Station, Location, and Channel are '
+                               'all required data.')
             return
-
-
-
         # self.parent.setStatus('downloading Waveforms...')
         try:
             self.stream = client.get_waveforms(network, station, location, channel, startTime, endTime)
 
         except Exception:
-            IPUtils.errorPopup('Failure loading waveform. \nDouble check that the values you entered are valid and the time and date are appropriate.')
+            IPUtils.errorPopup('Failure loading waveform. \nDouble check that the values you entered are valid and '
+                               'the time and date are appropriate.')
             return
 
         for trace in self.stream:
@@ -407,28 +468,43 @@ class IPFDSNWidget(QWidget):
 
         # Now get the corresponding stations
         try:
-            self.inventory = client.get_stations(network=network, station=station, channel=channel, starttime=startTime, endtime=endTime, level='channel')
-        except:
-            IPUtils.errorPopup('Failure loading Inventory.  \nDouble check that the values you entered are valid and the time and date are appropriate.')
+            self.inventory = client.get_stations(network=network, station=station, channel=channel,
+                                                 starttime=startTime, endtime=endTime, level='channel')
+        except Exception:
+            IPUtils.errorPopup('Failure loading Inventory.  \nDouble check that the values you entered are valid and '
+                               'the time and date are appropriate.')
             return
 
-    def getStreams(self):
+    def getStreams(self) -> Stream:
+        """
+        :return: stream of waveforms
+        """
         return self.stream
 
-    def getInventory(self):
+    def getInventory(self) -> Inventory:
+        """
+        :return: inventory of station
+        """
         return self.inventory
 
-    def getService(self):
+    def getService(self) -> str:
+        """
+        :return: selected service
+        """
         return self.cb.currentText()
 
     def clearWaveforms(self):
+        """
+        clear waveforms
+        """
         self.stream = None
         self.inventory = None
 
     def clear(self):
-
+        """
+        reset all fields to defaults
+        """
         self.clearWaveforms()
-
         self.stationListWidget.clear()
         self.cb.setCurrentText('IRIS')  # default to IRIS because why the hell not?
         self.networkNameBox.clear()

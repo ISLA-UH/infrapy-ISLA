@@ -1,7 +1,8 @@
-import  sys
+import sys
+from typing import Optional, Union
 
-from PyQt5.QtWidgets import (QApplication, QDateTimeEdit, QDialogButtonBox, QMessageBox, QPushButton, 
-                             QLabel, QLineEdit, QGridLayout, QHBoxLayout, QDoubleSpinBox, 
+from PyQt5.QtWidgets import (QApplication, QDateTimeEdit, QDialogButtonBox, QMessageBox, QPushButton,
+                             QLabel, QLineEdit, QGridLayout, QHBoxLayout, QDoubleSpinBox,
                              QVBoxLayout, QWidget, QFrame, QAbstractItemView,
                              QTabWidget, QTableWidget, QTableWidgetItem, QDialog)
 
@@ -13,16 +14,22 @@ import obspy
 from obspy.core import UTCDateTime
 from obspy.clients.fdsn import Client
 
+
 class IPEventBrowser(QWidget):
-
+    """
+    class for event browser
+    """
     def __init__(self):
+        """
+        initialize
+        """
         super().__init__()
-
         self.buildUI()
 
-
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.eventID_edit = QLineEdit()
 
         self.startDateTime_edit = QDateTimeEdit()
@@ -34,7 +41,7 @@ class IPEventBrowser(QWidget):
         self.endDateTime_edit.setDateTime(QDateTime.currentDateTime().toUTC())
 
         self.lat_edit = QDoubleSpinBox()
-        self.lat_edit.setRange(-90.1,90.0)  # the -90.1 is used as the "unset" value 
+        self.lat_edit.setRange(-90.1, 90.0)  # the -90.1 is used as the "unset" value
         self.lat_edit.setDecimals(8)
         self.lat_edit.setSpecialValueText('--')
         self.lat_edit.setSingleStep(0.1)
@@ -48,14 +55,14 @@ class IPEventBrowser(QWidget):
         self.lon_edit.setValue(self.lon_edit.minimum())
 
         self.minLat_edit = QDoubleSpinBox()
-        self.minLat_edit.setRange(-90.1,90.0)
+        self.minLat_edit.setRange(-90.1, 90.0)
         self.minLat_edit.setDecimals(8)
         self.minLat_edit.setSpecialValueText('--')
         self.minLat_edit.setSingleStep(0.1)
         self.minLat_edit.setValue(self.minLat_edit.minimum())
 
         self.maxLat_edit = QDoubleSpinBox()
-        self.maxLat_edit.setRange(-90.1,90.0)
+        self.maxLat_edit.setRange(-90.1, 90.0)
         self.maxLat_edit.setDecimals(8)
         self.maxLat_edit.setSpecialValueText('--')
         self.maxLat_edit.setSingleStep(0.1)
@@ -81,16 +88,15 @@ class IPEventBrowser(QWidget):
         self.minRadius_edit.setSpecialValueText('--')
         self.minRadius_edit.setSuffix(' deg')
         self.minRadius_edit.setValue(self.minRadius_edit.minimum())
-        self.minRadius_edit.setEnabled(False)   #Need lat and lon before this means anything
-        
+        self.minRadius_edit.setEnabled(False)   # Need lat and lon before this means anything
+
         self.maxRadius_edit = QDoubleSpinBox()
         self.maxRadius_edit.setMinimum(0.0)
         self.maxRadius_edit.setMaximum(180.0)
         self.maxRadius_edit.setSpecialValueText('--')
         self.maxRadius_edit.setSuffix(' deg')
         self.maxRadius_edit.setValue(self.maxRadius_edit.minimum())
-        self.maxRadius_edit.setEnabled(False)  #Need lat and lon before this means anything
-
+        self.maxRadius_edit.setEnabled(False)  # Need lat and lon before this means anything
 
         self.minDepth_edit = QDoubleSpinBox()
         self.minDepth_edit.setMinimum(0.0)
@@ -127,10 +133,10 @@ class IPEventBrowser(QWidget):
 
         layout = QGridLayout()
 
-        layout.addWidget(QLabel(self.tr('Event ID: ')), 0 , 0, alignment=Qt.AlignRight)
+        layout.addWidget(QLabel(self.tr('Event ID: ')), 0, 0, alignment=Qt.AlignRight)
         layout.addWidget(self.eventID_edit, 0, 1)
 
-        layout.addWidget(self.HLine(), 1, 0, 1, 4) # This is a horizontal line
+        layout.addWidget(self.HLine(), 1, 0, 1, 4)  # This is a horizontal line
 
         layout.addWidget(QLabel(self.tr('Start Date/Time (UTC)')), 2, 0, alignment=Qt.AlignRight)
         layout.addWidget(self.startDateTime_edit, 2, 1, 1, 2)
@@ -172,12 +178,12 @@ class IPEventBrowser(QWidget):
         layout.addWidget(QLabel(self.tr('Maximum Magnitude')), 11, 2, alignment=Qt.AlignRight)
         layout.addWidget(self.maxMag_edit, 11, 3)
 
-        layout.addWidget(self.HLine(), 12, 0, 1, 4) # This is a horizontal line
+        layout.addWidget(self.HLine(), 12, 0, 1, 4)  # This is a horizontal line
 
-        #self.spinner = QLabel()
-        #self.spinner_movie = QMovie('../graphics/loader_small.gif')
-        #self.spinner.setMovie(self.spinner_movie)
-        #self.spinner.hide()
+        # self.spinner = QLabel()
+        # self.spinner_movie = QMovie('../graphics/loader_small.gif')
+        # self.spinner.setMovie(self.spinner_movie)
+        # self.spinner.hide()
 
         layout.addWidget(self.resetButton, 13, 0)
         layout.addWidget(self.searchButton, 13, 2, 1, 2)
@@ -197,7 +203,6 @@ class IPEventBrowser(QWidget):
         main_layout.addLayout(centering_layout)
         main_layout.addWidget(self.tabs)
 
-
         self.setLayout(main_layout)
 
         self.connectSignalsAndSlots()
@@ -205,6 +210,9 @@ class IPEventBrowser(QWidget):
         self.show()
 
     def connectSignalsAndSlots(self):
+        """
+        connect signals to widgets
+        """
         self.lat_edit.valueChanged.connect(self.updateWidget)
         self.lon_edit.valueChanged.connect(self.updateWidget)
 
@@ -212,23 +220,34 @@ class IPEventBrowser(QWidget):
 
     @pyqtSlot(QDateTime)
     def adjust_end_datetime(self, start_datetime: UTCDateTime):
+        """
+        adjust end datetime
+
+        :param start_datetime: start date time
+        """
         end_datetime = self.endDateTime_edit.dateTime()
         if start_datetime > end_datetime:
             self.endDateTime_edit.setDateTime(start_datetime)
 
     def getUTCDateTimeString(self, date: UTCDateTime, time: UTCDateTime) -> str:
+        """
+        :param date: date
+        :param time: time
+        :return: UTC date time string
+        """
         pdate = date.toPyDate()
         ptime = time.toPyTime()
         utcString = str(pdate) + 'T' + str(ptime)
         return utcString
 
-    def downloadEvents(self): 
-
-        # Iris is the default client, not sure if it would be useful to include others or not
-        # Events come from the NEIC and the ISC
+    def downloadEvents(self):
+        """
+        Iris is the default client, not sure if it would be useful to include others or not
+        Events come from the NEIC and the ISC
+        """
         try:
             client = Client("IRIS")
-        except:
+        except Exception:
             IPUtils.errorPopup("failed to connect to client...proxy issue?")
             return None
         ####
@@ -243,7 +262,7 @@ class IPEventBrowser(QWidget):
         else:
             date = self.startDateTime_edit.date()
             time = self.startDateTime_edit.time()
-            sdatetime = self.getUTCDateTimeString(date,time)
+            sdatetime = self.getUTCDateTimeString(date, time)
             startDateTime = UTCDateTime(sdatetime)
 
         if self.endDateTime_edit.date() == self.endDateTime_edit.minimumDateTime():
@@ -299,7 +318,6 @@ class IPEventBrowser(QWidget):
             min_rad = None
             max_rad = None
 
-
         if self.minDepth_edit.value() == self.minDepth_edit.minimum():
             minDep = None
         else:
@@ -319,33 +337,35 @@ class IPEventBrowser(QWidget):
             max_mag = None
         else:
             max_mag = self.maxMag_edit.value()
-        
+
         try:
             self.cat = client.get_events(eventid=evt_id,
-                                     starttime=startDateTime,
-                                     endtime=endDateTime,
-                                     latitude=lat,
-                                     longitude=lon,
-                                     minlatitude=min_lat,
-                                     maxlatitude=max_lat,
-                                     minlongitude=min_lon,
-                                     maxlongitude=max_lon,
-                                     minradius=min_rad,
-                                     maxradius=max_rad,
-                                     minmagnitude=min_mag,
-                                     maxmagnitude=max_mag)
+                                         starttime=startDateTime,
+                                         endtime=endDateTime,
+                                         latitude=lat,
+                                         longitude=lon,
+                                         minlatitude=min_lat,
+                                         maxlatitude=max_lat,
+                                         minlongitude=min_lon,
+                                         maxlongitude=max_lon,
+                                         minradius=min_rad,
+                                         maxradius=max_rad,
+                                         minmagnitude=min_mag,
+                                         maxmagnitude=max_mag)
         except obspy.clients.fdsn.header.FDSNNoDataException:
             IPUtils.errorPopup('No data available')
             return
 
         self.populateresultsTable()
-        
+
     def populateresultsTable(self):
-        
+        """
+        populate results table
+        """
         self.resultsTable.setRowCount(len(self.cat))
         self.resultsTable.setColumnCount(7)
 
-        headers = ['Magnitude','UTC Date/Time', 'Latitude', 'Longitude', 'Depth', '']
+        headers = ['Magnitude', 'UTC Date/Time', 'Latitude', 'Longitude', 'Depth', '']
         self.resultsTable.setHorizontalHeaderLabels(headers)
 
         for idx, item in enumerate(self.cat):
@@ -359,17 +379,24 @@ class IPEventBrowser(QWidget):
                 self.resultsTable.setItem(idx, 3, QTableWidgetItem(str(origin.longitude)))
                 self.resultsTable.setItem(idx, 4, QTableWidgetItem(str(origin.depth)))
                 self.resultsTable.setItem(idx, 5, QTableWidgetItem(item.resource_id.id))
-            #self.resultsTable.setData(item.origins[0].latitude)
+            # self.resultsTable.setData(item.origins[0].latitude)
 
         self.resultsTable.resizeColumnsToContents()
 
     def updateWidget(self):
+        """
+        update widget
+        """
         # We need lat and lon values if we are going to use the radius inputs
-        enableRadius = self.lat_edit.value() != self.lat_edit.minimum() and self.lon_edit.value() != self.lon_edit.minimum()
+        enableRadius = self.lat_edit.value() != self.lat_edit.minimum() \
+            and self.lon_edit.value() != self.lon_edit.minimum()
         self.maxRadius_edit.setEnabled(enableRadius)
         self.minRadius_edit.setEnabled(enableRadius)
 
     def resetWidget(self):
+        """
+        reset the widget
+        """
         self.startDateTime_edit.setDateTime(self.startDateTime_edit.minimumDateTime())
         self.endDateTime_edit.setDateTime(self.endDateTime_edit.minimumDateTime())
         self.lat_edit.setValue(self.lat_edit.minimum())
@@ -387,24 +414,33 @@ class IPEventBrowser(QWidget):
         self.eventID_edit.setText('')
 
     def clearWidget(self):
+        """
+        clear the widget
+        """
         self.resetWidget()
         self.resultsTable.clearContents()
 
-    def HLine(self):
+    def HLine(self) -> QFrame:
+        """
+        :return: horizontal line
+        """
         hl = QFrame()
         hl.setFrameShape(QFrame.HLine)
         hl.setFrameShadow(QFrame.Sunken)
         return hl
 
-    def getEvent(self):
-        event = {'Name':None, 
-                 'UTC Date':None, 
-                 'UTC Time':None, 
-                 'Longitude':-180.1, 
-                 'Latitude':-90.1, 
-                 'Elevation':-1000000, 
-                 'Depth':-1000000,
-                 'Magnitude':0.0 }
+    def getEvent(self) -> Union[dict, None]:
+        """
+        :return: event dictionary or None if no event selected
+        """
+        event = {'Name': None,
+                 'UTC Date': None,
+                 'UTC Time': None,
+                 'Longitude': -180.1,
+                 'Latitude': -90.1,
+                 'Elevation': -1000000,
+                 'Depth': -1000000,
+                 'Magnitude': 0.0}
 
         # returns a dictionary with the contents of the selected row
         row = self.resultsTable.currentRow()
@@ -423,8 +459,15 @@ class IPEventBrowser(QWidget):
 
 
 class IPEventDialog(QDialog):
+    """
+    class for event dialog
+    """
+    def __init__(self, parent: Optional[QWidget] = None):
+        """
+        initialize
 
-    def __init__(self, parent=None):
+        :param parent: parent widget
+        """
         super(IPEventDialog, self).__init__(parent)
 
         self.setWindowTitle('InfraView: Event Browser')
@@ -446,6 +489,9 @@ class IPEventDialog(QDialog):
         self.setLayout(layout)
 
     def myaccept(self):
+        """
+        accept dialog
+        """
         event = self.eventBrowser.getEvent()
         if event is None:
             msgBox = QMessageBox()
@@ -457,12 +503,12 @@ class IPEventDialog(QDialog):
         else:
             super().accept()
 
-    
-    def getEvent(self):
+    def getEvent(self) -> Union[dict, None]:
+        """
+        :return: event dictionary or None if no event selected
+        """
         event = self.eventBrowser.getEvent()
         return event
-
-
 
 
 if __name__ == '__main__':
@@ -470,5 +516,3 @@ if __name__ == '__main__':
 
     widget = IPEventBrowser()
     sys.exit(app.exec_())
-
-

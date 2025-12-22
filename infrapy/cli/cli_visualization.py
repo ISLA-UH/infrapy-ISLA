@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 import os
-import warnings 
+import warnings
 
 import click
 import json
@@ -33,24 +33,28 @@ from infrapy.location import visualization as loc_vis
 @click.option("--channel", help="Channel code for FDSN and database", default=None)
 @click.option("--starttime", help="Start time of analysis window", default=None)
 @click.option("--endtime", help="End time of analysis window", default=None)
-@click.option("--freq-min", help="Minimum frequency (default: " + config.defaults['FK']['freq_min'] + " [Hz])", default=None, type=float)
-@click.option("--freq-max", help="Maximum frequency (default: " + config.defaults['FK']['freq_max'] + " [Hz])", default=None, type=float)
+@click.option("--freq-min", help="Minimum frequency (default: " + config.defaults['FK']['freq_min'] + " [Hz])",
+              default=None, type=float)
+@click.option("--freq-max", help="Maximum frequency (default: " + config.defaults['FK']['freq_max'] + " [Hz])",
+              default=None, type=float)
 @click.option("--local-fk-label", help="Local beamforming (fk) data files", default=None)
 @click.option("--figure-out", help="Destination for figure", default=None)
 @click.option("--show-figure", help="Print figure to screen", default=True)
-def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, station, location, 
-    channel, starttime, endtime, freq_min, freq_max, local_fk_label, figure_out, show_figure):
+def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, station, location,
+       channel, starttime, endtime, freq_min, freq_max, local_fk_label, figure_out, show_figure):
     '''
     Visualize beamforming (fk) results
 
     \b
     Example usage (run from infrapy/examples directory after running the run_fk examples):
+
     \tinfrapy plot fk --local-wvfrms 'data/YJ.BRP*'
+
     \tinfrapy plot fk --config-file config/detection_local.config
+
     \tinfrapy plot fk --config-file config/detection_fdsn.config --figure-out FDSN_fk-results.png --show-figure False
 
     '''
-
     click.echo("")
     click.echo("#####################################")
     click.echo("##                                 ##")
@@ -59,7 +63,7 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     click.echo("##          Visualization          ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")    
+    click.echo("")
 
     if config_file:
         click.echo('\n' + "Loading configuration info from: " + config_file)
@@ -68,7 +72,7 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     else:
         user_config = None
 
-    # Database configuration and info   
+    # Database configuration and info
     db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
@@ -77,11 +81,11 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')   
+    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
     network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
     station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
     location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')       
+    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
     starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
@@ -116,7 +120,7 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         click.echo("  channel: " + str(channel))
         click.echo("  starttime: " + str(starttime))
         click.echo("  endtime: " + str(endtime))
-        
+
     click.echo("  local_fk_label: " + str(local_fk_label))
 
     click.echo('\n' + "Visualization parameters:")
@@ -125,7 +129,8 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     if figure_out:
         click.echo("  figure_out: " + figure_out)
 
-    stream, latlon = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel, starttime, endtime, local_latlon)
+    stream, latlon = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel,
+                                        starttime, endtime, local_latlon)
 
     # Check if waveform data is specified and populate obspy Stream
     if stream is not None:
@@ -154,7 +159,8 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
                 freq_max = float(line.split(' ')[-1])
 
         beam_times = np.array([t0 + np.timedelta64(int(dt_n * 1e3), 'ms') for dt_n in dt])
-        det_vis.plot_fk1(stream, latlon, beam_times, beam_peaks, title=local_fk_label, output_path=figure_out, show_fig=show_figure)
+        det_vis.plot_fk1(stream, latlon, beam_times, beam_peaks, title=local_fk_label, output_path=figure_out,
+                         show_fig=show_figure)
     else:
         if os.path.isfile(local_fk_label):
             temp = np.loadtxt(local_fk_label)
@@ -192,17 +198,19 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
 @click.option("--local-detect-label", help="Local detection data files", default=None)
 @click.option("--figure-out", help="Destination for figure", default=None)
 @click.option("--show-figure", help="Print figure to screen", default=True)
-def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, station, location, channel, starttime, endtime,
-    local_fk_label, local_detect_label, figure_out, show_figure):
+def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, station, location, channel,
+       starttime, endtime, local_fk_label, local_detect_label, figure_out, show_figure):
     '''
     Visualize detection (fd) results
 
     \b
     Example usage (run from infrapy/examples directory after running fd examples or fkd examples):
-    \tinfrapy plot fd --local-wvfrms 'data/YJ.BRP*'
-    \tinfrapy plot fd --config-file config/detection_local.config
-    \tinfrapy plot fd --config-file config/detection_fdsn.config --figure-out FDSN_fd-results.png --show-figure False
 
+    \tinfrapy plot fd --local-wvfrms 'data/YJ.BRP*'
+
+    \tinfrapy plot fd --config-file config/detection_local.config
+
+    \tinfrapy plot fd --config-file config/detection_fdsn.config --figure-out FDSN_fd-results.png --show-figure False
     '''
 
     click.echo("")
@@ -213,7 +221,7 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     click.echo("##          Visualization          ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")    
+    click.echo("")
 
     if config_file:
         click.echo('\n' + "Loading configuration info from: " + config_file)
@@ -222,7 +230,7 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     else:
         user_config = None
 
-    # Database configuration and info   
+    # Database configuration and info
     db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
@@ -231,11 +239,11 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')   
+    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
     network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
     station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
     location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')       
+    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
     starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
@@ -243,7 +251,8 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
 
     # Result IO
     local_fk_label = config.set_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label, 'string')
+    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+                                          'string')
 
     click.echo('\n' + "Data parameters:")
     if local_wvfrms is not None:
@@ -267,14 +276,15 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         click.echo("  channel: " + str(channel))
         click.echo("  starttime: " + str(starttime))
         click.echo("  endtime: " + str(endtime))
-        
+
     click.echo("  local_fk_label: " + str(local_fk_label))
     click.echo("  local_detect_label: " + str(local_detect_label))
 
     if figure_out:
         click.echo("  figure_out: " + figure_out)
 
-    stream, latlon = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel, starttime, endtime, local_latlon)
+    stream, latlon = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel,
+                                        starttime, endtime, local_latlon)
 
     # Check if waveform data is specified and populate obspy Stream
     if stream is not None:
@@ -284,7 +294,7 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
             else:
                 local_fk_label = ""
             local_fk_label = local_fk_label + data_io.stream_label(stream)
-            
+
         temp = np.loadtxt(local_fk_label + ".fk_results.dat")
         dt, beam_peaks = temp[:, 0], temp[:, 1:]
 
@@ -299,7 +309,7 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
 
         beam_times = np.array([t0 + np.timedelta64(int(dt_n * 1e3), 'ms') for dt_n in dt])
         stream.filter("bandpass", freqmin=freq_min, freqmax=freq_max)
-        
+
         # Read in detection list
         if local_detect_label is None or local_detect_label == 'auto':
             local_detect_label = local_fk_label
@@ -316,7 +326,8 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         else:
             det_thresh = None
 
-        det_vis.plot_fk1(stream, latlon, beam_times, beam_peaks, detections=det_list, title=local_fk_label, output_path=figure_out, det_thresh=det_thresh, show_fig=show_figure)
+        det_vis.plot_fk1(stream, latlon, beam_times, beam_peaks, detections=det_list, title=local_fk_label,
+                         output_path=figure_out, det_thresh=det_thresh, show_fig=show_figure)
     else:
         if os.path.isfile(local_fk_label + ".fk_times.npy"):
             temp = np.loadtxt(local_fk_label + ".fk_results.dat")
@@ -358,28 +369,35 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
 @click.option("--starttime", help="Start time of analysis window", default=None)
 @click.option("--endtime", help="End time of analysis window", default=None)
 @click.option("--local-detect-label", help="Local detection data files", default=None)
-@click.option("--spectral-option", help="Spectrogram method ('spectogram', 'stft', or 'cwt'), default: " + config.defaults['SD']['spectral_option'] + ")", default=None)
-@click.option("--morlet-omega0", help="Frequency scaling for Morlet wavelet in 'cwt', default: " + config.defaults['SD']['morlet_omega0'] + ")", default=None, type=float)
-@click.option("--freq-min", help="Minimum frequency (default: " + config.defaults['SD']['freq_min'] + " [Hz])", default=None, type=float)
-@click.option("--freq-max", help="Maximum frequency (default: " + config.defaults['SD']['freq_max'] + " [Hz])", default=None, type=float)
+@click.option("--spectral-option", help="Spectrogram method ('spectogram', 'stft', or 'cwt'), default: "
+              + config.defaults['SD']['spectral_option'] + ")", default=None)
+@click.option("--morlet-omega0", help="Frequency scaling for Morlet wavelet in 'cwt', default: "
+              + config.defaults['SD']['morlet_omega0'] + ")", default=None, type=float)
+@click.option("--freq-min", help="Minimum frequency (default: " + config.defaults['SD']['freq_min'] + " [Hz])",
+              default=None, type=float)
+@click.option("--freq-max", help="Maximum frequency (default: " + config.defaults['SD']['freq_max'] + " [Hz])",
+              default=None, type=float)
 @click.option("--signal-start", help="Start of analysis window", default=None)
 @click.option("--signal-end", help="End of analysis window", default=None)
 @click.option("--single-det-index", help="Index of a single detection", default=None, type=int)
 @click.option("--figure-out", help="Destination for figure", default=None)
 @click.option("--show-figure", help="Print figure to screen", default=True)
-def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, station, location, channel, starttime, endtime,
-    local_detect_label, spectral_option, morlet_omega0, freq_min, freq_max, signal_start, signal_end, single_det_index, figure_out, show_figure):
+def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, station, location, channel,
+       starttime, endtime, local_detect_label, spectral_option, morlet_omega0, freq_min, freq_max,
+       signal_start, signal_end, single_det_index, figure_out, show_figure):
     '''
     Visualize spectral detection (sd) results
 
     \b
     Example usage (run from infrapy/examples directory after running fd examples or fkd examples):
+
     \tinfrapy plot sd --local-wvfrms 'data/YJ.BRP1..EDF.SAC'
+
     \tinfrapy plot sd --local-wvfrms 'data/YJ.BRP1..EDF.SAC' --spectral-option cwt --morlet-omega0 12.0
+
     \tinfrapy plot sd --local-wvfrms 'data/YJ.BRP1..EDF.SAC' --single-det-index 2
 
     '''
-
     click.echo("")
     click.echo("#####################################")
     click.echo("##                                 ##")
@@ -388,7 +406,7 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     click.echo("##          Visualization          ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")    
+    click.echo("")
 
     if config_file:
         click.echo('\n' + "Loading configuration info from: " + config_file)
@@ -397,7 +415,7 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     else:
         user_config = None
 
-    # Database configuration and info   
+    # Database configuration and info
     db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
@@ -406,18 +424,19 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')   
+    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
     network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
     station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
     location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')       
+    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
     starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
     endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Result IO
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label, 'string')
+    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+                                          'string')
 
     click.echo('\n' + "Data parameters:")
     if local_wvfrms is not None:
@@ -441,7 +460,7 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         click.echo("  channel: " + str(channel))
         click.echo("  starttime: " + str(starttime))
         click.echo("  endtime: " + str(endtime))
-        
+
     click.echo("  local_detect_label: " + str(local_detect_label))
 
     if figure_out:
@@ -449,13 +468,14 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
 
     # Algorithm parameters
     spectral_option = config.set_param(user_config, 'SD', 'spectral_option', spectral_option, 'string')
-    morlet_omega0 = config.set_param(user_config, 'SD', 'morlet_omega0', morlet_omega0, 'float')    
+    morlet_omega0 = config.set_param(user_config, 'SD', 'morlet_omega0', morlet_omega0, 'float')
     freq_min = config.set_param(user_config, 'SD', 'freq_min', freq_min, 'float')
     freq_max = config.set_param(user_config, 'SD', 'freq_max', freq_max, 'float')
     signal_start = config.set_param(user_config, 'SD', 'signal_start', signal_start, 'string')
     signal_end = config.set_param(user_config, 'SD', 'signal_end', signal_end, 'string')
 
-    stream, _ = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel, starttime, endtime, local_latlon)
+    stream, _ = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel,
+                                   starttime, endtime, local_latlon)
 
     # Check if using a signal window
     if signal_start is not None:
@@ -503,18 +523,22 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
     if single_det_index is not None:
         if single_det_index <= len(det_list) - 1:
             click.echo("Plotting detection info for detection index (" + str(single_det_index) + ")..." + '\n')
-            det_vis.plot_sd_single(stream[0], det_list[single_det_index], [freq_min, freq_max], output_path=figure_out, show_fig=show_figure)       
+            det_vis.plot_sd_single(stream[0], det_list[single_det_index], [freq_min, freq_max], output_path=figure_out,
+                                   show_fig=show_figure)
         else:
-            click.echo("Invalid detection index (" + str(single_det_index) + "), only " + str(len(det_list)) + " detections in file.")
+            click.echo("Invalid detection index (" + str(single_det_index) + "), only " + str(len(det_list))
+                       + " detections in file.")
     else:
         click.echo("Plotting spectrogram with detection info..." + '\n')
-        det_vis.plot_sd(stream[0], det_list, [freq_min, freq_max], spec_option=spectral_option, morlet_omega0=morlet_omega0, output_path=figure_out, show_fig=show_figure)
+        det_vis.plot_sd(stream[0], det_list, [freq_min, freq_max], spec_option=spectral_option,
+                        morlet_omega0=morlet_omega0, output_path=figure_out, show_fig=show_figure)
 
 
 @click.command('dets', short_help="Plot detections on a map")
 @click.option("--config-file", help="Configuration file", default=None)
 @click.option("--local-detect-label", help="Detection path and pattern", default=None)
-@click.option("--range-max", help="Max source-receiver range (default: " + config.defaults['LOC']['range_max'] + " [km])", default=None, type=float)
+@click.option("--range-max", help="Max source-receiver range (default: "
+              + config.defaults['LOC']['range_max'] + " [km])", default=None, type=float)
 @click.option("--figure-out", help="Destination for figure", default=None)
 @click.option("--offline-maps-dir", help="Use directory for offline cartopy maps", default=None)
 def dets(config_file, range_max, local_detect_label, figure_out, offline_maps_dir):
@@ -523,11 +547,12 @@ def dets(config_file, range_max, local_detect_label, figure_out, offline_maps_di
 
     \b
     Example usage (run from infrapy/examples directory after running run_assoc example):
+
     \tinfrapy plot dets --local-detect-label 'data/Blom_etal2020_GJI/*'
+
     \tinfrapy plot dets --local-detect-label 'GJI_example-ev0.dets.json'  --range-max 1000
 
     '''
-
     click.echo("")
     click.echo("#####################################")
     click.echo("##                                 ##")
@@ -536,7 +561,7 @@ def dets(config_file, range_max, local_detect_label, figure_out, offline_maps_di
     click.echo("##             Mapping             ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")    
+    click.echo("")
 
 
     if config_file:
@@ -546,7 +571,8 @@ def dets(config_file, range_max, local_detect_label, figure_out, offline_maps_di
     else:
         user_config = None
 
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label, 'string')
+    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+                                          'string')
 
     click.echo('\n' + "Data summary:")
     click.echo("  local_detect_label: " + str(local_detect_label))
@@ -570,7 +596,8 @@ def dets(config_file, range_max, local_detect_label, figure_out, offline_maps_di
 @click.option("--config-file", help="Configuration file", default=None)
 @click.option("--local-detect-label", help="Detection path and pattern", default=None)
 @click.option("--local-loc-label", help="Localization results path", default=None)
-@click.option("--range-max", help="Max source-receiver range (default: " + config.defaults['LOC']['range_max'] + " [km])", default=None, type=float)
+@click.option("--range-max", help="Max source-receiver range (default: " + config.defaults['LOC']['range_max']
+              + " [km])", default=None, type=float)
 @click.option("--zoom", help="Option to zoom in on the estimated source region", default=False)
 @click.option("--figure-out", help="Destination for figure", default=None)
 @click.option("--grnd-truth", help="Ground truth location", default=None)
@@ -581,11 +608,12 @@ def loc(config_file, local_detect_label, local_loc_label, range_max, zoom, figur
 
     \b
     Example usage (run from infrapy/examples directory):
+
     \tinfrapy plot loc --local-detect-label GJI_example-ev0 --local-loc-label GJI_example-ev0 --range-max 1200.0
+
     \tinfrapy plot loc --local-detect-label GJI_example-ev0 --local-loc-label GJI_example-ev0 --zoom true
 
     '''
-
     click.echo("")
     click.echo("#####################################")
     click.echo("##                                 ##")
@@ -593,7 +621,7 @@ def loc(config_file, local_detect_label, local_loc_label, range_max, zoom, figur
     click.echo("##       Localization Mapping      ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")  
+    click.echo("")
 
     if config_file:
         click.echo('\n' + "Loading configuration info from: " + config_file)
@@ -634,8 +662,8 @@ def loc(config_file, local_detect_label, local_loc_label, range_max, zoom, figur
     click.echo(bisl.summarize(bisl_result))
 
     click.echo("Drawing map with BISL source location estimate...")
-    loc_vis.plot_loc(det_list, bisl_result, range_max=range_max, zoom=zoom, title=None, output_path=figure_out, grnd_truth=grnd_truth)
-    
+    loc_vis.plot_loc(det_list, bisl_result, range_max=range_max, zoom=zoom, title=None, output_path=figure_out,
+                     grnd_truth=grnd_truth)
 
 
 @click.command('origin-time', short_help="Plot origin time distribution")
@@ -649,6 +677,7 @@ def origin_time(config_file, local_loc_label, figure_out, grnd_truth):
 
     \b
     Example usage (run from infrapy/examples directory):
+
     \tinfrapy plot origin-time --local-loc-label GJI_example-ev0
     '''
     click.echo("")
@@ -658,7 +687,7 @@ def origin_time(config_file, local_loc_label, figure_out, grnd_truth):
     click.echo("##        Origin Time Plot         ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")  
+    click.echo("")
 
     if config_file:
         click.echo('\n' + "Loading configuration info from: " + config_file)
@@ -680,7 +709,7 @@ def origin_time(config_file, local_loc_label, figure_out, grnd_truth):
 
     click.echo("Plotting origin time distribution...")
     loc_vis.plot_origin_time(bisl_result, output_path=figure_out, grnd_truth=grnd_truth)
-    
+
 
 @click.command('yield', short_help="Plot yield estimate distribution")
 @click.option("--config-file", help="Configuration file", default=None)
@@ -693,10 +722,10 @@ def yield_plot(config_file, local_yld_label, figure_out):
 
     \b
     Example usage (run from infrapy/examples directory):
+
     \tinfrapy plot yield --local-yld-label HRR-5.yld.json
 
     '''
-
     click.echo("")
     click.echo("#####################################")
     click.echo("##                                 ##")
@@ -704,7 +733,7 @@ def yield_plot(config_file, local_yld_label, figure_out):
     click.echo("##       Yield Estimate Plot       ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")  
+    click.echo("")
 
     if config_file:
         click.echo('\n' + "Loading configuration info from: " + config_file)

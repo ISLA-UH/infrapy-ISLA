@@ -1,5 +1,6 @@
 import os
 import json
+from typing import Tuple, Union
 
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QFileDialog, QWidget, QPushButton,
@@ -16,11 +17,23 @@ from obspy import UTCDateTime
 from InfraView.widgets import IPDetectionTableView, IPPickItem, IPNewDetectionDialog, IPPickLine
 from InfraView.widgets import IPUtils
 
+
 class IPDuplicateDetectionDialog(QDialog):
-    def __init__(self, parent=None):
+    """
+    class for detecting duplicates
+    """
+    def __init__(self, parent: QWidget = None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super(IPDuplicateDetectionDialog, self).__init__(parent)
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setWindowTitle("Duplicate Detection")
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok,
@@ -32,28 +45,38 @@ class IPDuplicateDetectionDialog(QDialog):
     def exec_(self, detection, idx):
         pass
 
-class IPDetectionWidget(QWidget):
 
+class IPDetectionWidget(QWidget):
+    """
+    class for detection widget
+    """
     signal_detections_changed = pyqtSignal(list)
     signal_detections_cleared = pyqtSignal()
 
-    _savefile = ("","")        # this should hold the file with it's full path
+    _savefile = ("", "")        # this should hold the file with it's full path
 
     _detections = []
 
     _moving_detection = None
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget = None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
 
         self.parent = parent
 
-        self.buildUI() 
+        self.buildUI()
 
         self.show()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.buildIcons()
 
         self.detection_view = IPDetectionTableView.IPDetectionTableView(self)
@@ -86,8 +109,7 @@ class IPDetectionWidget(QWidget):
         savebutton_layout.addWidget(self.clearButton)
         savebutton_layout.addWidget(self.saveButton)
         savebutton_layout.addWidget(self.saveAsButton)
-        
-        
+
         savebutton_layout.setSizeConstraint(QLayout.SetFixedSize)
 
         vertical_layout = QVBoxLayout()
@@ -108,12 +130,18 @@ class IPDetectionWidget(QWidget):
         self.connectSignalsAndSlots()
 
     def buildIcons(self):
+        """
+        build icons
+        """
         self.clearIcon = QIcon.fromTheme("edit-clear")
         self.openIcon = QIcon.fromTheme("document-open")
         self.saveIcon = QIcon.fromTheme("document-save")
         self.saveAsIcon = QIcon.fromTheme("document-save-as")
 
     def connectSignalsAndSlots(self):
+        """
+        connect signals to widgets
+        """
         # buttons
         self.loadButton.clicked.connect(self.loadDetections)
         self.clearButton.clicked.connect(self.clearDetections)
@@ -124,21 +152,27 @@ class IPDetectionWidget(QWidget):
 
         self.detection_view.signal_delete_detections.connect(self.delete_detections)
 
-    def get_model(self):
+    def get_model(self) -> IPDetectionTableView.IPPandasTableModel:
+        """
+        :return: the pandas table model
+        """
         return self.detection_view.get_model()
 
-    def get_data(self):
+    def get_data(self) -> list:
+        """
+        :return: the list of detections
+        """
         return self._detections
 
     @pyqtSlot(list)
     @pyqtSlot(pd.DataFrame)
-    def set_data(self, data):
+    def set_data(self, data: Union[list, pd.DataFrame]):
         """ SLOT:
-
         Data comes in as either a list of IPPickItems or dataframes, but for the tableview, we need a pandas dataframe
         so first convert the list to a menu list, then to a dataframe (there must be a more elegant way to do this?)
-        """
 
+        :param data: either a list of IPPickItems or a pandas DataFrame
+        """
         if isinstance(data, list):
             if len(data) < 1:
                 # this sets the data to an empty pandas dataframe with the correct headers
@@ -152,16 +186,28 @@ class IPDetectionWidget(QWidget):
         else:  # it must be a dataframe already
             self.detection_view.set_data(data)
 
-    def new_detections(self, 
-                       detections,
-                       lat,
-                       lon,
-                       elev=None,
-                       event=None,
-                       element_cnt=None,
-                       method=None,
-                       fr=None):
+    def new_detections(self,
+                       detections: list,
+                       lat: float,
+                       lon: float,
+                       elev: float,
+                       event: str,
+                       element_cnt: int,
+                       method: str,
+                       fr: Tuple[float, float]) -> bool:
+        """
+        add new detections
 
+        :param detections: list of detections
+        :param lat: latitude in degrees
+        :param lon: longitude in degrees
+        :param elev: elevation in meters
+        :param event: event id
+        :param element_cnt: number of elements in array
+        :param method: detection method
+        :param fr: frequency range tuple
+        :return: True if detections were added, False otherwise
+        """
         if self.new_detections_dialog.exec_(detections, lat, lon, elev, method, fr):
             detections = self.new_detections_dialog.get_detections()
             names = self.new_detections_dialog.get_names()
@@ -196,34 +242,50 @@ class IPDetectionWidget(QWidget):
                     if new_detection.is_equal_to(d):
                         # we already have that detection in the list, so pop up warning and discard the new one
                         duplicate = True
-                        IPUtils.errorPopup("A detection is already in the list at index {}.  The new detection will be discarded".format(jdx), title="Duplicate Detection")
+                        IPUtils.errorPopup("A detection is already in the list at index {}.  The new detection will "
+                                           "be discarded".format(jdx), title="Duplicate Detection")
 
                 if not duplicate:
                     # append the new detection
                     self._detections.append(new_detection)
-            
+
             self.signal_detections_changed.emit(self._detections)
             return True
         else:
             return False
 
-
     def newDetection(self,
-                     pick_name,
-                     time,
-                     F_value,
-                     trace_vel,
-                     back_az,
-                     lat,
-                     lon,
-                     elev=None,
-                     event=None,
-                     start_end=None,
-                     element_cnt=None,
-                     method=None,
-                     fr=None):
+                     pick_name: str,
+                     time: UTCDateTime,
+                     F_value: float,
+                     trace_vel: float,
+                     back_az: float,
+                     lat: float,
+                     lon: float,
+                     elev: float,
+                     event: str,
+                     start_end: Tuple[float, float],
+                     element_cnt: int,
+                     method: str,
+                     fr: Tuple[float, float]) -> bool:
+        """
+        add new detection
 
-        
+        :param pick_name: name of the pick
+        :param time: UTCDateTime of the detection
+        :param F_value: F-statistic value
+        :param trace_vel: trace velocity in m/s
+        :param back_az: back azimuth in degrees
+        :param lat: latitude in degrees
+        :param lon: longitude in degrees
+        :param elev: elevation in meters
+        :param event: event id
+        :param start_end: start and end times
+        :param element_cnt: number of elements in array
+        :param method: detection method
+        :param fr: min and max frequency
+        :return: True if detection was added, False otherwise
+        """
         if self.newDetectionDialog.exec_(time,
                                          F_value,
                                          trace_vel,
@@ -274,7 +336,6 @@ class IPDetectionWidget(QWidget):
             self.signal_detections_changed.emit(self._detections)
 
             return True
-
         else:
             return False
 
@@ -285,10 +346,12 @@ class IPDetectionWidget(QWidget):
         pass
 
     def saveDetections(self):
-
+        """
+        save detections
+        """
         # if there is no current filename, prompt for one...
         # TODO: if there is an open project, default to that
-        if self._savefile == ("",""):
+        if self._savefile == ("", ""):
             self.saveDetectionsAs()
         else:
             data_to_save = []
@@ -306,10 +369,10 @@ class IPDetectionWidget(QWidget):
                     fileText = 'savefile: ...' + fileText[-28:]
                 self.fileLabel.setText(fileText)
 
-   
-
     def saveDetectionsAs(self):
-
+        """
+        save detections as
+        """
         if len(self._detections) == 0:
             IPUtils.errorPopup('No Detections to Save')
             return
@@ -342,6 +405,9 @@ class IPDetectionWidget(QWidget):
                 self.fileLabel.setText(fileText)
 
     def loadDetections(self):
+        """
+        load detections
+        """
         # open a file and load the picks
         if self.parent.getProject() is None:
             # force a new filename...
@@ -375,10 +441,12 @@ class IPDetectionWidget(QWidget):
         self.signal_detections_changed.emit(self._detections)
 
     @pyqtSlot(list)
-    def delete_detections(self, detections_to_delete):
+    def delete_detections(self, detections_to_delete: list):
         """SLOT:
 
         This method will delete a set of detections based on a list of their indexes.
+
+        :param detections_to_delete: list of indexes to delete
         """
         detections_to_delete.sort(reverse=True)
         for idx in detections_to_delete:
@@ -392,6 +460,8 @@ class IPDetectionWidget(QWidget):
 
         This method will delete a single detection based on a referece to its detectionLine, this is
         generally connected to a delete_me signal from a pickline
+
+        :param detectionLine: the detection line to delete
         """
         for detection in self._detections:
             if detection.getAssociatedPickLine() is detectionLine:
@@ -403,7 +473,11 @@ class IPDetectionWidget(QWidget):
         """SLOT:
         slot called when someone is dragging a detection line.  The main purpose of this is to
         1. update the detection table with the new time
-        2. assign a detection to the _moving_detection variable so that detectionLineMoved will know what to update (this might be superfluous)
+        2. assign a detection to the _moving_detection variable so that detectionLineMoved will know what to update
+            (this might be superfluous)
+
+        :param detectionLine: the detection line being moved
+        :param pos: the new position of the detection line
         """
         est = UTCDateTime(self.parent.get_earliest_start_time())
         for detection in self._detections:
@@ -413,11 +487,16 @@ class IPDetectionWidget(QWidget):
                 self._moving_detection = detection
 
     @pyqtSlot(float)
-    def detectionLineMoved(self, EndingPos, fstat, backaz, tracev):
+    def detectionLineMoved(self, EndingPos, fstat: float, backaz: float, tracev: float):
         """ SLOT:
 
             This slot will update the table when it receives a signal that the detection
             line was moved.
+
+        :param EndingPos: the new position of the detection line
+        :param fstat: the new F-statistic value
+        :param backaz: the new back azimuth value
+        :param tracev: the new trace velocity value
         """
         newUTCtime = UTCDateTime(self.parent.get_earliest_start_time()) + EndingPos
         self._moving_detection.set_peakF_UTCtime(newUTCtime)
@@ -459,7 +538,6 @@ class IPDetectionWidget(QWidget):
                 detectionline.addStartEndBars(start_end)
 
                 self.signal_detections_changed.emit(self._detections)   # should trigger a redraw
-
                 return  # and we're done here
 
     @pyqtSlot(IPPickLine.IPPickLine)
@@ -478,7 +556,13 @@ class IPDetectionWidget(QWidget):
                 return  # and we're done here
 
     @pyqtSlot(IPPickLine.IPPickLine, list)
-    def updateDetectionStartEnd(self, detectionline, start_end):
+    def updateDetectionStartEnd(self, detectionline, start_end: Tuple[float, float]):
+        """
+        update detection with start/end times
+
+        :param detectionline: the detection line to update
+        :param start_end: list of start and end times
+        """
         for detection in self._detections:
             if detection.getAssociatedPickLine() is detectionline:
                 detection.set_start(start_end[0])

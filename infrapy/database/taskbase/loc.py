@@ -54,8 +54,8 @@ warnings.filterwarnings('error')
 
 import glob
 
+status = 0
 
-status=0
 
 def run_bislSC_wrapper(args):
     '''
@@ -63,13 +63,13 @@ def run_bislSC_wrapper(args):
     '''
     try:
         global status
-        if len(args[0])==0:
-            #print 'No detections'
+        if len(args[0]) == 0:
+            # print 'No detections'
             return []
-        #print 'start:',args[-2]
+        # print 'start:',args[-2]
 
-        if bisl_qc_check(args[0], args[1])==False:
-            #print 'Assoc may not converge'
+        if bisl_qc_check(args[0], args[1]):
+            # print 'Assoc may not converge'
             st=[]
         else:
             try:
@@ -120,6 +120,7 @@ def run_bislSC_wrapper(args):
         return []
 
     return st
+
 
 class LocInfraPy(Base):
     '''

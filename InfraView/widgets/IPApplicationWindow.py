@@ -1,15 +1,16 @@
+from typing import Optional, Tuple
 import pyqtgraph as pg
 import numpy as np
 import os, platform, yaml
 import qdarktheme, darkdetect
 from pathlib import Path
 
-
 # obspy includes
 from obspy.core import read as obsRead
 from obspy.core import UTCDateTime
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from obspy.core.stream import Stream
+from obspy.core.trace import Trace
 
 # PyQt5 includes
 from PyQt5 import QtWidgets
@@ -34,7 +35,6 @@ from InfraView.widgets import IPSingleSensorWidget
 from InfraView.widgets import IPUtils
 from InfraView.widgets import IPWaveformWidget
 
-
 # multiprocessing modules
 import pathos.multiprocessing as mp
 from multiprocessing import cpu_count
@@ -44,15 +44,16 @@ import warnings
 
 
 class IPApplicationWindow(QtWidgets.QMainWindow):
-
+    """
+    Main application window
+    """
     warnings.filterwarnings('ignore', message='Item already added to PlotItem, ignoring')
-    
+
     sig_stream_changed = pyqtSignal(Stream)
     sig_inventory_changed = pyqtSignal(Inventory, str)
 
-    # this tab will emit the name of the widget corresponding to the clicked action 
+    # this tab will emit the name of the widget corresponding to the clicked action
     sig_widget_changed = pyqtSignal(str)
-
 
     # variable to hold the reference of the loaded project object (if any)
     project = None
@@ -69,7 +70,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.ipApp = qApp   # reference to the application
 
         pg.setConfigOption('antialias', True)
-        pg.setConfigOption('foreground', pg.mkColor(128,128,128))
+        pg.setConfigOption('foreground', pg.mkColor(128, 128, 128))
 
         self.progname = progname
         self.progversion = progversion
@@ -92,6 +93,9 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 self.set_theme('dark')
 
     def buildUI(self):
+        """
+        Builds the main UI elements
+        """
         self.setWindowTitle("Infraview")
         self.main_widget = QWidget(self)
 
@@ -106,7 +110,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.locationWidget = IPLocationWidget.IPLocationWidget(self, self.mp_pool)
         self.databaseWidget = IPDatabaseWidget.IPDatabaseWidget(self)
 
-        # For convenience, keep referencces to the widgets in a dict. 
+        # For convenience, keep referencces to the widgets in a dict.
         # to make things simple, have the keys be lower case strings of the Tab Names
         self.widget_dict = {'waveforms': self.waveformWidget,
                             'beamforming': self.beamformingWidget,
@@ -114,7 +118,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                             'database': self.databaseWidget,
                             'spectral': self.singleSensorWidget,
                             'app_window': self}
-        
+
         # now that we have a settings manager and settings widgets along with the actual controled widgets
         # we need to give a reference of the controlled widgets to the respective settings widgets
         self.settings_manager.connect_widgets_and_settings(self.widget_dict)
@@ -131,7 +135,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         mainLayout = QVBoxLayout(self.main_widget)
         mainLayout.addWidget(self.settings_manager)        # add the main widgets to the application tabs
         mainLayout.addWidget(self.mainStack)
-        mainLayout.setContentsMargins(0,0,0,0)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
 
         # Load the default settings
         self.settings_manager.load_default_settings()
@@ -149,7 +153,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.connectSignalsAndSlots()
 
         self.setCentralWidget(self.main_widget)
-        self.main_widget.setContentsMargins(0,0,0,0)
+        self.main_widget.setContentsMargins(0, 0, 0, 0)
 
         # Instantiate dialogs here
         self.fill_sta_info_dialog = IPFillStationInfoDialog()
@@ -157,6 +161,9 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.aboutDialog = IPAboutDialog(self.progname, self.progversion)
 
     def debug_trace(self):  # for debugging, you have to call pyqtRemoveInputHook before set_trace()
+        """
+        debug trace
+        """
         from PyQt5.QtCore import pyqtRemoveInputHook
         from pdb import set_trace
         pyqtRemoveInputHook()
@@ -164,6 +171,9 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot()
     def on_palette_change(self):
+        """
+        function for palette change
+        """
         # OSX is always auto set, if Linux or Windows, check to see if the theme is auto changed
         if platform.system() == 'Darwin':
             self.set_theme(darkdetect.theme().lower())
@@ -174,9 +184,14 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 self.set_theme('dark')
             elif darkdetect.isLight():
                 self.set_theme('light')
-    
+
     @pyqtSlot(str)
-    def set_theme(self, t):
+    def set_theme(self, t: str):
+        """
+        set the theme
+
+        :param t: theme name
+        """
         if t == 'auto':
             t = darkdetect.theme().lower()
 
@@ -191,15 +206,25 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot()
     def toggle_settings(self):
-         self.settings_manager.setVisible(self.settings_manager.isHidden())
+        """
+        toggles settings visibility
+        """
+        self.settings_manager.setVisible(self.settings_manager.isHidden())
 
     @pyqtSlot(str)
     def activate_widget(self, name):
+        """
+        activate the named widget
+        :param name: name of the widget to activate
+        """
         self.mainStack.setCurrentWidget(self.widget_dict[name])
         self.setWindowTitle(self.progname + " - " + name.title())
         self.sig_widget_changed.emit(name)
 
     def connectSignalsAndSlots(self):
+        """
+        connect signals to plots
+        """
         self.menuBar.sig_set_theme.connect(self.set_theme)
 
         self.ipApp.paletteChanged.connect(self.on_palette_change)
@@ -214,27 +239,39 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.beamformingWidget.detectionWidget.signal_detections_cleared.connect(self.locationWidget.detections_cleared)
 
         self.databaseWidget.ipdatabase_query_results_table.signal_new_stream_from_db.connect(self.database_add_streams)
-        self.databaseWidget.ipevent_query_results_table.sig_origin_changed.connect(self.locationWidget.showgroundtruth.event_widget.setEvent)
+        self.databaseWidget.ipevent_query_results_table.sig_origin_changed.connect(
+            self.locationWidget.showgroundtruth.event_widget.setEvent)
 
         # connect tabs to the settings manager so it can adjust when tabs are clicked
         self.sig_widget_changed.connect(self.settings_manager.widget_changed)
 
-        self.waveformWidget.plotViewer.lr_settings_widget.noiseSpinsChanged.connect(self.beamformingWidget.bottomSettings.setNoiseValues)
-        self.waveformWidget.plotViewer.lr_settings_widget.signalSpinsChanged.connect(self.beamformingWidget.bottomSettings.setSignalValues)
+        self.waveformWidget.plotViewer.lr_settings_widget.noiseSpinsChanged.connect(
+            self.beamformingWidget.bottomSettings.setNoiseValues)
+        self.waveformWidget.plotViewer.lr_settings_widget.signalSpinsChanged.connect(
+            self.beamformingWidget.bottomSettings.setSignalValues)
         self.waveformWidget.psdWidget.f1_Spin.valueChanged.connect(self.beamformingWidget.bottomSettings.setFmin)
         self.waveformWidget.psdWidget.f2_Spin.valueChanged.connect(self.beamformingWidget.bottomSettings.setFmax)
-        self.waveformWidget.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.beamformingWidget.bottomSettings.setFreqValues)
+        self.waveformWidget.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(
+            self.beamformingWidget.bottomSettings.setFreqValues)
 
         self.menuBar.sig_activate_widget.connect(self.activate_widget)
-        
 
-    def setStatus(self, s, ms=0):
+    def setStatus(self, s: str, ms: int = 0):
+        """
+        Show status message
+
+        :param s: message
+        :param ms: time for display in milliseconds
+        """
         self.statusBar().showMessage(s, ms)
 
     def filemenu_NewProject(self):
+        """
+        create menu for new project
+        """
         self.project = IPProject.IPProject()
         if self.project.makeNewProject():
-            self.setWindowTitle(self.progname + ' - ' + self.project.getprojectName())
+            self.setWindowTitle(self.progname + ' - ' + self.project.get_projectName())
             self.setStatus(self.project.get_projectName() + ' successfully loaded', 5000)
 
             settings = QSettings('LANL', 'InfraView')
@@ -242,8 +279,11 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
             settings.setValue("last_baseProject_directory", str(self.project.get_basePath()))
             settings.setValue('last_project_directory', str(self.project.get_projectPath))
             settings.endGroup()
-            
+
     def filemenu_LoadProject(self):
+        """
+        create menu for loading project
+        """
         newProject = IPProject.IPProject()
         if newProject.loadProject():
             self.project = newProject
@@ -257,6 +297,9 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
             settings.endGroup()
 
     def filemenu_CloseProject(self):
+        """
+        create menu for closing project
+        """
         self.setWindowTitle(self.progname)
         # self.consoleBox.append('Closed Project: ' + self.project.get_projectName())
         self.filemenu_ClearWaveforms()
@@ -264,21 +307,36 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
             self.setStatus(self.project.get_projectName() + ' successfully closed', 5000)
             self.project = None
 
-    def getProject(self):
+    def getProject(self) -> Optional[IPProject.IPProject]:
+        """
+        :return: project object or None if no project is loaded
+        """
         return self.project
 
-    def get_earliest_start_time(self):
+    def get_earliest_start_time(self) -> float:
+        """
+        :return: earliest start time
+        """
         return self._earliest_start_time
 
-    def get_latest_end_time(self):
+    def get_latest_end_time(self) -> float:
+        """
+        :return: latest end time
+        """
         return self._latest_end_time
 
     def filemenu_Quit(self):
+        """
+        Close the application
+        """
         self.close()
 
     def filemenu_Open(self):
-        # if this hasn't been run yet, I want to default to opening the /data directory.  This can be found relative to the 
-        # current directory via...
+        """
+        create menu for opening files
+        """
+        # if this hasn't been run yet, I want to default to opening the /data directory.  This can be found relative to
+        # the current directory via...
         default_data_dir = os.path.join(os.path.dirname(__file__), '../../examples/data')
         if self.project is None:
             # force a new filename...
@@ -313,25 +371,20 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 else:
                     self.project.set_dataPath(ipath)
                 try:
-
                     new_stream = obsRead(ifile)
-                    
                     for trace in new_stream:
-                        
                         trace_name = trace.id
-
                         if trace_name in current_trace_names:
                             # redundant trace!
                             _, staid, _, _ = self.parseTraceName(trace_name)
                             self.redundant_trace_dialog.exec_(trace_name)
 
-                            if  self.redundant_trace_dialog.get_result():
+                            if self.redundant_trace_dialog.get_result():
                                 # if accepted, they want to use the new trace so first remove the old one
                                 self.waveformWidget.remove_from_inventory(staid)
-                                
                             else:
                                 # if rejected, they want to keep the old trace, and ignore this one
-                                #so remove the trace from new_stream, and continue to the next trace
+                                # so remove the trace from new_stream, and continue to the next trace
                                 new_stream.remove(trace)
                                 continue
 
@@ -343,8 +396,8 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
                         # for now we will remove dc offset when loading the file.  Maybe should be an option?
                         trace.data = trace.data - np.mean(trace.data)
-                    
-                    if self.waveformWidget._sts is not None:   
+
+                    if self.waveformWidget._sts is not None:
                         self.waveformWidget._sts += new_stream
                     else:
                         self.waveformWidget._sts = new_stream
@@ -366,7 +419,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
             self.sig_stream_changed.emit(self.waveformWidget._sts)
 
             if new_inventory is not None:
-                
                 self.sig_inventory_changed.emit(new_inventory, 'PROMPT')
 
             # self.mainTabs.setCurrentIndex(0)
@@ -377,16 +429,25 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
             return
 
     def filemenu_import(self):
+        """
+        create menu for importing
+        """
         if self.fdsnDialog.exec_():
             self.menuBar.activate_waveforms(True)
 
     def filemenu_ClearWaveforms(self):
+        """
+        clear waveforms from display
+        """
         self.beamformingWidget.clearWaveformPlot()
         self.waveformWidget.clearWaveforms()
         self.singleSensorWidget.clearWaveformPlots()
         self.waveformWidget.stationViewer.clear_all()
 
     def filemenu_saveAllWaveforms(self):
+        """
+        create menu for saving waveforms
+        """
         if self.waveformWidget._sts is None:
             IPUtils.errorPopup('Oh dear...no waveforms to save.')
             return
@@ -405,7 +466,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         accepted = self.saveAllDialog.exec_(self.waveformWidget._sts, previousDirectory)
 
         if accepted:
-
             saveDir = self.saveAllDialog.getSaveDirectory()
             whichData = self.saveAllDialog.getFileChoiceData()
             if whichData == 1:
@@ -427,11 +487,16 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 # filter traces, then save them
                 for idx, trace in enumerate(self.waveformWidget.get_filtered_streams()):
                     trace.write(saveDir + '/' + filteredfileInfo[idx]['fname'], format=filteredfileInfo[idx]['format'])
-
         return
 
     @pyqtSlot(Stream, bool)
-    def database_add_streams(self, new_stream, append):
+    def database_add_streams(self, new_stream: Stream, append: bool):
+        """
+        add streams
+
+        :param new_stream: stream to add
+        :param append: if True, append new stream, otherwise replace existing stream
+        """
         current_trace_names = []
         new_inventory = None
         if self.waveformWidget._sts:
@@ -444,12 +509,12 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 _, staid, _, _ = self.parseTraceName(trace_name)
                 self.redundant_trace_dialog.exec_(trace_name)
 
-                if  self.redundant_trace_dialog.get_result():
+                if self.redundant_trace_dialog.get_result():
                     # if accepted, they want to use the new trace so first remove the old one
                     self.waveformWidget.remove_from_inventory(staid)
                 else:
                     # if rejected, they want to keep the old trace, and ignore this one
-                    #so remove the trace from new_stream, and continue to the next trace
+                    # so remove the trace from new_stream, and continue to the next trace
                     new_stream.remove(trace)
                     continue
             # do our best to generate new inventory from the new stream
@@ -460,26 +525,37 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
             # for now we will remove dc offset when loading the file.  Maybe should be an option?
             trace.data = trace.data - np.mean(trace.data)
-        
+
         if append:
             self.waveformWidget.appendTraces(new_stream, new_inventory)
-        else: # Replace
+        else:  # Replace
             self.waveformWidget.replaceTraces(new_stream, new_inventory)
 
-    def parseTraceName(self, trace_name):
+    def parseTraceName(self, trace_name: str) -> Tuple[str, str, str, str]:
+        """
+        :return: network, station, location, channel from trace name
+        """
         bits = trace_name.split('.')
         return bits[0], bits[1], bits[2], bits[3]
 
     def viewmenu_toggle_fullscreen(self):
+        """
+        toggle fullscreen view
+        """
         if self.is_fullscreen:
             self.showNormal()
             self.is_fullscreen = False
         else:
             self.showFullScreen()
             self.is_fullscreen = True
-                
-    def trace_to_inventory(self, trace):
-        # if sac files are opened, it's useful to extract inventory from their streams so that we can populate the 
+
+    def trace_to_inventory(self, trace: Trace):
+        """
+        add trace to inventory
+
+        :param trace: trace to add
+        """
+        # if sac files are opened, it's useful to extract inventory from their streams so that we can populate the
         # stations tabs and the location widget
         new_inventory = None
 
@@ -488,12 +564,12 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         #
         # We'll first create all the various objects. These strongly follow the
         # hierarchy of StationXML files.
-        # initialize the lat/lon/ele 
+        # initialize the lat/lon/ele
         lat = 0.0
         lon = 0.0
         ele = 0.0
 
-        network = trace.stats['network'] 
+        network = trace.stats['network']
         station = trace.stats['station']
         channel = trace.stats['channel']
         location = trace.stats['location']
@@ -506,7 +582,7 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
             if 'stlo' in trace.stats['sac']:
                 lon = trace.stats['sac']['stlo']
-        
+
             if 'stel' in trace.stats['sac']:
                 ele = trace.stats['sac']['stel']
             else:
@@ -514,14 +590,14 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
         if lat == 0.0 or lon == 0.0 or ele < 0:
             if self.fill_sta_info_dialog.exec_(network, station, location, channel, lat, lon, ele):
-                
+
                 edited_values = self.fill_sta_info_dialog.get_values()
-                
+
                 lat = edited_values['lat']
                 lon = edited_values['lon']
                 ele = edited_values['ele']
 
-                network = edited_values['net'] 
+                network = edited_values['net']
                 station = edited_values['sta']
                 location = edited_values['loc']
                 channel = edited_values['cha']
@@ -538,13 +614,13 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 trace.stats['station'] = station
                 trace.stats['location'] = location
                 trace.stats['channel'] = channel
-        try:            
+        try:
             new_inventory = Inventory(
                 # We'll add networks later.
                 networks=[],
                 # The source should be the id whoever create the file.
                 source="InfraView")
-            
+
             net = Network(
                 # This is the network code according to the SEED standard.
                 code=network,
@@ -553,7 +629,6 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 # Description isn't something that's in the trace stats or SAC header, so lets set it to the network cod
                 description=network,
                 # Start-and end dates are optional.
-
                 # Start and end dates for the network are not stored in the sac header so lets set it to 1/1/1900
                 start_date=UTCDateTime(1900, 1, 1))
 
@@ -570,13 +645,13 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
 
             # This is the channel code according to the SEED standard.
             cha = Channel(code=channel,
-                        # This is the location code according to the SEED standard.
-                        location_code=location,
-                        # Note that these coordinates can differ from the station coordinates.
-                        latitude=lat,
-                        longitude=lon,
-                        elevation=ele,
-                        depth=0.0)
+                          # This is the location code according to the SEED standard.
+                          location_code=location,
+                          # Note that these coordinates can differ from the station coordinates.
+                          latitude=lat,
+                          longitude=lon,
+                          elevation=ele,
+                          depth=0.0)
 
             # Now tie it all together.
             # cha.response = response
@@ -592,13 +667,16 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
                 bad_values = bad_values + "\tlon = " + str(lon) + "\n"
             if lat < -90 or lat > 90:
                 bad_values = bad_values + "\tlat = " + str(lat)
-            IPUtils.errorPopup("There seems to be a value error in "+ network + "." + station + "." + channel + "\nPossible bad value(s) are:\n" + bad_values)
+            IPUtils.errorPopup("There seems to be a value error in " + network + "." + station + "." + channel
+                               + "\nPossible bad value(s) are:\n" + bad_values)
 
     # ------------------------------------------------------------------------------
     # Settings methods
 
     def restoreWindowGeometrySettings(self):
-        # Restore the widgets geometry settings
+        """
+        Restore the widgets geometry settings
+        """
         settings = QSettings('LANL', 'InfraView')
         settings.beginGroup('MainWindow')
         self.resize(settings.value("windowSize", QSize(1000, 900)))
@@ -610,7 +688,9 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
         self.waveformWidget.restoreWindowGeometrySettings()
 
     def saveWindowGeometrySettings(self):
-        # save the widgets geometry settings
+        """
+        Save the widgets geometry settings
+        """
         settings = QSettings('LANL', 'InfraView')
         settings.beginGroup('MainWindow')
         settings.setValue("windowSize", self.size())
@@ -625,6 +705,9 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     # Clean up
 
     def closeEvent(self, event):
+        """
+        close the application
+        """
         self.saveWindowGeometrySettings()
         self.mp_pool.close()
         event.accept()
@@ -633,31 +716,51 @@ class IPApplicationWindow(QtWidgets.QMainWindow):
     # Obligatory about
 
     def helpmenu_about(self):
+        """
+        print help info
+        """
         self.aboutDialog.exec_()
-        #QtWidgets.QMessageBox.about(self, "About", self.progname + "   " + self.progversion + "\n" + "Copyright 2018\nLos Alamos National Laboratory")
+        # QtWidgets.QMessageBox.about(self, "About", self.progname + "   " + self.progversion + "\n"
+        # + "Copyright 2018\nLos Alamos National Laboratory")
 
 
 class IPAboutDialog(QDialog):
-    def __init__(self, progname, progversion):
+    """
+    Class for the about dialog
+    """
+    def __init__(self, progname: str, progversion: str):
+        """
+        create the about dialog
+
+        :param progname: program name
+        :param progversion: program version
+        """
         super().__init__()
         self.buildUI(progname, progversion)
 
-    def buildUI(self, name, version):
+    def buildUI(self, name: str, version: str):
+        """
+        Build the UI
+
+        :param name: program name
+        :param version: program version
+        """
         self.setWindowTitle("InfraView: About")
-        
+
         info_label = QLabel('\n' + name + '\nVersion: ' + version + '\nCopyright 2018 Los Alamos National Laboratory\n')
         label_font = info_label.font()
         label_font.setPixelSize(12)
         info_label.setFont(label_font)
 
-        image_path = Path(Path(__file__).parent.parent.parent, 'infrapy', 'resources', 'PNG', 'LANL_Logo_Ultramarine.png')
+        image_path = Path(Path(__file__).parent.parent.parent, 'infrapy', 'resources', 'PNG',
+                          'LANL_Logo_Ultramarine.png')
         logo_pixmap = QPixmap(str(image_path))
         logo_label = QLabel(self)
         logo_label.setPixmap(logo_pixmap)
 
-        cpu_label = QLabel('Total CPU Count: ' + str(cpu_count()) + '\nCPUs Used: ' + str(cpu_count() -1))
+        cpu_label = QLabel('Total CPU Count: ' + str(cpu_count()) + '\nCPUs Used: ' + str(cpu_count() - 1))
         cpu_label.setFont(label_font)
-        
+
         layout = QVBoxLayout()
         layout.addWidget(logo_label)
         layout.addWidget(info_label)
@@ -666,18 +769,32 @@ class IPAboutDialog(QDialog):
 
 
 class IPRedundantTraceDialog(QDialog):
-
+    """
+    class for redundant trace dialog
+    """
     def __init__(self):
+        """
+        initialize
+        """
         super().__init__()
         self.buildUI()
-        
-    def exec_(self, trace_name):
-        intro_text = "I appears there is already a trace loaded with the name " + trace_name +". Would you like to keep the one that is currently in memory, or replace it with this one?"
+
+    def exec_(self, trace_name: str):
+        """
+        execute the dialog
+
+        :param trace_name: name of the trace
+        """
+        intro_text = "I appears there is already a trace loaded with the name " + trace_name \
+            + ". Would you like to keep the one that is currently in memory, or replace it with this one?"
         self.intro_label.setText(intro_text)
 
         return super().exec_()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setWindowTitle("InfraView: Redundant Trace")
         self.intro_label = QLabel("")
         self.intro_label.setWordWrap(True)
@@ -698,46 +815,71 @@ class IPRedundantTraceDialog(QDialog):
         self.setLayout(vbox_layout)
 
     def accept(self):
+        """
+        accept function
+        """
         self.result = True
         super().accept()
 
     def reject(self):
+        """
+        reject function
+        """
         self.result = False
         super().reject()
 
     def get_result(self):
+        """
+        :return: result
+        """
         return self.result
 
 
 class IPFillStationInfoDialog(QDialog):
-
+    """
+    class for filling station info
+    """
     def __init__(self):
+        """
+        initialize
+        """
         super().__init__()
         self.buildUI()
-        
 
-    def exec_(self, net, sta, loc, cha, lat, lon, ele):
+    def exec_(self, net: str, sta: str, loc: str, cha: str, lat: float, lon: float, ele: float):
+        """
+        set the values of the station info
 
+        :param net: network code
+        :param sta: station code
+        :param loc: location code
+        :param cha: channel code
+        :param lat: latitude in degrees
+        :param lon: longitude in degrees
+        :param ele: elevation in meters
+        """
         self.lat_spin.setValue(lat)
         self.lon_spin.setValue(lon)
         self.ele_spin.setValue(ele)
-
         self.net_edit.setText(net)
         self.sta_edit.setText(sta)
         self.loc_edit.setText(loc)
         self.cha_edit.setText(cha)
-        
         self.update_fullname_label()
 
         return super().exec_()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setWindowTitle('InfraView: Trace metadata')
         self.setMinimumWidth(300)
         self.setMaximumWidth(400)
 
-        intro_text = """Some of the inventory information in this trace's stats appears to be absent or incorrect. This could cause problems later. 
-        You can edit the information here.  If you have a stationxml file, you can skip this form and load your stationxml file from the Station tab later."""
+        intro_text = """Some of the inventory information in this trace's stats appears to be absent or incorrect.\
+            This could cause problems later.  You can edit the information here.  If you have a stationxml file, \
+            you can skip this form and load your stationxml file from the Station tab later."""
         self.intro_label = QLabel(intro_text)
         self.intro_label.setWordWrap(True)
 
@@ -754,7 +896,7 @@ class IPFillStationInfoDialog(QDialog):
         self.lon_spin.setSingleStep(0.1)
 
         self.ele_spin = QDoubleSpinBox()
-        self.ele_spin.setRange(-20000,20000)
+        self.ele_spin.setRange(-20000, 20000)
         self.ele_spin.setMaximumWidth(100)
         self.ele_spin.setDecimals(2)
 
@@ -762,27 +904,30 @@ class IPFillStationInfoDialog(QDialog):
 
         caps_validator = IPUtils.CapsValidator(self)
 
+        default_tooltip = 'Wildcards OK \nCan be SEED network codes or data center defined codes. ' \
+                          '\nMultiple codes are comma-separated (e.g. "IU,TA").'
+
         # Network selector
         self.net_edit = QLineEdit()
-        self.net_edit.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes. \nMultiple codes are comma-separated (e.g. "IU,TA").')
+        self.net_edit.setToolTip(default_tooltip)
         self.net_edit.setMaximumWidth(60)
         self.net_edit.setValidator(caps_validator)
 
         self.sta_edit = QLineEdit()
         self.sta_edit.setMaximumWidth(60)
-        self.sta_edit.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes. \nMultiple codes are comma-separated (e.g. "IU,TA").')
+        self.sta_edit.setToolTip(default_tooltip)
         self.sta_edit.setValidator(caps_validator)
 
         self.loc_edit = QLineEdit()
         self.loc_edit.setMaximumWidth(60)
-        self.loc_edit.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes. \nMultiple codes are comma-separated (e.g. "IU,TA").')
+        self.loc_edit.setToolTip(default_tooltip)
         self.loc_edit.setValidator(caps_validator)
 
         self.cha_edit = QLineEdit()
         self.cha_edit.setMaximumWidth(60)
-        self.cha_edit.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes. \nMultiple codes are comma-separated (e.g. "IU,TA").')
+        self.cha_edit.setToolTip(default_tooltip)
         self.cha_edit.setValidator(caps_validator)
-        
+
         # OK and Cancel buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
                                    Qt.Horizontal,
@@ -818,13 +963,19 @@ class IPFillStationInfoDialog(QDialog):
         self.connectSignalsAndSlots()
 
     def connectSignalsAndSlots(self):
+        """
+        connect signals
+        """
         self.net_edit.textChanged.connect(self.update_fullname_label)
         self.sta_edit.textChanged.connect(self.update_fullname_label)
         self.loc_edit.textChanged.connect(self.update_fullname_label)
         self.cha_edit.textChanged.connect(self.update_fullname_label)
 
-    def get_values(self):
-        values = {"net": self.net_edit.text(), 
+    def get_values(self) -> dict:
+        """
+        :return: dictionary of station info values
+        """
+        values = {"net": self.net_edit.text(),
                   "sta": self.sta_edit.text(),
                   "loc": self.loc_edit.text(),
                   "cha": self.cha_edit.text(),
@@ -835,9 +986,10 @@ class IPFillStationInfoDialog(QDialog):
 
     @pyqtSlot()
     def update_fullname_label(self):
-        self.full_name.setText(self.net_edit.text() + '.' + 
-                               self.sta_edit.text() + '.' + 
-                               self.loc_edit.text() + '.' + 
+        """
+        update the full name label
+        """
+        self.full_name.setText(self.net_edit.text() + '.' +
+                               self.sta_edit.text() + '.' +
+                               self.loc_edit.text() + '.' +
                                self.cha_edit.text())
-
-

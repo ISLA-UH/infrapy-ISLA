@@ -8,12 +8,12 @@
 #
 # Author(s) Philip Blom (pblom@lanl.gov)
 #           Garrett Euler (ggeuler@lanl.gov)
-
 import time
 import itertools
 import random
 import sys
 import os
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
@@ -43,13 +43,15 @@ from ..utils import latlon as ll
 # ################################ #
 sph_proj = Geod(ellps='sphere')
 
+
 # ################################ #
 #       Combining a Pair of        #
 #      Detection Likelihoods       #
 # ################################ #
-
-def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, rad_max=1000.0):
-    """Defines the integration region for computation of the joint-likelihood for a pair of detections
+def set_region(det1: lklhds.InfrasoundDetection, det2: lklhds.InfrasoundDetection, bm_width: float = 10.0,
+               rng_max: float = np.pi / 2.0 * 6370.0, rad_min: float = 100.0, rad_max: float = 1000.0
+               ) -> Tuple[bool, np.ndarray, float]:
+    """ Defines the integration region for computation of the joint-likelihood for a pair of detections
 
         Projects finite width beams from each of the detecting arrays and looks for intersections
         of the primary (center) and secondary (edge) lines to define the integration region
@@ -77,9 +79,7 @@ def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=
             Center of the integration region as latitude, longitude pair [degrees]
         Radius : float
             Radius of the integration region [km]
-
         """
-
     # figure out if hard coding this scaling works...
     rad_min = 100.0
     rad_max = rng_max / 4.0
@@ -98,7 +98,7 @@ def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=
     proj2up = ll.sphericalfwd(latlon2, rng_max / 6370.0 * 180.0 / np.pi, det2.back_azimuth + bm_width)[0][0]
     proj2dn = ll.sphericalfwd(latlon2, rng_max / 6370.0 * 180.0 / np.pi, det2.back_azimuth - bm_width)[0][0]
 
-    intersect = [0] * 9
+    intersect: list = [0] * 9
     intersect[0] = ll.gcarc_intersect(latlon1, proj1, latlon2, proj2)[0]
     intersect[1] = ll.gcarc_intersect(latlon1, proj1, latlon2, proj2up)[0]
     intersect[2] = ll.gcarc_intersect(latlon1, proj1, latlon2, proj2dn)[0]
@@ -146,7 +146,8 @@ def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=
         # If both arrays are in the beams of the other, use mid-point
         # and distance for region definition
 
-        center = np.array(np.flipud(sph_proj.fwd(det1.longitude, det1.latitude, temp[0], temp[2] / 2.0, radians=False)[:2]))
+        center = np.array(np.flipud(sph_proj.fwd(det1.longitude, det1.latitude, temp[0], temp[2] / 2.0,
+                                                 radians=False)[:2]))
         reg_rad = (temp[2] / 1000.0) / 2.0 - 0.1
         reg_rad = min(reg_rad, rad_max)
     elif abs(az_diff1) < bm_width or abs(az_diff2) < bm_width:
@@ -162,7 +163,8 @@ def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=
         rngs = [np.nan] * 9
         for n in range(1, 9):
             if not np.isnan(intersect[n][0]):
-                rngs[n] = sph_proj.inv(center[1], center[0], intersect[n][1], intersect[n][0], radians=False)[2] / 1000.0
+                rngs[n] = sph_proj.inv(center[1], center[0], intersect[n][1], intersect[n][0], radians=False)[2] \
+                        / 1000.0
         reg_rad = np.nanmean(rngs)
 
         reg_rad = max(reg_rad, rad_min)
@@ -189,8 +191,10 @@ def set_region(det1, det2, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=
     return True, center, reg_rad
 
 
-def compute_assoc_pair(det1, det2,  bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, rad_max=1000.0, resol=180, prog_step=0):
-    """Computes the joint-likelihiood for a pair of detections
+def compute_assoc_pair(det1: lklhds.InfrasoundDetection, det2: lklhds.InfrasoundDetection,  bm_width: float = 10.0,
+                       rng_max: float = np.pi / 2.0 * 6370.0, rad_min: float = 100.0, rad_max: float = 1000.0,
+                       resol: int = 180, prog_step: int = 0) -> float:
+    """ Computes the joint-likelihiood for a pair of detections
 
         Projects finite width beams from each of the detecting arrays and looks for intersections
         of the primary (center) and secondary (edge) lines to define the integration region
@@ -220,7 +224,7 @@ def compute_assoc_pair(det1, det2,  bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
             The joint-likelihood value for the pair of detections
     """
 
-    array_sep = sph_proj.inv(det1.longitude, det1.latitude, det2.longitude, det2.latitude)[2] / 1000.0 
+    array_sep = sph_proj.inv(det1.longitude, det1.latitude, det2.longitude, det2.latitude)[2] / 1000.0
     if array_sep < 1.0:
         # Integration separates into a product of 1-dimensional
         # integrals for detections on the same array
@@ -239,6 +243,7 @@ def compute_assoc_pair(det1, det2,  bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
                 return np.exp(arg) / (det1.vm_norm * det2.vm_norm)
 
             tms = np.array([0.0, (det2.peakF_UTCtime - det1.peakF_UTCtime).astype('m8[s]').astype(float)])
+
             def jnt_rng_pdf(rng):
                 result = 0.0
                 for indices in itertools.product(list(range(3)), repeat=2):
@@ -259,21 +264,24 @@ def compute_assoc_pair(det1, det2,  bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
 
             az_vals = np.linspace(-180.0, 179.0, 180)
             rng_vals = np.linspace(0.1, rng_max, 200)
-            jntlklhd = 1.0 / np.sqrt(2.0 * np.pi) * simpson(jnt_az_pdf(az_vals), az_vals) * simpson(jnt_rng_pdf(rng_vals), rng_vals) / (np.pi * rng_max)
+            jntlklhd = 1.0 / np.sqrt(2.0 * np.pi) * simpson(jnt_az_pdf(az_vals), az_vals) \
+                * simpson(jnt_rng_pdf(rng_vals), rng_vals) / (np.pi * rng_max)
     else:
         # Compute integration region center and radius
-        success, center, radius = set_region(det1, det2, bm_width=bm_width, rad_min=rad_min, rad_max=rad_max, rng_max=rng_max)
+        success, center, radius = set_region(det1, det2, bm_width=bm_width, rad_min=rad_min, rad_max=rad_max,
+                                             rng_max=rng_max)
         if success:
             resol = int(resol)
             angles = np.linspace(-180.0, 180.0, resol)
             rngs = np.linspace(0.0, radius, resol)
             R, ANG = np.meshgrid(rngs, angles)
 
-            temp = sph_proj.fwd(np.array([center[1]] * resol**2), np.array([center[0]] * resol**2), ANG.flatten(), R.flatten() * 1e3)
+            temp = sph_proj.fwd(np.array([center[1]] * resol**2), np.array([center[0]] * resol**2), ANG.flatten(),
+                                R.flatten() * 1e3)
             pdf = lklhds.marginal_spatial_pdf(temp[1], temp[0], [det1, det2])
 
-            jntlklhd = simpson(simpson(pdf.reshape(resol, resol) * (R * np.pi / 180.0), rngs), angles) / (np.pi * radius)
-
+            jntlklhd = simpson(simpson(pdf.reshape(resol, resol) * (R * np.pi / 180.0), rngs), angles) \
+                / (np.pi * radius)
 
         else:
             jntlklhd = np.finfo(float).epsneg
@@ -286,8 +294,10 @@ def compute_assoc_pair_wrapper(args):
     return compute_assoc_pair(*args)
 
 
-def build_distance_matrix(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, rad_max=1000.0, resol=180,  pool=None, progress=False):
-    """Computes the joint-likelihood for all pairs of detections to define the distance matrix
+def build_distance_matrix(det_list: List[lklhds.InfrasoundDetection], bm_width: float = 10.0,
+                          rng_max: float = np.pi / 2.0 * 6370.0, rad_min: float = 100.0, rad_max: float = 1000.0,
+                          resol: int = 180,  pool=None, progress: bool = False) -> np.ndarray:
+    """ Computes the joint-likelihood for all pairs of detections to define the distance matrix
 
         Computes the joint-likelihood value for each unique pair of detections in a provided list and
         uses a negative-log-joint-likelihood to convert to non-Euclidean distance for clustering analysis
@@ -328,7 +338,7 @@ def build_distance_matrix(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
             if progress:
                 step = int(np.floor((50.0 * (n_ref + 1)) / n_tot) - np.floor((50.0 * n_ref) / n_tot))
             else:
-                step = 0        
+                step = 0
             args.append([det_list[n], det_list[m], bm_width, rng_max, rad_min, rad_max, resol, step])
             ids.append([n, m])
             n_ref += 1
@@ -342,7 +352,8 @@ def build_distance_matrix(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
                 step = int(np.floor((50.0 * (n_ref + 1)) / n_tot) - np.floor((50.0 * n_ref) / n_tot))
             else:
                 step = 0
-            assoc = compute_assoc_pair(det_list[n], det_list[m], bm_width=bm_width, rng_max=rng_max, rad_min=rad_min, rad_max=rad_max, resol=resol, prog_step=step)
+            assoc = compute_assoc_pair(det_list[n], det_list[m], bm_width=bm_width, rng_max=rng_max, rad_min=rad_min,
+                                       rad_max=rad_max, resol=resol, prog_step=step)
             result.append([n, m, assoc])
             n_ref += 1
     if progress:
@@ -355,15 +366,21 @@ def build_distance_matrix(det_list, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0,
 
     return dist_mat
 
-def view_distance_matrix(distance_matrix, file_id=None, ordering=None):
 
-    """View distance matrix used for clustering analysis
+def view_distance_matrix(distance_matrix: np.ndarray, file_id: Optional[str] = None, ordering: Optional[str] = None):
+    """ View distance matrix used for clustering analysis
 
         Parameters
         ----------
 
         dist_matrix : 2darray
             Distance matrix describing joint-likelihood separations for all pairs
+
+        file_id : str
+            Name prefix for output file if given.  Default None (no saving)
+
+        ordering : str
+            Ordering for yticks if given.  Default None
 
         """
     det_cnt = len(distance_matrix)
@@ -383,7 +400,8 @@ def view_distance_matrix(distance_matrix, file_id=None, ordering=None):
         plt.yticks(np.arange(det_cnt) + 0.5, np.arange(det_cnt))
 
     v1, v2 = np.meshgrid(np.arange(det_cnt), np.arange(det_cnt))
-    sc_plot = plt.scatter(v1 + 0.5, v2 + 0.5, c=distance_matrix, s=3250.0 / det_cnt**1.2, cmap=cm.gnuplot2, marker="s", edgecolor='none')
+    sc_plot = plt.scatter(v1 + 0.5, v2 + 0.5, c=distance_matrix, s=3250.0 / det_cnt**1.2, cmap=cm.gnuplot2,
+                          marker='s', edgecolor='none')
     plt.colorbar(sc_plot)
 
     if file_id:
@@ -393,8 +411,11 @@ def view_distance_matrix(distance_matrix, file_id=None, ordering=None):
     plt.pause(2.0)
     plt.close()
 
-def cluster(distance_matrix, threshold, linkage_method='weighted', show_result=False, file_id=None, den_label_size=9, mat_label_size=7, trim_indices=[]):
-    """Computes the clustering solution for a distance matrix and threshold
+
+def cluster(distance_matrix: np.ndarray, threshold: float, linkage_method: str = 'weighted', show_result: bool = False,
+            file_id: Optional[str] = None, den_label_size: float = 9, mat_label_size: float = 7,
+            trim_indices: List[Tuple[int, int]] = []) -> Tuple[Any, List[int], np.ndarray]:
+    """ Computes the clustering solution for a distance matrix and threshold
 
         Computes the linkages for a distance matrix using SciPy's hierarchical (agglomerative) clustering
         methods and returns the event labels for the original detection list
@@ -436,7 +457,7 @@ def cluster(distance_matrix, threshold, linkage_method='weighted', show_result=F
     # Sort the distance matrix using the labels
     sorting = np.array([])
     for n in range(max(labels + 1)):
-        sorting = np.concatenate((sorting, np.arange(det_cnt)[labels==n]))
+        sorting = np.concatenate((sorting, np.arange(det_cnt)[labels == n]))
     sorting = sorting.astype(int)
 
     distance_matrix_sorted = np.empty_like(distance_matrix)
@@ -450,7 +471,8 @@ def cluster(distance_matrix, threshold, linkage_method='weighted', show_result=F
 
         # hierarchy.set_link_color_palette(['0.5', 'b', '0.5','r', '0.5', 'g'])
 
-        den = hierarchy.dendrogram(links, color_threshold=threshold, orientation="right", ax=ax1, leaf_font_size=den_label_size, above_threshold_color='0.5')
+        den = hierarchy.dendrogram(links, color_threshold=threshold, orientation="right", ax=ax1,
+                                   leaf_font_size=den_label_size, above_threshold_color='0.5')
         ax1.axvline(x=threshold, linestyle='dashed', lw=2, color='k')
 
         ax2.set_aspect('equal', anchor='NE')
@@ -465,16 +487,20 @@ def cluster(distance_matrix, threshold, linkage_method='weighted', show_result=F
         ax1.set_xlabel("Linkage Distance")
 
         v1, v2 = np.meshgrid(np.arange(det_cnt), np.arange(det_cnt))
-        sc = ax2.scatter(v1 + 0.5, v2 + 0.5, c=distance_matrix_sorted, s=750.0 / det_cnt**1.2, cmap=cm.gnuplot2, marker="s", edgecolor='none')
+        sc = ax2.scatter(v1 + 0.5, v2 + 0.5, c=distance_matrix_sorted, s=750.0 / det_cnt**1.2, cmap=cm.gnuplot2,
+                         marker="s", edgecolor='none')
 
         for indices in trim_indices:
-            ax2.plot(np.where(sorting == indices[0])[0] + 0.5, np.where(sorting == indices[1])[0] + 0.5, color='0.5', marker='x', markersize=200.0 / det_cnt**1.2)
-            ax2.plot(np.where(sorting == indices[1])[0] + 0.5, np.where(sorting == indices[0])[0] + 0.5, color='0.5', marker='x', markersize=200.0 / det_cnt**1.2)
+            ax2.plot(np.where(sorting == indices[0])[0] + 0.5, np.where(sorting == indices[1])[0] + 0.5, color='0.5',
+                     marker='x', markersize=200.0 / det_cnt**1.2)
+            ax2.plot(np.where(sorting == indices[1])[0] + 0.5, np.where(sorting == indices[0])[0] + 0.5, color='0.5',
+                     marker='x', markersize=200.0 / det_cnt**1.2)
 
         corner = 0
         for n in range(max(labels + 1)):
-            ax2.add_patch(patches.Rectangle((corner, corner), len(np.arange(det_cnt)[labels==n]), len(np.arange(det_cnt)[labels==n]), alpha=0.2, color='k'))
-            corner += len(np.arange(det_cnt)[labels==n])
+            ax2.add_patch(patches.Rectangle((corner, corner), len(np.arange(det_cnt)[labels == n]),
+                                            len(np.arange(det_cnt)[labels == n]), alpha=0.2, color='k'))
+            corner += len(np.arange(det_cnt)[labels == n])
 
         if file_id:
             plt.savefig(file_id + "-cluster_result.png", dpi=300)
@@ -486,8 +512,10 @@ def cluster(distance_matrix, threshold, linkage_method='weighted', show_result=F
 
     return links, labels, distance_matrix_sorted
 
-def trim_clusters(labels, distance_matrix, population_min=3, ratio_thresh=3.0):
-    """Trims linkages in poorly shaped clusters
+
+def trim_clusters(labels: List[int], distance_matrix: np.ndarray, population_min: int = 3, 
+                  ratio_thresh: float = 3.0) -> List[int]:
+    """ Trims linkages in poorly shaped clusters
 
         Identifies poorly shaped clusters by the ratio of their mean inter-element
         distances and radius (maximum inter-element distance) and returns indices
@@ -511,9 +539,9 @@ def trim_clusters(labels, distance_matrix, population_min=3, ratio_thresh=3.0):
     det_cnt = len(distance_matrix)
 
     trim_indices = []
-    for n in range(max(labels + 1)):
-        if len(np.arange(det_cnt)[labels==n]) >= population_min:
-            indices = np.arange(det_cnt)[labels==n]
+    for n in range(max(labels) + 1):
+        if len(np.arange(det_cnt)[labels == n]) >= population_min:
+            indices = np.arange(det_cnt)[labels == n]
 
             distance_submatrix = np.empty((len(indices), len(indices)))
             distance_submatrix[:] = np.nan
@@ -527,12 +555,13 @@ def trim_clusters(labels, distance_matrix, population_min=3, ratio_thresh=3.0):
                 m1 = np.argmax([np.nanmean(col) for col in distance_submatrix])
                 m2 = np.nanargmin(distance_submatrix[:, m1])
                 trim_indices = trim_indices + [[indices[m1], indices[m2]]]
-    
+
     return trim_indices
 
 
-def summarize_clusters(labels, distance_matrix, population_min=3, show_result=False):
-    """Prints summary of cluster association solution to screen
+def summarize_clusters(labels: List[int], distance_matrix: np.ndarray, population_min: int = 3,
+                       show_result: bool = False) -> Tuple[list, list]:
+    """ Prints summary of cluster association solution to screen
 
         Searches through labels to identify clusters with sufficient
         membership to declare events and summarizes cluster quality
@@ -550,31 +579,37 @@ def summarize_clusters(labels, distance_matrix, population_min=3, show_result=Fa
     qualities = []
 
     det_cnt = len(distance_matrix)
-    for n in range(max(labels + 1)):
-        if len(np.arange(det_cnt)[labels==n]) >= population_min:
+    for n in range(max(labels) + 1):
+        if len(np.arange(det_cnt)[labels == n]) >= population_min:
             avg_spacing, diam, cnt = 0.0, 0.0, 0
-            spacing = np.zeros(len(np.arange(det_cnt)[labels==n]))
+            spacing = np.zeros(len(np.arange(det_cnt)[labels == n]))
 
-            for j, n1 in enumerate(np.arange(det_cnt)[labels==n]):
-                for n2 in np.arange(det_cnt)[labels==n]:
-                    avg_spacing += distance_matrix[n1][n2] / (len(np.arange(det_cnt)[labels==n]) * (len(np.arange(det_cnt)[labels==n]) - 1.0))
-                    spacing[j] += distance_matrix[n1][n2] / (len(np.arange(det_cnt)[labels==n]) - 1.0)
+            for j, n1 in enumerate(np.arange(det_cnt)[labels == n]):
+                for n2 in np.arange(det_cnt)[labels == n]:
+                    avg_spacing += distance_matrix[n1][n2] / (len(np.arange(det_cnt)[labels == n])
+                                                              * (len(np.arange(det_cnt)[labels == n]) - 1.0))
+                    spacing[j] += distance_matrix[n1][n2] / (len(np.arange(det_cnt)[labels == n]) - 1.0)
                     diam = max(diam, distance_matrix[n1][n2])
 
-            clusters += [list(np.arange(det_cnt)[labels==n])]
+            clusters += [list(np.arange(det_cnt)[labels == n])]
             qualities += [avg_spacing]
 
             if show_result:
                 print('\tCluster Summary:')
-                print('\tDetection IDs:', np.arange(det_cnt)[labels==n])
+                print('\tDetection IDs:', np.arange(det_cnt)[labels == n])
                 print('\t\tDetection Average Spacing:', spacing)
                 print('\t\tCluster Average Spacing:',  avg_spacing)
                 print('\t\tCluster Diameter:',  diam, '\n')
 
     return clusters, qualities
 
-def run(det_list, threshold, dist_max=10.0, bm_width=10.0, rng_max=np.pi / 2.0 * 6370.0, rad_min=100.0, rad_max=1000.0, resol=180, show_result=None, file_id=None, linkage_method='weighted', trimming_thresh=None, trim_thresh_scalar=1.0, prg_bar=False, pool=None):
-    """Run the Hierarchical Joint-Likelihood (HJL) association analysis
+
+def run(det_list: List[lklhds.InfrasoundDetection], threshold: float, dist_max: float = 10.0,
+        bm_width: float = 10.0, rng_max: float = np.pi / 2.0 * 6370.0, rad_min: float = 100.0,
+        rad_max: float = 1000.0, resol: int = 180, show_result: bool = False, file_id: Optional[str] = None,
+        linkage_method: str = 'weighted', trimming_thresh: Optional[float] = None, trim_thresh_scalar: float = 1.0,
+        prg_bar: bool = False, pool=None):
+    """ Run the Hierarchical Joint-Likelihood (HJL) association analysis
 
         Runs the clustering analysis on a list of detecctions and returns the
         membership labels and sorted distance matrix for event identification
@@ -620,19 +655,22 @@ def run(det_list, threshold, dist_max=10.0, bm_width=10.0, rng_max=np.pi / 2.0 *
         if os.path.isfile(file_id + "-dm.npy"):
             dists = np.load(file_id + "-dm.npy")
         else:
-            dists = np.array(build_distance_matrix(det_list, bm_width=bm_width, rng_max=rng_max, rad_min=rad_min, rad_max=rad_max, resol=resol, pool=pool, progress=prg_bar))
+            dists = np.array(build_distance_matrix(det_list, bm_width=bm_width, rng_max=rng_max, rad_min=rad_min,
+                                                   rad_max=rad_max, resol=resol, pool=pool, progress=prg_bar))
             np.save(file_id + "-dm", dists)
         dists[dists > dist_max] = dist_max
         print('\t' + "Clustering detections into events...")
-        _, labels, sorted_dists = cluster(dists, threshold, linkage_method=linkage_method, show_result=show_result, file_id=file_id + "-orig")
-    else :
-        dists = np.array(build_distance_matrix(det_list, bm_width=bm_width, rng_max=rng_max, rad_min=rad_min, rad_max=rad_max, resol=resol, pool=pool, progress=prg_bar))
+        _, labels, sorted_dists = cluster(dists, threshold, linkage_method=linkage_method, show_result=show_result,
+                                          file_id=file_id + "-orig")
+    else:
+        dists = np.array(build_distance_matrix(det_list, bm_width=bm_width, rng_max=rng_max, rad_min=rad_min,
+                                               rad_max=rad_max, resol=resol, pool=pool, progress=prg_bar))
         dists[dists > dist_max] = dist_max
         print('\t' + "Clustering detections into events...")
         _, labels, sorted_dists = cluster(dists, threshold, linkage_method=linkage_method, show_result=show_result)
 
     # Trim clusters with poor shape
-    if trimming_thresh:
+    if trimming_thresh is not None:
         print('\t' + "Trimming poor linkages and repeating clustering analysis...")
         dists_new = dists.copy()
         trim_indices = []
@@ -640,7 +678,7 @@ def run(det_list, threshold, dist_max=10.0, bm_width=10.0, rng_max=np.pi / 2.0 *
             new_indicies = trim_clusters(labels, dists_new, ratio_thresh=trimming_thresh)
             if len(new_indicies) == 0:
                 break
-            else :
+            else:
                 trim_indices = trim_indices + new_indicies
 
             # Re-run clustering on trimmed matrix
@@ -649,21 +687,22 @@ def run(det_list, threshold, dist_max=10.0, bm_width=10.0, rng_max=np.pi / 2.0 *
                 dists_new[indices[1], indices[0]] = dist_max
 
             if file_id:
-                _, labels, _ = cluster(dists_new, threshold * trim_thresh_scalar, linkage_method=linkage_method, show_result=show_result, file_id=file_id + "-trim", trim_indices=trim_indices)
+                _, labels, _ = cluster(dists_new, threshold * trim_thresh_scalar, linkage_method=linkage_method,
+                                       show_result=show_result, file_id=file_id + "-trim", trim_indices=trim_indices)
             else:
-                _, labels, _ = cluster(dists_new, threshold * trim_thresh_scalar, linkage_method=linkage_method, show_result=show_result, trim_indices=trim_indices)
+                _, labels, _ = cluster(dists_new, threshold * trim_thresh_scalar, linkage_method=linkage_method,
+                                       show_result=show_result, trim_indices=trim_indices)
 
     return labels, sorted_dists
 
 
-def id_events(det_list, threshold, starttime=None, endtime=None, dist_max=10.0, bm_width=10.0, rng_max=2500.0, rad_min=100.0, rad_max=1000.0, 
-    resol=180, linkage_method='weighted', trimming_thresh=3.8, cluster_det_population=3, cluster_array_population=2, prg_bar=True, pool=None):
+def id_events(det_list: List[lklhds.InfrasoundDetection], threshold: float, starttime=None, endtime=None,
+              dist_max: float = 10.0, bm_width: float = 10.0, rng_max: float = 2500.0, rad_min: float = 100.0,
+              rad_max: float = 1000.0, resol: int = 180, linkage_method: str = 'weighted', trimming_thresh: float = 3.8,
+              cluster_det_population: int = 3, cluster_array_population: int = 2, prg_bar: bool = True,
+              pool=None) -> Tuple[list, list]:
+    """ Identify Events
     """
-    
-    
-    """
-
-
     # Compute maximum propagation time and analysis window length [minutes]
     max_prop_time = int(rng_max / 0.22)
     analysis_window = int(max_prop_time * 0.5)
@@ -683,17 +722,21 @@ def id_events(det_list, threshold, starttime=None, endtime=None, dist_max=10.0, 
     # run clustering analysis
     events, event_qls = [], []
     for dt in range(0, duration, analysis_window):
-        window_start = starttime +  dt # np.timedelta64(dt, 'm')
-        window_end = starttime + (dt + analysis_window + max_prop_time) # np.timedelta64(dt + int(analysis_window + max_prop_time), 'm')
+        window_start = starttime + dt  # np.timedelta64(dt, 'm')
+        window_end = starttime + (dt + analysis_window + max_prop_time)
+        # np.timedelta64(dt + int(analysis_window + max_prop_time), 'm')
         print('\n' + "Running event identification for:", window_start, "-", window_end)
 
-        temp = [(n, det) for n, det in enumerate(det_list) if np.logical_and(window_start <= UTCDateTime(det.peakF_UTCtime.astype(datetime)), UTCDateTime(det.peakF_UTCtime.astype(datetime)) <= window_end)]
+        temp = [(n, det) for n, det in enumerate(det_list)
+                if np.logical_and(window_start <= UTCDateTime(det.peakF_UTCtime.astype(datetime)),
+                                  UTCDateTime(det.peakF_UTCtime.astype(datetime)) <= window_end)]
         key = [pair[0] for pair in temp]
         new_list = [pair[1] for pair in temp]
 
         if len(temp) >= cluster_det_population:
-            labels, dists = run(new_list, threshold, dist_max=dist_max, bm_width=bm_width, rng_max=rng_max, rad_min=rad_min, rad_max=rad_max, resol=resol, 
-                linkage_method=linkage_method, trimming_thresh=trimming_thresh, prg_bar=prg_bar, pool=pool)
+            labels, dists = run(new_list, threshold, dist_max=dist_max, bm_width=bm_width, rng_max=rng_max,
+                                rad_min=rad_min, rad_max=rad_max, resol=resol, linkage_method=linkage_method,
+                                trimming_thresh=trimming_thresh, prg_bar=prg_bar, pool=pool)
             clusters, qualities = summarize_clusters(labels, dists, population_min=cluster_det_population)
 
             for n in range(len(clusters)):

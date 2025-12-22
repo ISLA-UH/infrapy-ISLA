@@ -1,5 +1,6 @@
-import sys, json
-import matplotlib
+import sys
+import json
+from typing import Optional
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QCheckBox, QLabel, QWidget, QBoxLayout, QHBoxLayout,
@@ -13,6 +14,7 @@ from PyQt5.QtGui import QIcon
 
 import numpy as np
 
+import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -41,7 +43,9 @@ matplotlib.use('Qt5Agg')
 
 
 class IPLocationWidget(QWidget):
-
+    """
+    class for location widget
+    """
     bisl_result = None
 
     detections = []
@@ -53,7 +57,13 @@ class IPLocationWidget(QWidget):
     signal_start_BISL_calc = pyqtSignal()
     signal_start_cluster_calc = pyqtSignal()
 
-    def __init__(self, parent, pool):
+    def __init__(self, parent: QWidget, pool):
+        """
+        initialize
+
+        :param parent: parent widget
+        :param pool: multiprocessing pool
+        """
         super().__init__()
         self.parent = parent
 
@@ -62,9 +72,11 @@ class IPLocationWidget(QWidget):
         self.buildUI()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         # BottomTab widgets go here...
-        
+
         self.bisl_resultsWidget = IPBISLResultsWidget(self)
 
         # set up the map widget
@@ -79,8 +91,10 @@ class IPLocationWidget(QWidget):
 
         # set up showgroundtruth widget
         self.showgroundtruth = ShowGroundTruth(self)
-        self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(self.parent.waveformWidget.plotViewer.pl_widget.updateEventLines)
-        self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(self.parent.waveformWidget.plotViewer.pl_widget.plotEventLines)
+        self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(
+            self.parent.waveformWidget.plotViewer.pl_widget.updateEventLines)
+        self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(
+            self.parent.waveformWidget.plotViewer.pl_widget.plotEventLines)
         self.showgroundtruth.event_widget.sigEventWidgetChanged.connect(self.mapWidget.plot_ground_truth)
         self.showgroundtruth.event_widget.showGT_cb.stateChanged.connect(self.mapWidget.show_hide_ground_truth)
 
@@ -105,13 +119,13 @@ class IPLocationWidget(QWidget):
         self.loc_splitter.addWidget(self.mapWidget)
         self.loc_splitter.addWidget(self.assoc_splitter)
 
-        #layoutholding bisl_widget and ground truth widget
+        # layoutholding bisl_widget and ground truth widget
         self.bottomRow = QWidget(self)
         bottomRow_layout = QHBoxLayout()
         bottomRow_layout.addWidget(self.bisl_resultsWidget)
         bottomRow_layout.addWidget(self.showgroundtruth)
         self.bottomRow.setLayout(bottomRow_layout)
-    
+
         self.lhWidget = QWidget()
         lh_layout = QVBoxLayout()
         lh_layout.addWidget(self.mapWidget)
@@ -122,7 +136,6 @@ class IPLocationWidget(QWidget):
         self.mainSplitter.addWidget(self.lhWidget)
         self.mainSplitter.addWidget(self.assoc_splitter)
 
-        
         main_layout = QBoxLayout(QBoxLayout.TopToBottom)
         main_layout.addWidget(self.mainSplitter)
         self.setLayout(main_layout)
@@ -133,15 +146,25 @@ class IPLocationWidget(QWidget):
         self.clusterThread = QThread()
 
     @pyqtSlot(str)
-    def update_theme(self, t):
+    def update_theme(self, t: str):
+        """
+        update theme
+
+        :param t: theme
+        """
         if t == 'light':
-            self.dm_view.gl_layout.setBackground((255,255,255))
+            self.dm_view.gl_layout.setBackground((255, 255, 255))
         elif t == 'dark':
             self.dm_view.gl_layout.setBackground(IPUtils.ip_dark_grey)
         self.mapWidget.update_theme(t)
         self.dendrogram.update_theme(t)
 
-    def set_controlling_widget(self, widget):
+    def set_controlling_widget(self, widget: QWidget):
+        """
+        set the controlling widget
+
+        :param widget: controlling widget
+        """
         # for this, it's the location settings widget, which contains map settings and extent settings
         self.mapWidget.map_settings_widget = widget
         self.mapWidget.extentWidget = widget.extent_settings
@@ -150,12 +173,17 @@ class IPLocationWidget(QWidget):
         self.initialize()
 
     def initialize(self):
+        """
+        initialize the widget
+        """
         self.connectSignalsAndSlots()
         self.mapWidget.connect_signals_and_slots()
         self.mapWidget.draw_map()
 
     def connectSignalsAndSlots(self):
-
+        """
+        connect signals and widgets
+        """
         self.bisl_resultsWidget.action_run.triggered.connect(self.run_bisl)
         self.bislSettings.update_dm_button.clicked.connect(self.calc_distance_matrix)
         self.bislSettings.rng_max_edit.valueChanged.connect(self.mapWidget.update_range_max)
@@ -171,20 +199,37 @@ class IPLocationWidget(QWidget):
 
     @pyqtSlot()
     def detections_cleared(self):
+        """
+        clear detections
+        """
         self.mapWidget.clear_plot()
         self.detections = []
         self.dm_view.clear()
         self.dendrogram.clear_plot()
         self.bisl_resultsWidget.clearConsole()
-    
-    def get_detections(self):
+
+    def get_detections(self) -> list:
+        """
+        :return: list of current detections
+        """
         return self.detections
 
-    def get_trimmed_detections(self):
+    def get_trimmed_detections(self) -> list:
+        """
+        :return: list of trimmed detections
+        """
         return self.trimmed_detections
 
     @pyqtSlot(list)
-    def update_detections(self, new_detections, detection_type='ip_detections', recalc_assoc=True):
+    def update_detections(self, new_detections: list, detection_type: str = "ip_detections",
+                          recalc_assoc: bool = True):
+        """
+        update detections
+
+        :param new_detections: list of new detections
+        :param detection_type: type of detections
+        :param recalc_assoc: whether to recalculate associations
+        """
         if new_detections is None:
             return  # Nothing to do
 
@@ -209,9 +254,14 @@ class IPLocationWidget(QWidget):
             self.calc_distance_matrix()
 
     @pyqtSlot(list, str)
-    def trim_detections(self, indicies, linecolor='gray'):
+    def trim_detections(self, indicies: list, linecolor: str = 'gray'):
+        """
+        trim detections
 
-        # the detections to show has been changed, which means we probably don't 
+        :param indicies: list of indicies to keep
+        :param linecolor: line color for trimmed detections
+        """
+        # the detections to show has been changed, which means we probably don't
         # want the bisl results showing anymore.  So lets remove those first.
         self.mapWidget.remove_conf_ellipse()
         self.mapWidget.remove_bisl_result()
@@ -228,6 +278,9 @@ class IPLocationWidget(QWidget):
         self.mapWidget.update_detections(line_color=linecolor)
 
     def run_bisl(self):
+        """
+        run bisl
+        """
         if not self.dm_view.is_group_selected():
             IPUtils.errorPopup("You need to select a cluster in the Distance Matrix to run BISL on.")
             return  # nothing to do
@@ -266,15 +319,20 @@ class IPLocationWidget(QWidget):
         self.signal_start_BISL_calc.emit()
 
     @pyqtSlot(dict, str)
-    def bisl_run_finished(self, result, exception_str):
-        
+    def bisl_run_finished(self, result, exception_str: str):
+        """
+        function to handle when bisl is finished running
+
+        :param result: bisl result
+        :param exception_str: exception string
+        """
         self.bisl_result = result
 
         if exception_str != "":
             # bisl exited with and exception.  Pop up window with possible useful info.
             IPUtils.errorPopup(exception_str)
             return
-        
+
         if result:
             # if result has data, then bisl ran and found a location
             self.bisl_resultsWidget.setResults(result)
@@ -287,15 +345,19 @@ class IPLocationWidget(QWidget):
             IPUtils.errorPopup("BISL returned no results")
 
     @pyqtSlot(int)
-    def calc_conf_ellipse(self, confidence):
+    def calc_conf_ellipse(self, confidence: int):
+        """
+        calculate confidence ellipse
 
+        :param confidence: confidence level
+        """
         if self.bisl_result is None:
             return  # nothing to plot
 
-        conf_dx, conf_dy = bisl.calc_conf_ellipse([0.0, 0.0],
-                                                  [self.bisl_result['EW_stdev'],
+        conf_dx, conf_dy = bisl.calc_conf_ellipse((0.0, 0.0),
+                                                  (self.bisl_result['EW_stdev'],
                                                   self.bisl_result['NS_stdev'],
-                                                  self.bisl_result['covar']],
+                                                  self.bisl_result['covar']),
                                                   confidence)
         # tell the mapWidget to plot the results
         self.mapWidget.plot_bisl_result(self.bisl_result['lon_mean'],
@@ -308,13 +370,17 @@ class IPLocationWidget(QWidget):
 
     @pyqtSlot()
     def calc_distance_matrix(self):
-
+        """
+        calculate distance matrix
+        """
         if len(self.detections) < 1:
-            IPUtils.errorPopup("No detections loaded.\n You need two or more detections to calculate a distance matrix.")
+            IPUtils.errorPopup("No detections loaded.\n You need two or more detections to calculate a distance "
+                               "matrix.")
             return  # nothing to do
 
         if len(self.detections) < 2:
-            # IPUtils.errorPopup("not enough detections loaded. \n You need 2 or more detections to calculate a distance matrix.")
+            # IPUtils.errorPopup("not enough detections loaded. \n You need 2 or more detections to calculate
+            # a distance matrix.")
             return  # you need at least 2 detections to calculate the dist matrix
 
         self.dist_matrix = None
@@ -343,6 +409,11 @@ class IPLocationWidget(QWidget):
 
     @pyqtSlot(np.ndarray)
     def dm_run_finished(self, data):
+        """
+        function to handle distance matrix calculation results
+
+        :param data: distance matrix data
+        """
         self.dist_matrix_orig = data    # keep this around incase someone twiddles with the max_distance setting
         self.dm_adjust_max_distance()
 
@@ -355,16 +426,25 @@ class IPLocationWidget(QWidget):
         self.calc_associations()
 
     def dm_adjust_max_distance(self):
+        """
+        adjust distance matrix based on max distance setting
+        """
         self.dist_matrix = self.dist_matrix_orig.copy()
-        self.dist_matrix[self.dist_matrix_orig > self.assocSettings.dist_max_edit.value()] = self.assocSettings.dist_max_edit.value()
+        self.dist_matrix[self.dist_matrix_orig > self.assocSettings.dist_max_edit.value()] \
+            = self.assocSettings.dist_max_edit.value()
         self.assocSettings.update_assoc_button.setEnabled(True)
 
     def cluster_adjust_threshold(self):
+        """
+        adjust clustering threshold
+        """
         self.assocSettings.update_assoc_button.setEnabled(True)
 
     @pyqtSlot()
     def calc_associations(self):
-
+        """
+        calculate associations
+        """
         if self.dist_matrix is None:
             IPUtils.errorPopup("No distance matrix...I need a distance matrix")
             return  # Nothing to do
@@ -385,7 +465,12 @@ class IPLocationWidget(QWidget):
 
     @pyqtSlot(np.ndarray, np.ndarray)
     def cluster_run_finished(self, links, labels):
+        """
+        function to handle clustering results
 
+        :param links: linkage matrix
+        :param labels: cluster labels
+        """
         self.dendrogram.set_data(links, self.assocSettings.threshold_edit.value())
 
         # Sort the distance matrix using the labels
@@ -404,23 +489,29 @@ class IPLocationWidget(QWidget):
         self.update_detections(self.detections, detection_type='detections', recalc_assoc=False)
 
     def saveWindowGeometrySettings(self):
+        """
+        save window geometry settings
+        """
         settings = QSettings('LANL', 'InfraView')
         settings.beginGroup('LocationWidget')
         settings.setValue("windowSize", self.size())
         settings.setValue("windowPos", self.pos())
-        #settings.setValue("mapSplitterSettings", self.mapSplitter.saveState())
+        # settings.setValue("mapSplitterSettings", self.mapSplitter.saveState())
         settings.setValue("mainSplitterSettings", self.mainSplitter.saveState())
         settings.setValue("assocSplitterSettings", self.assoc_splitter.saveState())
         settings.setValue("loc_splitterSettings", self.loc_splitter.saveState())
         settings.endGroup()
 
     def restoreWindowGeometrySettings(self):
+        """
+        reset window geometry settings
+        """
         # Restore settings
         settings = QSettings('LANL', 'InfraView')
         settings.beginGroup('LocationWidget')
 
-        mapSplitterSettings = settings.value("mapSplitterSettings")
-        #if mapSplitterSettings:
+        # mapSplitterSettings = settings.value("mapSplitterSettings")
+        # if mapSplitterSettings:
         #    self.mapSplitter.restoreState(mapSplitterSettings)
 
         mainSplitterSettings = settings.value("mainSplitterSettings")
@@ -436,6 +527,14 @@ class IPLocationWidget(QWidget):
             self.loc_splitter.restoreState(locSplitterSettings)
 
         settings.endGroup()
+
+    @pyqtSlot(float)
+    @pyqtSlot(int)
+    def enable_update_dm_button(self, _):
+        """
+        enable update distance matrix button
+        """
+        self.update_dm_button.setEnabled(True)
 
 
 # class BISLSettings(QWidget):
@@ -503,7 +602,7 @@ class IPLocationWidget(QWidget):
 
         # self.update_dm_button = QPushButton('Update Dist. Matrix')
         # self.update_dm_button.setFont(button_font)
-        
+
         # mainlayout = QVBoxLayout()
         # mainlayout.addWidget(title_label)
         # # mainlayout.addLayout(layout)
@@ -517,23 +616,33 @@ class IPLocationWidget(QWidget):
 
         # self.setLayout(mainlayout)
 
-    @pyqtSlot(float)
-    @pyqtSlot(int)
-    def enable_update_dm_button(self, _):
-        self.update_dm_button.setEnabled(True)
+    # @pyqtSlot(float)
+    # @pyqtSlot(int)
+    # def enable_update_dm_button(self, _):
+    #     self.update_dm_button.setEnabled(True)
 
 
 class ShowGroundTruth(QFrame):
+    """
+    class to show ground truth
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
 
-    def __init__(self, parent):
+        :param parent: parent widget
+        """
         super().__init__()
 
         self.parent = parent
         self.buildUI()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
-        
+
         title_label = QLabel('Event/Ground Truth')
         title_label.setStyleSheet("font-weight: bold;")
         title_label.setAlignment(Qt.AlignCenter)
@@ -547,9 +656,14 @@ class ShowGroundTruth(QFrame):
         self.setFrameStyle(QFrame.Box | QFrame.Plain)
         layout.setAlignment(Qt.AlignCenter)
         self.setLayout(layout)
-    
+
     @pyqtSlot(dict)
-    def eventChanged(self, event_dict):
+    def eventChanged(self, event_dict: dict):
+        """
+        handle event changed
+
+        :param event_dict: event dictionary
+        """
         if event_dict['Latitude']:
             self.event_widget.event_lat_edit.setValue(event_dict['Latitude'])
         else:
@@ -559,17 +673,26 @@ class ShowGroundTruth(QFrame):
         if event_dict['Evid']:
             self.event_widget.event_name_edit.setText(str(event_dict['Evid']))
 
-
     @pyqtSlot(dict)
     def update_origin(self, new_origin):
+        """
+        print the new origin
+
+        :param new_origin: new origin
+        """
         print(new_origin)
 
     def show_gt(self):
+        """
+        :return: if ground truth is shown
+        """
         return self.showGT_cb.isChecked()
 
 
 class IPDistanceMatrixWidget(QWidget):
-
+    """
+    class for displaying distance matrix
+    """
     N = 5
     calc_text = None
 
@@ -585,12 +708,17 @@ class IPDistanceMatrixWidget(QWidget):
     color_palette_pens = []
     color_palette_str = ['b', 'r', 'g', 'c', 'm', 'y']
 
-    # used to keep track of wether a group has been clicked on.
+    # used to keep track of whether a group has been clicked on.
     group_selected = False
 
     signal_trim_detections = pyqtSignal(list, str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
 
         self.buildUI()
@@ -604,6 +732,9 @@ class IPDistanceMatrixWidget(QWidget):
             self.color_palette_pens.append(pg.mkPen(color=c))
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.dm_plotitem = IPDistanceMatrixPlot()
 
         self.gl_layout = pg.GraphicsLayoutWidget()
@@ -617,18 +748,32 @@ class IPDistanceMatrixWidget(QWidget):
         self.setLayout(layout)
 
     def showCalculatingText(self):
-        self.calc_text = pg.TextItem('...Calculating...', color=(128,128,128), fill=(255, 255, 255), anchor=(0.5, 0.5), border={'color': (128,128,128), 'width': 1})
+        """
+        show calculating text
+        """
+        self.calc_text = pg.TextItem('...Calculating...', color=(128, 128, 128), fill=(255, 255, 255),
+                                     anchor=(0.5, 0.5), border={'color': (128, 128, 128), 'width': 1})
         self.dm_plotitem.addItem(self.calc_text)
         self.calc_text.setPos(self.N / 2., self.N / 2.)
 
     def hideCalculatingText(self):
+        """
+        hide calculating text
+        """
         self.dm_plotitem.removeItem(self.calc_text)
 
-    def set_data(self, dist_data, labels=None):
+    def set_data(self, dist_data: np.ndarray, labels=None):
+        """
+        set data
+
+        :param dist_data: distance matrix data
+        :param labels: cluster labels
+        """
         self.s1.clear()
         self.dm_plotitem.clear()
-
-        self.current_group = None   # on changing the distance matrix, this fixes bug where clicking on a group wouldn't do anything if it had been previously highlighted
+        # on changing the distance matrix, this fixes bug where clicking on a group wouldn't do anything if it had
+        # been previously highlighted
+        self.current_group = None
 
         self.labels = labels
 
@@ -644,9 +789,11 @@ class IPDistanceMatrixWidget(QWidget):
                     # this means the data has been cleared
                     color = (255, 255, 255)
                 else:
-                    color = (255.0 * dist_data[i][j] / max_dist, 255.0 * dist_data[i][j] / max_dist, 255.0 * dist_data[i][j] / max_dist)
+                    color = (255.0 * dist_data[i][j] / max_dist, 255.0 * dist_data[i][j] / max_dist,
+                             255.0 * dist_data[i][j] / max_dist)
 
-                squares.append({'pos': (i, j), 'pen': {'color': 'w', 'width': 1}, 'brush': color, 'data': dist_data[i][j]})
+                squares.append({'pos': (i, j), 'pen': {'color': 'w', 'width': 1}, 'brush': color,
+                                'data': dist_data[i][j]})
 
         self.s1.addPoints(squares)
         self.s1.setSize(1)
@@ -673,21 +820,21 @@ class IPDistanceMatrixWidget(QWidget):
         for i in range(self.N):
             # x-axis
             if self.sorted_labels is not None:
-                tx = pg.TextItem(str(self.sorted_labels[i]), anchor=(0.5, 0), color=(128,128,128))
-                ty = pg.TextItem(str(self.sorted_labels[i]), anchor=(0, 0.5), color=(128,128,128))
+                tx = pg.TextItem(str(self.sorted_labels[i]), anchor=(0.5, 0), color=(128, 128, 128))
+                ty = pg.TextItem(str(self.sorted_labels[i]), anchor=(0, 0.5), color=(128, 128, 128))
             else:
-                tx = pg.TextItem(str(i), anchor=(0.5, 0), color=(128,128,128))
-                ty = pg.TextItem(str(i), anchor=(0, 0.5), color=(128,128,128))
+                tx = pg.TextItem(str(i), anchor=(0.5, 0), color=(128, 128, 128))
+                ty = pg.TextItem(str(i), anchor=(0, 0.5), color=(128, 128, 128))
             tx.setPos(i, -0.5)
             ty.setPos(-1, i)
 
             self.dm_plotitem.addItem(tx)
             self.dm_plotitem.addItem(ty)
 
-        self.xlabel = pg.TextItem('Detection Number', anchor=(0.5, 0), color=(128,128,128))
+        self.xlabel = pg.TextItem('Detection Number', anchor=(0.5, 0), color=(128, 128, 128))
         self.xlabel.setPos((self.N - 1) / 2., -1.5)
 
-        self.ylabel = pg.TextItem('Detection Number', anchor=(0.5, 0), angle=90, color=(128,128,128))
+        self.ylabel = pg.TextItem('Detection Number', anchor=(0.5, 0), angle=90, color=(128, 128, 128))
         self.ylabel.setPos(-2, (self.N - 1) / 2.)
 
         self.dm_plotitem.addItem(self.xlabel)
@@ -696,6 +843,9 @@ class IPDistanceMatrixWidget(QWidget):
         self.dm_plotitem.enableAutoRange()
 
     def clear(self):
+        """
+        clear the distance matrix
+        """
         self.s1.clear()
         self.N = 5
         initial_data = np.zeros((self.N, self.N))
@@ -707,7 +857,11 @@ class IPDistanceMatrixWidget(QWidget):
 
     @pyqtSlot(pg.SpotItem)
     def handle_point_hovered(self, point):
+        """
+        function to handle when a point is hovered over
 
+        :param point: hovered point
+        """
         if self.sorted_labels is None or self.labels is None:
             return
 
@@ -738,10 +892,16 @@ class IPDistanceMatrixWidget(QWidget):
 
     @pyqtSlot()
     def handle_hover_leave(self):
+        """
+        function to handle when hover leaves
+        """
         for pnt in self.s1.points():
             pnt.setPen(self.whitePen)
 
     def is_group_selected(self):
+        """
+        :return: True if a group is selected
+        """
         if self.current_group is None:
             return False
         else:
@@ -749,7 +909,12 @@ class IPDistanceMatrixWidget(QWidget):
 
     @pyqtSlot(object, object)
     def handle_mouse_click(self, scatterPlot, points):
+        """
+        function to handle when a point is clicked
 
+        :param scatterPlot: scatter plot item
+        :param points: clicked points
+        """
         # mouse
         for pnt in points:
             pos_x = int(pnt.pos().x())
@@ -797,6 +962,11 @@ class IPDistanceMatrixWidget(QWidget):
 
     @pyqtSlot(list)
     def set_colors(self, new_colors):
+        """
+        set color palette
+
+        :param new_colors: list of new colors
+        """
         self.color_palette_str = new_colors
         self.color_palette_pens.clear()
         for c in self.color_palette_str:
@@ -804,7 +974,9 @@ class IPDistanceMatrixWidget(QWidget):
 
 
 class IPScatterPlotItem(pg.ScatterPlotItem):
-
+    """
+    class for scatter plot
+    """
     signal_point_hovered = pyqtSignal(pg.SpotItem)
     signal_hover_leave = pyqtSignal()
 
@@ -812,11 +984,19 @@ class IPScatterPlotItem(pg.ScatterPlotItem):
     last_point = None
 
     def __init__(self, *args, **kargs):
+        """
+        initialize
+        """
         super().__init__(*args, **kargs)
 
         self.setAcceptHoverEvents(True)
 
     def hoverMoveEvent(self, evt):
+        """
+        function to handle hover move event
+
+        :param evt: hover event
+        """
         pts = self.pointsAt(evt.pos())
         if len(pts) > 0:
             for point in pts:
@@ -825,11 +1005,24 @@ class IPScatterPlotItem(pg.ScatterPlotItem):
                     self.signal_point_hovered.emit(point)
 
     def hoverLeaveEvent(self, evt):
+        """
+        function to handle hover leave event
+
+        :param evt: hover event
+        """
         self.signal_hover_leave.emit()
 
 
 class IPDistanceMatrixPlot(pg.PlotItem):
+    """
+    class for distance matrix plot
+    """
     def __init__(self, parent=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
 
         self.setAspectLocked(lock=True, ratio=1)
@@ -840,6 +1033,11 @@ class IPDistanceMatrixPlot(pg.PlotItem):
         self.setTitle('Distance Matrix')
 
     def mouseClickEvent(self, evt):
+        """
+        function to handle mouse click event
+
+        :param evt: mouse click event
+        """
         if evt.button() == Qt.RightButton:
             self.export_dialog = exportDialog.ExportDialog(self.scene())
             self.export_dialog.show()
@@ -847,17 +1045,29 @@ class IPDistanceMatrixPlot(pg.PlotItem):
 
 
 class DistanceMatrixWorkerObject(QObject):
-
+    """
+    class for distance matrix worker object
+    """
     signal_runFinished = pyqtSignal(np.ndarray)
 
-    def __init__(self, detections,
-                 beam_width=10,
-                 rng_max=np.pi / 2.0 * 6370.0,
-                 rad_min=100.,
-                 rad_max=1000.,
-                 resol=180,
+    def __init__(self, detections: list,
+                 beam_width: int = 10,
+                 rng_max: float = np.pi / 2.0 * 6370.0,
+                 rad_min: float = 100.,
+                 rad_max: float = 1000.,
+                 resol: int = 180,
                  pool=None):
+        """
+        initialize
 
+        :param detections: list of detections
+        :param beam_width: beam width
+        :param rng_max: maximum range
+        :param rad_min: minimum radius
+        :param rad_max: maximum radius
+        :param resol: resolution
+        :param pool: multiprocessing pool
+        """
         super().__init__()
         self.detections = detections
         self.beam_width = beam_width
@@ -871,7 +1081,9 @@ class DistanceMatrixWorkerObject(QObject):
 
     @pyqtSlot()
     def run(self):
-
+        """
+        run distance matrix calculation
+        """
         if len(self.detections) == 0:
             return  # nothing to do
 
@@ -894,22 +1106,36 @@ class DistanceMatrixWorkerObject(QObject):
 
     @pyqtSlot()
     def stop(self):
+        """
+        stop distance matrix calculation
+        """
         self.thread_stopped = True
 
 
 class BISLWorkerObject(QObject):
-
+    """
+    class for BISL worker object
+    """
     signal_runFinished = pyqtSignal(dict, str)
-    
 
-    def __init__(self, detections,
-                 beam_width=10,
-                 rad_min=100.,
-                 rad_max=1000.,
-                 rng_max=np.pi / 2.0 * 6370.0,
-                 latlon_resol = 0.05,
-                 tm_resol = 60):
+    def __init__(self, detections: list,
+                 beam_width: int = 10,
+                 rad_min: float = 100.,
+                 rad_max: float = 1000.,
+                 rng_max: float = np.pi / 2.0 * 6370.0,
+                 latlon_resol: float = 0.05,
+                 tm_resol: int = 60):
+        """
+        initialize
 
+        :param detections: list of detections
+        :param beam_width: beam width
+        :param rad_min: minimum radius
+        :param rad_max: maximum radius
+        :param rng_max: maximum range
+        :param latlon_resol: latitude/longitude resolution
+        :param tm_resol: time resolution
+        """
         super().__init__()
         self.detections = detections
         self.beam_width = beam_width
@@ -923,7 +1149,9 @@ class BISLWorkerObject(QObject):
 
     @pyqtSlot()
     def run(self):
-
+        """
+        run bisl calculation
+        """
         if len(self.detections) == 0:
             return  # nothing to do
 
@@ -932,13 +1160,13 @@ class BISLWorkerObject(QObject):
         # run bisl
         try:
             self.bisl_result = bisl.run(self.detections,
-                                         bm_width=self.beam_width,
-                                         # rad_min=self.rad_min,
-                                         # rad_max=self.rad_max,
-                                         rng_max=self.rng_max,
-                                         latlon_resol=self.latlon_resol,
-                                         tm_resol=self.tm_resol,
-                                         verbose=False)
+                                        bm_width=self.beam_width,
+                                        # rad_min=self.rad_min,
+                                        # rad_max=self.rad_max,
+                                        rng_max=self.rng_max,
+                                        latlon_resol=self.latlon_resol,
+                                        tm_resol=self.tm_resol,
+                                        verbose=False)
 
         except Exception as e:
             # if there is an exception, emit an empty dictionary, and the exception
@@ -951,17 +1179,28 @@ class BISLWorkerObject(QObject):
 
     @pyqtSlot()
     def stop(self):
+        """
+        stop bisl calculation
+        """
         self.threadStopped = True
 
 
 class ClusterWorkerObject(QObject):
-
+    """
+    class for cluster worker
+    """
     signal_runFinished = pyqtSignal(np.ndarray, np.ndarray)
 
     def __init__(self, dm,
                  threshold,
-                 linkage_method='weighted'):
+                 linkage_method: str = 'weighted'):
+        """
+        initialize
 
+        :param dm: distance matrix
+        :param threshold: clustering threshold
+        :param linkage_method: linkage method
+        """
         super().__init__()
         self.dist_matrix = dm
         self.threshold = threshold
@@ -971,7 +1210,9 @@ class ClusterWorkerObject(QObject):
 
     @pyqtSlot()
     def run(self):
-
+        """
+        run clustering
+        """
         det_cnt = len(self.dist_matrix)
         if det_cnt == 0:
             return  # nothing to do
@@ -997,12 +1238,22 @@ class ClusterWorkerObject(QObject):
 
     @pyqtSlot()
     def stop(self):
+        """
+        stop clustering
+        """
         self.thread_stopped = True
 
 
 class IPBISLResultsWidget(QWidget):
-    
-    def __init__(self, parent):
+    """
+    class for bisl results
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
 
         self.results = None
@@ -1011,6 +1262,9 @@ class IPBISLResultsWidget(QWidget):
         self.buildUI()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         tool_layout = self.make_toolbar()
 
@@ -1018,16 +1272,20 @@ class IPBISLResultsWidget(QWidget):
         self.consoleBox.setReadOnly(True)
 
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0,0,0,0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addLayout(tool_layout)
         main_layout.addWidget(self.consoleBox)
 
         self.setLayout(main_layout)
 
-    def make_toolbar(self):
+    def make_toolbar(self) -> QHBoxLayout:
+        """
+        make the toolbar
 
+        :return: toolbar layout
+        """
         tool_layout = QHBoxLayout()
-        tool_layout.setContentsMargins(0,0,0,0)
+        tool_layout.setContentsMargins(0, 0, 0, 0)
         self.toolbar = QToolBar()
         tool_layout.addWidget(self.toolbar)
 
@@ -1045,56 +1303,75 @@ class IPBISLResultsWidget(QWidget):
         return tool_layout
 
     def buildIcons(self):
+        """
+        create icons
+        """
         self.clearIcon = QIcon.fromTheme("edit-clear")
         self.openIcon = QIcon.fromTheme("document-open")
         self.saveIcon = QIcon.fromTheme("document-save")
         self.saveAsIcon = QIcon.fromTheme("document-save-as")
 
-    def setText(self, text):
+    def setText(self, text: str):
+        """
+        set the text in the console box
+
+        :param text: text to set
+        """
         self.consoleBox.setText(text)
 
     def clearConsole(self):
+        """
+        clear console box
+        """
         self.consoleBox.clear()
         self.results = None
 
     def setResults(self, results):
+        """
+        set the results
+
+        :param results: bisl results
+        """
         self.results = results
 
     def saveResults(self):
+        """
+        save the results to file
+        """
         if self.results is not None:
             save_filename = QFileDialog.getSaveFileName(self, caption="Save BISL results", filter="(*.json)")[0]
             if save_filename == '':
                 # dialog was cancelled, just leave
                 return
-            
+
             json_string = json.dumps(self.results, indent=4, default=str)
             with open(save_filename, "w") as ofile:
                 ofile.write(json_string)
 
 
 class IPDendrogramWidget(QWidget):
-
+    """
+    class for dendrogram
+    """
     signal_new_colors = pyqtSignal(list)
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
         self.fig = Figure()
         self.axes = self.fig.add_subplot(111)
-        self.axes.set_title('Associations')
-        self.axes.title.set_size(10)
 
         c = '0.6'
+        self.axes.set_title('Associations', size=10, color=c)
         self.axes.tick_params(axis='both', labelsize=8, colors=c)
-        self.axes.title.set_color(c)
         for spine in ['top', 'right', 'bottom', 'left']:
             self.axes.spines[spine].set_color(c)
-        self.axes.set_xlabel('Detection Number')
-        self.axes.set_ylabel('Distance')
-        self.axes.xaxis.label.set_size(8)
-        self.axes.xaxis.label.set_color(c)
-        self.axes.xaxis.label.set_color(c)
-        self.axes.yaxis.label.set_size(8)
-        self.axes.yaxis.label.set_color(c)
+        self.axes.set_xlabel('Detection Number', size=8, color=c)
+        self.axes.set_ylabel('Distance', size=8, color=c)
 
         self.canvas = FigureCanvas(self.fig)
 
@@ -1103,22 +1380,35 @@ class IPDendrogramWidget(QWidget):
 
         self.setLayout(layout)
 
-    def update_theme(self, t):
+    def update_theme(self, t: str):
+        """
+        update theme
+
+        :param t: new theme
+        """
         if t == 'light':
             self.fig.patch.set_facecolor('w')
         elif t == 'dark':
             self.fig.patch.set_facecolor(IPUtils.ip_dark_grey_hex)
-        
+
         self.fig.canvas.draw()
 
-    def set_data(self, links, threshold):
+    def set_data(self, links: np.ndarray, threshold: float):
+        """
+        set the data
+
+        :param links: linkage matrix
+        :param threshold: clustering threshold
+        """
         self.axes.clear()
         self.axes.set_title('Associations', fontsize=10)
 
         # The link color palette needs to match the color palette in the distance matrix widget!!!
-        set_link_color_palette(['#006ba6', '#ce1126', '#428a17', '#ffcc33', '#008080', 'm', '#ff4570', '#ff9000', 'b', 'g', 'c'])
+        set_link_color_palette(['#006ba6', '#ce1126', '#428a17', '#ffcc33', '#008080', 'm', '#ff4570', '#ff9000',
+                                'b', 'g', 'c'])
 
-        den = dendrogram(links, ax=self.axes, leaf_rotation=0., leaf_font_size=8, color_threshold=threshold, above_threshold_color='0.5')
+        den = dendrogram(links, ax=self.axes, leaf_rotation=0., leaf_font_size=8, color_threshold=threshold,
+                         above_threshold_color='0.5')
 
         den_colors = []
         for c in den['color_list']:
@@ -1132,21 +1422,25 @@ class IPDendrogramWidget(QWidget):
 
         self.axes.axhline(y=threshold)
 
-        self.axes.set_xlabel('Detection Number')
-        self.axes.set_ylabel('Distance')
-        self.axes.xaxis.label.set_size(8)
-        self.axes.yaxis.label.set_size(8)
+        self.axes.set_xlabel('Detection Number', size=8)
+        self.axes.set_ylabel('Distance', size=8)
 
         self.fig.canvas.draw()  # update matlabplot
         self.repaint()          # update widget
 
     def clear_plot(self):
+        """
+        clear the plot
+        """
         self.axes.clear()
         self.axes.set_title('Associations')
         self.fig.canvas.draw()
         self.repaint()
 
-    def is_number(self, str):
+    def is_number(self, str: str):
+        """
+        return True if str is a number
+        """
         try:
             float(str)
             return True
@@ -1155,14 +1449,23 @@ class IPDendrogramWidget(QWidget):
 
 
 class AssociationSettings(QWidget):
+    """
+    class for association settings
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
 
-    def __init__(self, parent):
+        :param parent: parent widget
+        """
         super().__init__()
         self.parent = parent
         self.buildUI()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
 
         self.threshold_edit = QDoubleSpinBox()
@@ -1194,11 +1497,20 @@ class AssociationSettings(QWidget):
 
 
 class Draw_Map_Worker_Object(QObject):
-
+    """
+    class for drawing map worker object
+    """
     thread_stopped = True
     signal_mapFinished = pyqtSignal()
 
     def __init__(self, figure, axes, settingsWidget):
+        """
+        initialize
+
+        :param figure: matplotlib figure
+        :param axes: matplotlib axes
+        :param settingsWidget: settings widget
+        """
         super().__init__()
         self.mapSettings = settingsWidget
         self.fig = figure
@@ -1206,13 +1518,16 @@ class Draw_Map_Worker_Object(QObject):
 
     @pyqtSlot()
     def run(self):
+        """
+        draw the map
+        """
         self.thread_stopped = False
 
         # self.fig.clf()
         self.axes.clear()
 
         resolution = self.mapSettings.resolution_cb.currentText()
-        cent_lon = int(self.mapSettings.central_lon_cb.currentText())
+        # cent_lon = int(self.mapSettings.central_lon_cb.currentText())
 
         land = cfeature.NaturalEarthFeature('physical', 'land', resolution,
                                             edgecolor='face',
@@ -1238,4 +1553,7 @@ class Draw_Map_Worker_Object(QObject):
 
     @pyqtSlot()
     def stop(self):
+        """
+        stop drawing the map
+        """
         self.thread_stopped = True

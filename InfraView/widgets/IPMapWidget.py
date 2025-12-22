@@ -1,9 +1,10 @@
+from typing import Optional, Tuple
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import (QWidget, QColorDialog, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, 
-                             QLineEdit, QVBoxLayout, QCheckBox, QComboBox, QLabel, QPushButton, QDoubleSpinBox)
+from PyQt5.QtWidgets import (QWidget, QColorDialog, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QGroupBox,
+                             QHBoxLayout, QLineEdit, QVBoxLayout, QCheckBox, QComboBox, QLabel, QPushButton,
+                             QDoubleSpinBox)
 from PyQt5.QtCore import QRect, QSize, Qt, pyqtSlot, pyqtSignal, QSettings
 from PyQt5.QtGui import QPainter, QPaintEvent, QColor, QPalette
-
 
 from InfraView.widgets import IPBaseWidgets
 from InfraView.widgets import IPUtils
@@ -26,12 +27,17 @@ import numpy as np
 # Make sure that we are using QT5
 matplotlib.use('Qt5Agg')
 
-from InfraView.widgets import IPUtils
-from InfraView.widgets import IPBaseWidgets
-
 
 class IPMapWidget(QWidget):
-    def __init__(self, parent):
+    """
+    class for map display
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__()
 
         self.fig = None
@@ -41,8 +47,8 @@ class IPMapWidget(QWidget):
         self.detections = []
         self.resolution = ''
         self.extent = None
-  
-        self.current_linecolor='gray'
+
+        self.current_linecolor = "gray"
 
         self.gt_marker = None
 
@@ -53,15 +59,16 @@ class IPMapWidget(QWidget):
         self.evt_lat = None
         self.evt_lon = None
 
-        self.bisl_rslt = (None,None)  #(lat, lon)
-        self.conf_ellipse = (None, None) #(dx, dy)
+        self.bisl_rslt = (None, None)  # (lat, lon)
+        self.conf_ellipse = (None, None)  # (dx, dy)
 
-        
         self.parent = parent
         self.buildUI()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.fig = Figure()
         self.zoom = 1
         self.mapCanvas = FigureCanvas(self.fig)
@@ -76,18 +83,24 @@ class IPMapWidget(QWidget):
 
         self.compute_figure()
 
-    def update_theme(self, t):
+    def update_theme(self, t: str):
+        """
+        update the theme of the map widget
+
+        :param t: theme type ('light' or 'dark')
+        """
         if t == 'light':
             self.fig.patch.set_facecolor('w')
         elif t == 'dark':
             self.fig.patch.set_facecolor(IPUtils.ip_dark_grey_hex)
-        plt.rcParams.update({'text.color': (0.5,0.5,0.5),
-                             'axes.labelcolor': (0.5,0.5,0.5)})
+        plt.rcParams.update({'text.color': (0.5, 0.5, 0.5),
+                             'axes.labelcolor': (0.5, 0.5, 0.5)})
         self.fig.canvas.draw()
-       
 
     def connect_signals_and_slots(self):
-
+        """
+        connect signals to widgets
+        """
         self.map_settings_widget.borders_checkbox.stateChanged.connect(self.update_feature_visibilities)
         self.map_settings_widget.states_checkbox.stateChanged.connect(self.update_feature_visibilities)
         self.map_settings_widget.lakes_checkbox.stateChanged.connect(self.update_feature_visibilities)
@@ -106,13 +119,15 @@ class IPMapWidget(QWidget):
         self.extentWidget.sig_autoscale.connect(self.autoscale_plot)
 
         # these technically aren't qt signals and slots, these are matplotlib callback connections
-        #self.fig.canvas.mpl_connect('button_press_event', self.button_press_callback)
-        #self.fig.canvas.mpl_connect('button_release_event', self.button_release_callback)
+        # self.fig.canvas.mpl_connect('button_press_event', self.button_press_callback)
+        # self.fig.canvas.mpl_connect('button_release_event', self.button_release_callback)
         self.fig.canvas.mpl_connect('motion_notify_event', self.motion_notify_callback)
         # self.fig.canvas.mpl_connect('scroll_event', self.scroll_event_callback)
 
     def compute_figure(self):
-
+        """
+        create the figure
+        """
         self.sph_proj = Geod(ellps='WGS84')
         self.projection = ccrs.PlateCarree()
         self.transform = ccrs.PlateCarree()
@@ -124,16 +139,16 @@ class IPMapWidget(QWidget):
         self.axes.title.set_color(c)
         for spine in ['top', 'right', 'bottom', 'left']:
             self.axes.spines[spine].set_color(c)
-        self.axes.set_xlabel('Detection Number')
-        self.axes.set_ylabel('Distance')
-        self.axes.xaxis.label.set_size(8)
-        self.axes.xaxis.label.set_color(c)
-        self.axes.xaxis.label.set_color(c)
-        self.axes.yaxis.label.set_size(8)
-        self.axes.yaxis.label.set_color(c)
+        self.axes.set_xlabel('Detection Number', size=8, color=c)
+        self.axes.set_ylabel('Distance', size=8, color=c)
 
     @pyqtSlot()
-    def draw_map(self, preserve_extent=False):
+    def draw_map(self, preserve_extent: bool = False):
+        """
+        draw the map
+
+        :param preserve_extent: whether to preserve the current map extent
+        """
         if preserve_extent:
             current_extent = self.axes.get_extent()
 
@@ -152,13 +167,13 @@ class IPMapWidget(QWidget):
             ocean_facecolor = 'none'
             self.axes.stock_img()
         else:
-            land_facecolor = (self.map_settings_widget.land_color_button.color().redF(), 
-                            self.map_settings_widget.land_color_button.color().greenF(),
-                            self.map_settings_widget.land_color_button.color().blueF())
+            land_facecolor = (self.map_settings_widget.land_color_button.color().redF(),
+                              self.map_settings_widget.land_color_button.color().greenF(),
+                              self.map_settings_widget.land_color_button.color().blueF())
 
-            ocean_facecolor = (self.map_settings_widget.ocean_color_button.color().redF(), 
-                           self.map_settings_widget.ocean_color_button.color().greenF(),
-                           self.map_settings_widget.ocean_color_button.color().blueF())
+            ocean_facecolor = (self.map_settings_widget.ocean_color_button.color().redF(),
+                               self.map_settings_widget.ocean_color_button.color().greenF(),
+                               self.map_settings_widget.ocean_color_button.color().blueF())
 
         land = cfeature.NaturalEarthFeature('physical',
                                             'land',
@@ -166,7 +181,7 @@ class IPMapWidget(QWidget):
                                             edgecolor='face',
                                             facecolor=land_facecolor,
                                             linewidth=0.5)
-        
+
         states_provinces = cfeature.NaturalEarthFeature(category='cultural',
                                                         name='admin_1_states_provinces_lines',
                                                         scale=self.map_settings_widget.resolution_cb.currentText(),
@@ -182,28 +197,34 @@ class IPMapWidget(QWidget):
         self.borders = self.axes.add_feature(cfeature.BORDERS.with_scale(resolution), linewidth=0.5)
         self.coast = self.axes.add_feature(cfeature.COASTLINE.with_scale(resolution), linewidth=0.5)
 
-        #try:
+        # try:
         self.update_feature_visibilities()
-        #except:
-        #    IPUtils.errorPopup("There seems to be an issue with the map downloads. If you don't have access to the internet you can download the maps seperately, and use the offline maps setting in the Locations tab to point to the directory where they are downloaded to.")
+        # except:
+        #    IPUtils.errorPopup("There seems to be an issue with the map downloads. If you don't have access to the
+        #    internet you can download the maps seperately, and use the offline maps setting in the Locations tab to
+        #    point to the directory where they are downloaded to.")
         #    return
 
         if preserve_extent:
             self.set_map_extent(current_extent)
             self.extentWidget.set_extent_spin_values(current_extent)
 
-    def showhide_extent_widget(self):
-        # toggle the visibility
-        self.extentWidget.setVisible(self.extentWidget.isHidden())
-        # set button color and hide other widgets
-        if self.extentWidget.isVisible():
-            style = "color: rgba(0,0,180,255);"
-            self.hide_map_settings_widget()
-        else:
-            style = "color: rgba(20,20,20,255);"
-            
+    # def showhide_extent_widget(self):
+    #     """
+    #     toggle the visibility
+    #     """
+    #     self.extentWidget.setVisible(self.extentWidget.isHidden())
+    #     # set button color and hide other widgets
+    #     if self.extentWidget.isVisible():
+    #         # style = "color: rgba(0,0,180,255);"
+    #         self.hide_map_settings_widget()
+    #     # else:
+    #     #    style = "color: rgba(20,20,20,255);"
+
     def showhide_map_settings_widget(self):
-        # toggle the visibility 
+        """
+        toggle the visibility
+        """
         self.map_settings_widget.setVisible(self.map_settings_widget.isHidden())
         # set button color and hide other widgets
         if self.map_settings_widget.isVisible():
@@ -214,26 +235,41 @@ class IPMapWidget(QWidget):
         self.parent.toolButton_settings.setStyleSheet(style)
 
     def hide_map_settings_widget(self):
-        # hide widget and reset the button color
+        """
+        hide map settings widget
+        """
         self.map_settings_widget.setVisible(False)
 
     def hide_extent_widget(self):
-        # hide widget and reset the button color
+        """
+        hide extent widget
+        """
         self.extentWidget.setVisible(False)
 
     @pyqtSlot(list)
-    def set_map_extent(self, extent):
+    def set_map_extent(self, extent: Tuple[float, float, float, float]):
+        """
+        set the map extent
+
+        :param extent: [lon_min, lon_max, lat_min, lat_max]
+        """
         self.axes.set_extent(extent)
         self.fig.canvas.draw()  # update matlabplot
 
     @pyqtSlot()
     def set_map_extent_to_global(self):
+        """
+        set the map extent to global values
+        """
         self.axes.set_global()
         global_extent = [-179.99, 180, -90, 90]
         self.extentWidget.set_extent_spin_values(global_extent)
         self.update_map()
 
-    def update_feature_visibilities(self): 
+    def update_feature_visibilities(self):
+        """
+        function to update feature visibilities
+        """
         try:
             # This shows/hides the various features shown on the map
             self.states.set_visible(self.map_settings_widget.states_checkbox.isChecked())
@@ -245,12 +281,17 @@ class IPMapWidget(QWidget):
 
         except urllib.error.URLError:
             return
-        
+
         except Exception as e:
             print(e)
 
     @pyqtSlot()
-    def update_map(self, replot_bisl=True):
+    def update_map(self, replot_bisl: bool = True):
+        """
+        update the map display
+
+        :param replot_bisl: whether to replot the bisl result
+        """
         self.draw_map(preserve_extent=True)
         self.update_detections(preserve_colors=True, autoscale=False)
         self.plot_ground_truth()
@@ -260,25 +301,32 @@ class IPMapWidget(QWidget):
         self.draw_gridlines()
         self.fig.canvas.draw()  # update matlabplot
 
-    def draw_gridlines(self, preserve_extent=True):
-        
+    def draw_gridlines(self):
+        """
+        draw gridlines on the map
+        """
         self.gl = None
         if self.map_settings_widget.show_grid_checkbox.isChecked():
             self.gl = self.axes.gridlines(draw_labels=True)
-            
 
-    def update_detections(self, line_color='gray', autoscale=True, preserve_colors=False):
-        
+    def update_detections(self, line_color: str = 'gray', autoscale: bool = True, preserve_colors: bool = False):
+        """
+        update detections
+
+        :param line_color: color of the backazimuth lines
+        :param autoscale: whether to autoscale the map after plotting
+        :param preserve_colors: whether to preserve the current line colors
+        """
         # trimmed_detections will hold either the entire set if not trimmed, or just the detections
         # chosen in the distance matrix.
         ip_detections = self.parent.get_trimmed_detections()
-        
+
         if ip_detections is None:
             return
 
         if not autoscale:
-            current_extent = self.axes.get_extent() # save this in case we are preserving the current extent
-        
+            current_extent = self.axes.get_extent()  # save this in case we are preserving the current extent
+
         if preserve_colors:
             linecolor = self.current_linecolor
         else:
@@ -313,14 +361,16 @@ class IPMapWidget(QWidget):
             else:
                 name = str(idx)
 
-            # draw the back azimuth lines    
+            # draw the back azimuth lines
             N = 20
-            # a hack... annotate doesnt correctly ingest the transform, so you have to do this...which i don't entirely understand
+            # a hack... annotate doesnt correctly ingest the transform,
+            # so you have to do this...which i don't entirely understand
             # https://stackoverflow.com/questions/25416600/why-the-annotate-worked-unexpected-here-in-cartopy#_=_
             mpl_transform = ccrs.PlateCarree()._as_mpl_transform(self.axes)
 
             for d in np.arange(0, rng_max, rng_max / N):  # N points
-                new_lon, new_lat, _ = self.sph_proj.fwd(detection.longitude, detection.latitude, detection.back_azimuth, d)
+                new_lon, new_lat, _ = self.sph_proj.fwd(detection.longitude, detection.latitude,
+                                                        detection.back_azimuth, d)
                 if count == int(N / 2):
                     self.axes.annotate(name,
                                        (new_lon, new_lat),
@@ -365,7 +415,7 @@ class IPMapWidget(QWidget):
         if autoscale:
             self.autoscale_plot()
         else:
-            # if we don't autoscale, then we want to return the plot to what it was when 
+            # if we don't autoscale, then we want to return the plot to what it was when
             # we entered this function
             self.set_map_extent(current_extent)
             self.extentWidget.set_extent_spin_values(current_extent)     # update extentWidget
@@ -373,23 +423,30 @@ class IPMapWidget(QWidget):
         # draw it
         try:
             self.fig.canvas.draw()
-        except:
+        except Exception:
             return
 
     @pyqtSlot()
     def clear_detections(self):
-        #do i still need this?
+        """
+        clear detections
+        """
+        # do i still need this?
         self.clear_plot()
 
     def plot_ground_truth(self):
-        if self.gt_marker is not None: # clear old one, and make new one
+        """
+        plot the ground truth location
+        """
+        if self.gt_marker is not None:  # clear old one, and make new one
             self.gt_marker.remove()
 
         lat = self.parent.showgroundtruth.event_widget.getLat()
         lon = self.parent.showgroundtruth.event_widget.getLon()
-        
-        current_extent = self.axes.get_extent() # plotting the event should not change the extent
-        self.gt_marker, = self.axes.plot(lon, lat, 'X', color='red', transform=self.transform, markersize=16, gid='ground_truth_marker')
+
+        current_extent = self.axes.get_extent()  # plotting the event should not change the extent
+        self.gt_marker, = self.axes.plot(lon, lat, 'X', color='red', transform=self.transform, markersize=16,
+                                         gid='ground_truth_marker')
 
         self.set_map_extent(current_extent)
         self.extentWidget.set_extent_spin_values(current_extent)     # update extentWidget
@@ -397,8 +454,10 @@ class IPMapWidget(QWidget):
         self.show_hide_ground_truth(self.parent.showgroundtruth.event_widget.showGT_cb.checkState())
 
     @pyqtSlot(int)
-    def show_hide_ground_truth(self, show):
-
+    def show_hide_ground_truth(self, show: bool):
+        """
+        show or hide ground truth marker
+        """
         if self.gt_marker is not None:
             if show == Qt.Checked:
                 self.gt_marker.set_visible(True)
@@ -408,17 +467,24 @@ class IPMapWidget(QWidget):
         self.fig.canvas.draw()
         self.repaint()
 
-    def plot_bisl_result(self, result_lon=None, result_lat=None, replot=False):
-        # note that if replot is False, result_lat and result_lon are required
+    def plot_bisl_result(self, result_lon: Optional[float] = None, result_lat: Optional[float] = None,
+                         replot: bool = False):
+        """
+        plot the bisl result.
+        note that if replot is False, result_lat and result_lon are required
 
-        #clear out previous marker
+        :param result_lon: longitude of the bisl result
+        :param result_lat: latitude of the bisl result
+        :param replot: whether to replot existing data
+        """
+        # clear out previous marker
         self.remove_bisl_result()
 
-        if replot: 
+        if replot:
             # we just need to replot existing data
             result_lat = self.bisl_rslt[0]
             result_lon = self.bisl_rslt[1]
-            if result_lat == None or result_lon == None:
+            if result_lat is None or result_lon is None:
                 # nothing to plot
                 return
         else:
@@ -426,17 +492,30 @@ class IPMapWidget(QWidget):
             self.bisl_rslt = (result_lat, result_lon)
 
         current_extent = self.axes.get_extent()
-        self.axes.plot(result_lon, result_lat, 'o', markersize=7, color='blue', transform=self.transform, gid='bisl_result_marker')
+        self.axes.plot(result_lon, result_lat, 'o', markersize=7, color='blue', transform=self.transform,
+                       gid='bisl_result_marker')
         self.set_map_extent(current_extent)
 
         self.extentWidget.set_extent_spin_values(current_extent)     # update extentWidget
 
     def remove_bisl_result(self):
+        """
+        remove bisl result
+        """
         for c in self.axes.get_children():
             if c.get_gid() == 'bisl_result_marker':
                 c.remove()
 
     def plot_conf_ellipse(self, result_lons=None, result_lats=None, conf_dx=None, conf_dy=None, replot=False):
+        """
+        plot the confidence ellipse
+
+        :param result_lons: result longitudes
+        :param result_lats: result latitudes
+        :param conf_dx: confidence ellipse x values
+        :param conf_dy: confidence ellipse y values
+        :param replot: whether to replot existing data
+        """
         # clear out previous ellipse
         self.remove_conf_ellipse()
 
@@ -446,7 +525,7 @@ class IPMapWidget(QWidget):
             result_lons = self.bisl_rslt[1]
             conf_dx = self.conf_ellipse[0]
             conf_dy = self.conf_ellipse[1]
-            if result_lats == None or result_lons == None:
+            if result_lats is None or result_lons is None:
                 # nothng to do
                 return
         else:
@@ -467,11 +546,19 @@ class IPMapWidget(QWidget):
         self.repaint()
 
     def remove_conf_ellipse(self):
+        """
+        remove confidence ellipse
+        """
         for c in self.axes.get_children():
             if c.get_gid() == 'conf_ellipse':
                 c.remove()
 
     def clear_plot(self, reset_zoom=True):
+        """
+        clear the plot
+
+        :param reset_zoom: whether to reset the zoom to global
+        """
         for c in self.axes.get_children():
             c_gid = c.get_gid()
 
@@ -487,16 +574,21 @@ class IPMapWidget(QWidget):
                 c.remove()
         if reset_zoom:
             self.axes.set_global()
-            self.extentWidget.set_extent_spin_values([-179.99,180,-90,90])
+            self.extentWidget.set_extent_spin_values([-179.99, 180, -90, 90])
 
         self.fig.canvas.draw()  # update matlabplot
         self.repaint()          # update widget
 
-
     def update_range_max(self):
+        """
+        update the range max value
+        """
         self.update_detections(preserve_colors=True)
 
     def autoscale_plot(self):
+        """
+        autoscale the plot
+        """
         # make an attempt to scale the plot so all relavent info is shown
 
         detections = self.parent.get_trimmed_detections()
@@ -504,7 +596,7 @@ class IPMapWidget(QWidget):
         if len(detections) < 1:
             # nothing to scale to, so set to global extent and exit
             self.axes.set_global()
-            self.extentWidget.set_extent_spin_values([-180,180,-90,90])
+            self.extentWidget.set_extent_spin_values([-180, 180, -90, 90])
             return
 
         lons = []
@@ -514,18 +606,17 @@ class IPMapWidget(QWidget):
             lons.append(detection.longitude)
             lats.append(detection.latitude)
 
-
         if self.parent.showgroundtruth.event_widget.showGT_cb.isChecked():
             lons.append(self.parent.showgroundtruth.event_widget.event_lon_edit.value())
             lats.append(self.parent.showgroundtruth.event_widget.event_lat_edit.value())
 
         maxLat = max(lats + self.end_lats)
         minLat = min(lats + self.end_lats)
-        center_lat = minLat + (maxLat - minLat)/2.
+        center_lat = minLat + (maxLat - minLat) / 2.
 
         maxLon = max(lons + self.end_lons)
         minLon = min(lons + self.end_lons)
-        center_lon = minLon + (maxLon - minLon)/2.
+        center_lon = minLon + (maxLon - minLon) / 2.
 
         if maxLon != minLon:
             width = abs(maxLon - minLon)
@@ -542,32 +633,43 @@ class IPMapWidget(QWidget):
         width_adj = width * 0.10
         height_adj = height * 0.10
 
-        minLat = center_lat - height/2. - height_adj
-        maxLat = center_lat + height/2. + height_adj
-        minLon = center_lon - width/2. - width_adj
-        maxLon = center_lon + width/2. + width_adj
+        minLat = center_lat - height / 2. - height_adj
+        maxLat = center_lat + height / 2. + height_adj
+        minLon = center_lon - width / 2. - width_adj
+        maxLon = center_lon + width / 2. + width_adj
 
-        # if there is only one detection, or they are all in line, the map could come up very thin, so 
+        # if there is only one detection, or they are all in line, the map could come up very thin, so
         # we want to jump through some hoops to make sure the map is at least a little normal
-        self.set_map_extent([minLon, maxLon, minLat, maxLat])
+        self.set_map_extent((minLon, maxLon, minLat, maxLat))
 
         self.extentWidget.set_extent_spin_values([minLon, maxLon, minLat, maxLat])     # update extentWidget
 
-
     def fix_aspect(self, w: float, h: float) -> tuple[float, float]:
+        """
+        fix the aspect ratio
+
+        :param w: width
+        :param h: height
+        :return: new width and height
+        """
         golden_ratio = 1.618
-        #try to make the extent aspect ration to be something normal
-        if abs(w/h) >= golden_ratio:
-            new_h = w/golden_ratio
+        # try to make the extent aspect ration to be something normal
+        if abs(w / h) >= golden_ratio:
+            new_h = w / golden_ratio
             new_w = w
-        elif abs(w/h) <= 1./golden_ratio:
-            new_w = h/golden_ratio
+        elif abs(w / h) <= 1. / golden_ratio:
+            new_w = h / golden_ratio
             new_h = h
         else:
             return w, h
         return new_w, new_h
 
     def motion_notify_callback(self, event):
+        """
+        function to notify motion callback
+
+        :param event: triggering event
+        """
         if event.xdata is None or event.inaxes != self.axes:
             self.axes.set_title('')
             self.fig.canvas.draw()
@@ -577,11 +679,17 @@ class IPMapWidget(QWidget):
         else:
             self.mouse_moved = True
             # if event.button is None:
-            self.axes.set_title('Lon = {:+f}, Lat = {:+f}'.format(event.xdata, event.ydata), loc='center', pad=20, fontsize=10, color='0.6')
+            self.axes.set_title('Lon = {:+f}, Lat = {:+f}'.format(event.xdata, event.ydata), loc='center', pad=20,
+                                fontsize=10, color='0.6')
             self.fig.canvas.draw()
 
     # matplotlib events are not to be confused with (py)Qt events
     def button_press_callback(self, event):
+        """
+        function for button press callback
+
+        :param event: triggering event
+        """
         # This is to handle the button click from within matplotlib...doesnt really do anything yet
         if event.button != 1:
             return
@@ -590,6 +698,11 @@ class IPMapWidget(QWidget):
             print("start = {}".format(self.start_mouse_loc))
 
     def button_release_callback(self, event):
+        """
+        function for button release callback
+
+        :param event: triggering event
+        """
         # This is to handle the button release from within matplotlib...undoes whatever the button press did
         if event.button != 1:
             return
@@ -643,8 +756,6 @@ class IPMapWidget(QWidget):
 
         self.fig.canvas.draw()
 
-    
-
     def area_select_callback(self, eclick, erelease):
         x1, y1 = eclick.xdata, eclick.ydata
         x2, y2 = erelease.xdata, erelease.ydata
@@ -657,7 +768,8 @@ class IPMapWidget(QWidget):
         if self.map_settings_widget.central_lon_cb.value() != cl:
             self.map_settings_widget.central_lon_cb.setValue(cl)
 
-        # in order to preserve the zoom, lets first grab the current extent with the goal of resetting it after the new projection
+        # in order to preserve the zoom, lets first grab the current extent with the goal of resetting it after the new
+        # projection
         current_extent = self.axes.get_extent()
         width = current_extent[1] - current_extent[0]
         height = current_extent[3] - current_extent[2]
@@ -674,14 +786,25 @@ class IPMapWidget(QWidget):
 
 
 class IPMissingMapsDialog(QDialog):
+    """
+    class for missing maps dialog
+    """
     def __init__(self, parent=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
         self.buildUI()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setWindowTitle("Infraview: Missing map files...")
-        
-        missing_maps_str = """When initially run, infrapy will attempt to download maps from 
+
+        missing_maps_str = """When initially run, infrapy will attempt to download maps from
         the internet. If you don't have an internet connection, it is most likely a proxy issue.
         In the rare case where you can't connect to the internet, then you can download the maps
         seperately and point infraview to that directory (see below)."""
@@ -697,7 +820,7 @@ class IPMissingMapsDialog(QDialog):
         select_map_dir_layout.addWidget(self.map_location_lineedit)
         select_map_dir_layout.addWidget(self.map_location_button)
 
-        ###   dialog buttons   ###
+        #   dialog buttons   #
         buttons = QDialogButtonBox(QDialogButtonBox.Cancel,
                                    Qt.Horizontal,
                                    self)
@@ -711,22 +834,36 @@ class IPMissingMapsDialog(QDialog):
         self.setLayout(main_layout)
 
     def select_offline_maps_directory(self):
+        """
+        select offline maps directory
+        """
         new_dir = QFileDialog.getExistingDirectory()
-        
-        self.map_location_lineedit.setText(new_dir) 
+
+        self.map_location_lineedit.setText(new_dir)
         settings = QSettings('LANL', 'InfraView')
         settings.beginGroup('LocationWidget')
-        settings.setValue('offline_maps_dir', new_dir)            
+        settings.setValue('offline_maps_dir', new_dir)
 
 
 class IPMapExportDialog(QDialog):
-    
+    """
+    class for map export dialog
+    """
     def __init__(self, parent=None, figure=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        :param figure: matplotlib figure
+        """
         super().__init__(parent)
         self.fig = figure
         self.buildUI()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setWindowTitle("Infraview: Map Export")
 
         # export pdf...
@@ -741,7 +878,7 @@ class IPMapExportDialog(QDialog):
         pdf_layout.addWidget(self.pdf_export_button)
         pdf_group_box.setLayout(pdf_layout)
 
-        #export img...
+        # export img...
         img_group_box = QGroupBox("Export to image file")
         self.img_file_label = QLabel("")
         self.img_file_label.setMinimumWidth(200)
@@ -753,7 +890,7 @@ class IPMapExportDialog(QDialog):
         img_layout.addWidget(self.img_export_button)
         img_group_box.setLayout(img_layout)
 
-        ###   dialog buttons   ###
+        # dialog buttons   #
         buttons = QDialogButtonBox(QDialogButtonBox.Cancel,
                                    Qt.Horizontal,
                                    self)
@@ -770,14 +907,19 @@ class IPMapExportDialog(QDialog):
         self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):
+        """
+        connect signals to widgets
+        """
         self.pdf_button.clicked.connect(self.save_pdf)
         self.img_button.clicked.connect(self.save_img)
         self.img_export_button.clicked.connect(self.export_img)
         self.pdf_export_button.clicked.connect(self.export_pdf)
 
-
     def save_pdf(self):
-        filename = QFileDialog.getSaveFileName(parent=self, caption="Save PDF", filter="PDF files (*.pdf)" )
+        """
+        save pdf
+        """
+        filename = QFileDialog.getSaveFileName(parent=self, caption="Save PDF", filter="PDF files (*.pdf)")
         if filename[0] == '':
             # dialog was cancelled, just leave
             return
@@ -791,7 +933,10 @@ class IPMapExportDialog(QDialog):
         self.pdf_file_label.setText(new_filename)
 
     def save_img(self):
-        filename = QFileDialog.getSaveFileName(parent=self, caption="Save Image", filter="Images (*.png *.xpm *.jpg)" )
+        """
+        save image as jpg/png/xpm
+        """
+        filename = QFileDialog.getSaveFileName(parent=self, caption="Save Image", filter="Images (*.png *.xpm *.jpg)")
         if filename[0] == '':
             # dialog was cancelled, just leave
             return
@@ -799,6 +944,9 @@ class IPMapExportDialog(QDialog):
         self.img_file_label.setText(filename[0])
 
     def export_img(self):
+        """
+        export image
+        """
         if self.img_file_label.text() == "":
             IPUtils.errorPopup("Can't export image.  No image file selected.")
             return
@@ -807,10 +955,12 @@ class IPMapExportDialog(QDialog):
         self.close()
 
     def export_pdf(self):
+        """
+        export pdf
+        """
         if self.pdf_file_label.text() == "":
             IPUtils.errorPopup("Can't export to pdf.  No pdf file selected.")
-            return 
+            return
         self.fig.savefig(self.pdf_file_label.text())
         time.sleep(1.2)
         self.close()
-

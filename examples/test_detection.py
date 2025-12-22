@@ -46,16 +46,21 @@ if __name__ == '__main__':
         times = np.load(times_file)
         beam_results = np.load(beam_results_file)
     else:
-        print('No beamforming input provided')
+        print("No beamforming input provided")
+        exit(0)
 
     ######################################
     ##      Run detection analysis      ##
     ######################################
-    #detect_signals(times, beam_results, win_len, TB_prod, channel_cnt, det_p_val=0.99, min_seq=5, back_az_lim=15, fixed_thresh=None, return_thresh=False)
+    # detect_signals(times, beam_results, win_len, TB_prod, channel_cnt, det_p_val=0.99, min_seq=5, back_az_lim=15,
+    # fixed_thresh=None, return_thresh=False)
 
-    dets = beamforming_new.detect_signals(times, beam_results, det_win_len, TB_prod, channel_cnt, min_seq=min_seq, back_az_lim=back_az_lim)
+    dets = beamforming_new.detect_signals(times, beam_results, det_win_len, TB_prod, channel_cnt, min_seq=min_seq,
+                                          back_az_lim=back_az_lim)
 
     print('\n' + "Detection Summary:")
     for det in dets:
-        print("Detection time:", det[0], '\t', "Rel. detection onset:", det[1], '\t',"Rel. detection end:", det[2], '\t',end=' ')
-        print("Back azimuth:", np.round(det[3], 2), '\t', "Trace velocity:", np.round(det[4], 2), '\t', "F-stat:", np.round(det[5], 2), '\t', "Array dim:", channel_cnt)
+        print("Detection time:", det[0], '\t', "Rel. detection onset:", det[1], '\t', "Rel. detection end:", det[2],
+              '\t', end=' ')
+        print("Back azimuth:", np.round(det[3], 2), '\t', "Trace velocity:", np.round(det[4], 2), '\t', "F-stat:",
+              np.round(det[5], 2), '\t', "Array dim:", channel_cnt)

@@ -7,116 +7,116 @@ identifying detections via a spectrogram
 Author            Philip Blom (pblom@lanl.gov)
 
 """
+from typing import List, Tuple
 
+import multiprocessing
 import numpy as np
-
-from obspy.core import UTCDateTime
-
+from obspy.core import UTCDateTime, Trace
 from scipy.integrate import simps
 from scipy.signal import spectrogram, stft, cwt, morlet2
 from scipy.stats import gaussian_kde, norm, skewnorm
 from scipy.optimize import curve_fit, minimize_scalar
-
 from sklearn.cluster import DBSCAN
 
 from ..utils import prog_bar
 
 
-def calc_thresh(Sxx_vals, p_val):
+def calc_thresh(Sxx_vals: np.ndarray, p_val: float) -> Tuple[float, float]:
     if Sxx_vals is not None:
         kernel = gaussian_kde(Sxx_vals)
- 
+
         spec_spread = np.max(Sxx_vals) - np.min(Sxx_vals)
         spec_vals = np.linspace(np.min(Sxx_vals) - 0.25 * spec_spread, np.max(Sxx_vals) + 0.25 * spec_spread, 100)
- 
+
         mean0 = simps(spec_vals * kernel(spec_vals), spec_vals)
         stdev0 = np.sqrt(simps((spec_vals - mean0)**2 * kernel(spec_vals), spec_vals))
         thresh0 = norm.ppf(1.0 - p_val, loc=mean0, scale=stdev0)
- 
+
         mask = np.logical_and(mean0 - 2.0 * stdev0 < spec_vals, spec_vals < mean0 + 2.0 * stdev0)
- 
+
         try:
             # Try fitting with a skew normal
             def skew_fit(x, sk, A0, x0, sig0):
                 return A0 * skewnorm.pdf(x, sk, loc=x0, scale=sig0)
- 
+
             popt, _ = curve_fit(skew_fit, spec_vals[mask], kernel(spec_vals[mask]), p0=(0.0, 1.0, mean0, stdev0))
             thresh_fit = skewnorm.ppf(1.0 - p_val, popt[0], loc=popt[2], scale=popt[3])
             thresh = min(thresh0, thresh_fit)
- 
+
             def temp2(x):
                 return -skewnorm.pdf(x, popt[0], loc=popt[2], scale=popt[3])
             peak = minimize_scalar(temp2, bracket=(popt[2] - 2.0 * popt[3], popt[2] + 2.0 * popt[3])).x
-        except:
+        except Exception:
             # Fit using a standard normal distribution if the skew fit fails to converge
             def norm_fit(x, A0, x0, sig0):
                 return A0 * norm.pdf(x, loc=x0, scale=sig0)
-           
+
             popt, _ = curve_fit(norm_fit, spec_vals[mask], kernel(spec_vals[mask]), p0=(1.0, mean0, stdev0))
             thresh_fit = norm.ppf(1.0 - p_val, loc=popt[1], scale=popt[2])
- 
+
             thresh = min(thresh0, thresh_fit)
             peak = popt[1]
- 
+
         return thresh, peak
     else:
         return 0.0, 0.0
+
 
 def calc_thresh_wrapper(args):
     return calc_thresh(*args)
 
 
-def det2dict(f, t, Sxx_log, det_pnts, trace, peaks_history, thresh_history, times_history):
+def det2dict(f: np.ndarray, t: np.ndarray, Sxx_log: np.ndarray, det_pnts: np.ndarray, trace, peaks_history: np.ndarray,
+             thresh_history: np.ndarray, times_history: np.ndarray) -> dict:
+    t0 = trace.stats.starttime
 
-        t0 = trace.stats.starttime
+    t_mean = UTCDateTime(t0) + np.mean(det_pnts[:, 0])
+    t1 = UTCDateTime(t0) + min(det_pnts[:, 0])
+    t2 = UTCDateTime(t0) + max(det_pnts[:, 0])
 
-        t_mean = UTCDateTime(t0) + np.mean(det_pnts[:, 0])
-        t1 = UTCDateTime(t0) + min(det_pnts[:, 0])
-        t2 = UTCDateTime(t0) + max(det_pnts[:, 0])
+    t_mid = UTCDateTime(t0) + np.mean(det_pnts[:, 0])
+    tm_index = np.argmin([abs(tn - t_mid) for tn in times_history])
+    bg_freqs = f[peaks_history[tm_index] != 0]
+    bg_peaks = peaks_history[tm_index][peaks_history[tm_index] != 0]
+    bg_thresh = thresh_history[tm_index][peaks_history[tm_index] != 0]
 
-        t_mid = UTCDateTime(t0) + np.mean(det_pnts[:, 0])
-        tm_index = np.argmin([abs(tn - t_mid) for tn in times_history])
-        bg_freqs = f[peaks_history[tm_index] != 0]
-        bg_peaks = peaks_history[tm_index][peaks_history[tm_index] != 0]
-        bg_thresh = thresh_history[tm_index][peaks_history[tm_index] != 0]
+    det_info = dict()
+    det_info['Time (UTC)'] = str(t_mean)
+    det_info['Start'] = t1 - t_mean
+    det_info['End'] = t2 - t_mean
+    det_info['Freq Range'] = [np.round(min(det_pnts[:, 1]), 2), np.round(max(det_pnts[:, 1]), 2)]
 
-        det_info = dict()
-        det_info['Time (UTC)'] = str(t_mean)
-        det_info['Start'] = t1 - t_mean 
-        det_info['End'] = t2 - t_mean
-        det_info['Freq Range'] = [np.round(min(det_pnts[:, 1]), 2),
-                                  np.round(max(det_pnts[:, 1]), 2)]
+    try:
+        det_info['Latitude'] = float(trace.stats.sac['stla'])
+        det_info['Longitude'] = float(trace.stats.sac['stlo'])
+    except Exception:
+        print("Lat/Lon info not in trace header, omitting from detection file.")
 
-        try:
-            det_info['Latitude'] = float(trace.stats.sac['stla'])
-            det_info['Longitude'] = float(trace.stats.sac['stlo'])
-        except:
-            print("Lat/Lon info not in trace header, omitting from detection file.")
+    det_info['Network'] = trace.stats.network
+    det_info['Station'] = trace.stats.station
+    det_info['Channel'] = trace.stats.channel
 
-        det_info['Network'] = trace.stats.network
-        det_info['Station'] = trace.stats.station
-        det_info['Channel'] = trace.stats.channel
+    det_info['Sxx_points'] = det_pnts
 
-        det_info['Sxx_points'] = det_pnts
+    SXX_det_mask = np.logical_and(min(det_pnts[:, 0]) < t, t < max(det_pnts[:, 0]))
+    det_info['Sxx_det_mean'] = [f, np.mean(Sxx_log[:, SXX_det_mask], axis=1)]
+    det_info['Sxx_det_max'] = [f, np.max(Sxx_log[:, SXX_det_mask], axis=1)]
 
-        SXX_det_mask = np.logical_and(min(det_pnts[:, 0]) < t, t < max(det_pnts[:, 0]))
-        det_info['Sxx_det_mean'] = [f, np.mean(Sxx_log[:, SXX_det_mask], axis=1)]
-        det_info['Sxx_det_max'] = [f, np.max(Sxx_log[:, SXX_det_mask], axis=1)]
+    det_info['Background Peaks'] = [bg_freqs, bg_peaks]
+    det_info['Background Threshold'] = [bg_freqs, bg_thresh]
 
-        det_info['Background Peaks'] = [bg_freqs, bg_peaks]
-        det_info['Background Threshold'] = [bg_freqs, bg_thresh]
-
-        return det_info
+    return det_info
 
 
-def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_window_step,
-            clustering_freq_scaling, clustering_eps, clustering_min_samples, clustering_window_len,
-            pl, t_skip, verbose=False):
+def run_sd(f: np.ndarray, t: np.ndarray, Sxx_log: np.ndarray, freq_band: np.ndarray, p_val: float,
+           adaptive_window_length: float, adaptive_window_step: float, clustering_freq_scaling: float,
+           clustering_eps: float, clustering_min_samples: int, clustering_window_len: float,
+           pl, t_skip: int, verbose: bool = False):
 
-    """Run the spectral detection (sd) methods
- 
+    """ Run the spectral detection (sd) methods
+
         NEED TO UPDATE THIS NOW THAT WE'VE SEPARATED FUNCTIONS
- 
+
         trace: obspy.core.Trace
             Obspy trace containing single channel data
         spec_option: str
@@ -143,62 +143,64 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
             Length of window used in DBSCAN (avoids memory issues)
         pl: multiprocessing.Pool
             Multiprocessing pool for simultaneous analysis of windows
- 
+
         Returns:
         ----------
         dets: iterable of dicts
             List of dictionaries containing detection info
     """
- 
     if verbose:
         print('\n' + "Running spectral detection (sd) analysis...")
- 
+
     if freq_band[1] > f[-1]:
         print("Warning!  Maximum frequency is above Nyquist (" + str(f[-1]) + ")")
     freq_band_mask = np.logical_and(freq_band[0] < f, f < freq_band[1])
- 
+
     # Scan through adaptive windows to identify above-background spectrogram points
     thresh_history, peaks_history, times_history = [], [], []
     spec_dets = []
- 
+
     prog_bar_len, win_cnt = 50, np.ceil((t[-1] - t[0]) / adaptive_window_step)
     if verbose:
-        print('\t' + "Progress: ", end = '')
+        print('\t' + "Progress: ", end='')
         prog_bar.prep(prog_bar_len)
- 
+
     for win_n, window_start in enumerate(np.arange(t[0], t[-1], adaptive_window_step)):
         window_mask = np.logical_and(window_start <= t, t <= window_start + adaptive_window_length)
         Sxx_window = Sxx_log[:, window_mask]
         t_window = t[window_mask]
- 
+
         if pl is not None:
-            args = [[Sxx_window[:, ::t_skip][fn], p_val] if freq_band[0] < f[fn] and f[fn] < freq_band[1] else [None, False] for fn in range(len(f))]
+            args = [[Sxx_window[:, ::t_skip][fn], p_val] if freq_band[0] < f[fn] and f[fn] < freq_band[1]
+                    else [None, False] for fn in range(len(f))]
             temp = pl.map(calc_thresh_wrapper, args)
         else:
-            temp = np.array([calc_thresh(Sxx_window[:, ::t_skip][fn], p_val) if freq_band_mask[fn] else (0.0, 0.0) for fn in range(len(f))])
- 
+            temp = np.array([calc_thresh(Sxx_window[:, ::t_skip][fn], p_val) if freq_band_mask[fn]
+                             else (0.0, 0.0) for fn in range(len(f))])
+
         threshold = np.array(temp)[:, 0]
         peaks = np.array(temp)[:, 1]
- 
+
         thresh_history = thresh_history + [threshold]
         peaks_history = peaks_history + [peaks]
         times_history = times_history + [(window_start + adaptive_window_length / 2.0)]
- 
+
         _, thresh_grid = np.meshgrid(t_window, threshold)
-        spec_dets = spec_dets + [[t_window[k], f[fn], Sxx_window[fn][k]] for fn, k in np.argwhere(Sxx_window > thresh_grid) if freq_band_mask[fn]]      
+        spec_dets = spec_dets + [[t_window[k], f[fn], Sxx_window[fn][k]]
+                                 for fn, k in np.argwhere(Sxx_window > thresh_grid) if freq_band_mask[fn]]
         if verbose:
             prog_bar.increment(prog_bar.set_step(win_n, win_cnt, prog_bar_len))
- 
+
     if verbose:
         prog_bar.close()
- 
+
     # Remove duplicate above-threshold points and convert histories to numpy arrays
     spec_dets = np.unique(np.array(spec_dets), axis=0)
     thresh_history = np.array(thresh_history)
     peaks_history = np.array(peaks_history)
- 
+
     history_info = [peaks_history, thresh_history, times_history]
- 
+
     # Cluster into detections
     if verbose:
         print("Clustering into detections...")
@@ -207,7 +209,7 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
     for dt in np.arange(t[0], t[-1], clustering_window_len):
         t1 = dt
         t2 = dt + clustering_window_len * 1.2
-        
+
         tm_mask = np.logical_and(t1 <= spec_dets[:, 0], spec_dets[:, 0] <= t2)
         spec_dets_logf = np.stack((spec_dets[tm_mask, 0], clustering_freq_scaling * np.log10(spec_dets[tm_mask, 1]))).T
 
@@ -230,16 +232,20 @@ def run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_win
 
     if verbose:
         print("Identified " + str(len(cluster_results)) + " detections." + '\n')
- 
+
     return spec_dets, cluster_results, history_info
- 
-def cli_sd(trace, spec_option, morlet_omega0, freq_band, spec_overlap, p_val, adaptive_window_length, adaptive_window_step, clustering_freq_scaling, clustering_eps, clustering_min_samples, cluster_window_len, pl):
+
+
+def cli_sd(trace: Trace, spec_option: str, morlet_omega0: float, freq_band: np.ndarray, spec_overlap: float,
+           p_val: float, adaptive_window_length: float, adaptive_window_step: float, clustering_freq_scaling: float,
+           clustering_eps: float, clustering_min_samples: int, cluster_window_len: float,
+           pl) -> List[dict]:
 
     # Compute spectrogram from the trace
     dt = trace.stats.delta
     nperseg = int((4.0 / freq_band[0]) / dt)
     t_skip = 1
- 
+
     if spec_option == "spectrogram":
         f, t, Sxx = spectrogram(trace.data, 1.0 / dt, nperseg=nperseg, noverlap=int(nperseg * spec_overlap))
         Sxx_log = 10.0 * np.log10(Sxx)
@@ -250,16 +256,19 @@ def cli_sd(trace, spec_option, morlet_omega0, freq_band, spec_overlap, p_val, ad
         f, _, _ = spectrogram(trace.data, 1.0 / dt, nperseg=nperseg, noverlap=int(nperseg * spec_overlap))
         t = trace.times()
         t_skip = int(nperseg * (1.0 - spec_overlap))
-       
+
         widths = morlet_omega0 / (2 * np.pi * f) * (1.0 / dt)
         Sxx_log = 10.0 * np.log10(abs(cwt(trace.data, morlet2, widths, w=morlet_omega0)))
     else:
         print("Error: unrecognized spectrogram option: " + spec_option + ".")
         return []
-   
-    _, cluster_results, history = run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_window_step, clustering_freq_scaling, clustering_eps, clustering_min_samples, cluster_window_len, pl, t_skip, verbose=True)
- 
+
+    _, cluster_results, history = run_sd(f, t, Sxx_log, freq_band, p_val, adaptive_window_length, adaptive_window_step,
+                                         clustering_freq_scaling, clustering_eps, clustering_min_samples,
+                                         cluster_window_len, pl, t_skip, verbose=True)
+
     times_history = [UTCDateTime(trace.stats.starttime) + tn for tn in history[2]]
-    det_list = [det2dict(f, t, Sxx_log, cluster_results[k], trace, history[0], history[1], times_history) for k in range(len(cluster_results))]
- 
+    det_list = [det2dict(f, t, Sxx_log, cluster_results[k], trace, history[0], history[1], times_history)
+                for k in range(len(cluster_results))]
+
     return det_list

@@ -3,35 +3,36 @@
 # Visualization methods for beamforming (fk) and detection (fd) results
 #
 # Philip Blom (pblom@lanl.gov)
-
+from typing import Optional
 
 import numpy as np
 
-from obspy import UTCDateTime
+from obspy import UTCDateTime, Stream, Trace
 
 from scipy.signal import spectrogram, stft, cwt, morlet2
 
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 from matplotlib import cm
 
 from . import beamforming_new
 
 
-def plot_fk1(stream, latlon, times, peaks, detections=None, title=None, output_path=None, show_fig=True, det_thresh=None):
+def plot_fk1(stream: Stream, latlon: np.ndarray, times: np.ndarray, peaks: np.ndarray,
+             detections: Optional[list] = None, title: Optional[str] = None, output_path: Optional[str] = None,
+             show_fig: bool = True, det_thresh: Optional[list] = None):
     '''
     Visualize beamforming (fk) results with waveform data included
-
-    '''   
+    '''
     x, t, t0, _ = beamforming_new.stream_to_array_data(stream, latlon)
 
     f, a = plt.subplots(4, figsize=(10, 6), sharex=True)
     a[3].set_xlabel("Time")
-    a[0].set_ylabel("F-stat")    
+    a[0].set_ylabel("F-stat")
     a[1].set_ylabel("Tr. Vel. [m/s]")
     a[2].set_ylabel("Back Az. [deg.]")
     a[3].set_ylabel("Pr. [Pa]")
 
-    a[3].plot(np.array([t0 + np.timedelta64(int(tn * 1000.0), 'ms') for tn in t]), x[0,:], '-k')
+    a[3].plot(np.array([t0 + np.timedelta64(int(tn * 1000.0), 'ms') for tn in t]), x[0, :], '-k')
     a[2].plot(times, peaks[:, 0], '.k', markersize=4)
     a[1].plot(times, peaks[:, 1], '.k', markersize=4)
     a[0].plot(times, peaks[:, 2], '.k', markersize=4)
@@ -50,19 +51,20 @@ def plot_fk1(stream, latlon, times, peaks, detections=None, title=None, output_p
         a[0].set_title(title)
 
     if output_path:
-        plt.savefig(output_path, dpi=300) 
+        plt.savefig(output_path, dpi=300)
 
     if show_fig:
         plt.show()
 
-def plot_fk2(times, peaks, detections=None, title=None, output_path=None, show_fig=True):
+
+def plot_fk2(times: np.ndarray, peaks: np.ndarray, detections: Optional[list] = None,
+             title: Optional[str] = None, output_path: Optional[str] = None, show_fig: bool = True):
     '''
     Visualize beamforming (fk) results without waveform data
     '''
-
     f, a = plt.subplots(3, figsize=(10, 6), sharex=True)
     a[2].set_xlabel("Time")
-    a[0].set_ylabel("F-stat")    
+    a[0].set_ylabel("F-stat")
     a[1].set_ylabel("Tr. Vel. [m/s]")
     a[2].set_ylabel("Back Az. [deg.]")
 
@@ -79,23 +81,24 @@ def plot_fk2(times, peaks, detections=None, title=None, output_path=None, show_f
 
     if title:
         a[0].set_title(title)
-       
+
     if output_path:
-        plt.savefig(output_path, dpi=300) 
+        plt.savefig(output_path, dpi=300)
 
     if show_fig:
         plt.show()
 
 
-def plot_sd(trace, det_list, freq_band, spec_option="spectrogram", morlet_omega0=12.0, title=None, output_path=None, show_fig=False):
+def plot_sd(trace: Trace, det_list: list, freq_band: list, spec_option: str = "spectrogram",
+            morlet_omega0: float = 12.0, title: Optional[str] = None,
+            output_path: Optional[str] = None, show_fig: bool = False):
     '''
     Visualize multiple spectral detection (sd) results
-
-    '''  
+    '''
     trace.filter('bandpass', freqmin=freq_band[0], freqmax=freq_band[1])
 
     dt = trace.stats.delta
-    nperseg = int((4.0 / freq_band[0]) / dt) 
+    nperseg = int((4.0 / freq_band[0]) / dt)
     if spec_option == "spectrogram":
         f, t, Sxx = spectrogram(trace.data, 1.0 / dt, nperseg=nperseg, noverlap=int(nperseg * 0.8))
         Sxx_log = 10.0 * np.log10(Sxx)
@@ -104,9 +107,11 @@ def plot_sd(trace, det_list, freq_band, spec_option="spectrogram", morlet_omega0
         Sxx_log = 10.0 * np.log10(abs(Sxx))
     elif spec_option == "cwt":
         f, _, _ = spectrogram(trace.data, 1.0 / dt, nperseg=nperseg, noverlap=int(nperseg * 0.8))
-        t = trace.times()       
+        t = trace.times()
         widths = morlet_omega0 / (2 * np.pi * f) * (1.0 / dt)
         Sxx_log = 10.0 * np.log10(abs(cwt(trace.data, morlet2, widths, w=morlet_omega0)))
+    else:
+        raise ValueError("spec_option must be 'spectrogram', 'stft', or 'cwt'")
 
     fig, a = plt.subplots(3, sharex=True, figsize=(9, 5))
     a[0].plot(trace.times(), trace.data, '-k')
@@ -114,7 +119,8 @@ def plot_sd(trace, det_list, freq_band, spec_option="spectrogram", morlet_omega0
 
     cmap_max = np.mean(Sxx_log[Sxx_log != -np.inf]) + 2.0 * np.std(Sxx_log[Sxx_log != -np.inf])
     cmap_min = np.mean(Sxx_log[Sxx_log != -np.inf]) - 2.0 * np.std(Sxx_log[Sxx_log != -np.inf])
-    a[1].imshow(np.flipud(Sxx_log), extent=[t[0], t[-1], f[1], f[-1]], cmap=cm.jet, aspect='auto', vmin=cmap_min, vmax=cmap_max)
+    a[1].imshow(np.flipud(Sxx_log), extent=[t[0], t[-1], f[1], f[-1]], cmap=cm.jet, aspect='auto',
+                vmin=cmap_min, vmax=cmap_max)
 
     a[2].set_xlabel("Time [s]")
     a[2].set_ylabel("Frequency [Hz]")
@@ -135,23 +141,24 @@ def plot_sd(trace, det_list, freq_band, spec_option="spectrogram", morlet_omega0
 
     if title:
         a[0].set_title(title)
-       
+
     if output_path:
-        plt.savefig(output_path, dpi=300) 
+        plt.savefig(output_path, dpi=300)
 
     if show_fig:
         plt.show()
 
 
-def plot_sd_single(trace, det_info, freq_band, spec_option="spectrogram", morlet_omega0=12.0, title=None, output_path=None, show_fig=False):
+def plot_sd_single(trace: Trace, det_info: dict, freq_band: list, spec_option: str = "spectrogram",
+                   morlet_omega0: float = 12.0, title: Optional[str] = None,
+                   output_path: Optional[str] = None, show_fig: bool = False):
     '''
     Visualize a single spectral detection (sd) result
-
-    '''  
+    '''
     t_shift = UTCDateTime(det_info['Time (UTC)']) - UTCDateTime(trace.stats.starttime)
 
     dt = trace.stats.delta
-    nperseg = int((4.0 / freq_band[0]) / dt) 
+    nperseg = int((4.0 / freq_band[0]) / dt)
     if spec_option == "spectrogram":
         f, t, Sxx = spectrogram(trace.data, 1.0 / dt, nperseg=nperseg, noverlap=int(nperseg * 0.8))
         Sxx_log = 10.0 * np.log10(Sxx)
@@ -160,9 +167,11 @@ def plot_sd_single(trace, det_info, freq_band, spec_option="spectrogram", morlet
         Sxx_log = 10.0 * np.log10(abs(Sxx))
     elif spec_option == "cwt":
         f, _, _ = spectrogram(trace.data, 1.0 / dt, nperseg=nperseg, noverlap=int(nperseg * 0.8))
-        t = trace.times()       
+        t = trace.times()
         widths = morlet_omega0 / (2 * np.pi * f) * (1.0 / dt)
         Sxx_log = 10.0 * np.log10(abs(cwt(trace.data, morlet2, widths, w=morlet_omega0)))
+    else:
+        raise ValueError("spec_option must be 'spectrogram', 'stft', or 'cwt'")
 
     Sxx_pnts = np.array(det_info['Sxx_points'])
 
@@ -171,9 +180,10 @@ def plot_sd_single(trace, det_info, freq_band, spec_option="spectrogram", morlet
 
     ax1 = fig.add_subplot(spec[1, :3])
     cmap_max = np.mean(Sxx_log[Sxx_log != -np.inf]) + 2.0 * np.std(Sxx_log[Sxx_log != -np.inf])
-    cmap_min = np.mean(Sxx_log[Sxx_log != -np.inf]) - 2.0 * np.std(Sxx_log[Sxx_log != -np.inf])   
-    ax1.imshow(np.flipud(Sxx_log), extent=[t[0] - t_shift, t[-1] - t_shift, f[1], f[-1]], cmap=cm.jet, aspect='auto', vmin=cmap_min, vmax=cmap_max)
-    
+    cmap_min = np.mean(Sxx_log[Sxx_log != -np.inf]) - 2.0 * np.std(Sxx_log[Sxx_log != -np.inf])
+    ax1.imshow(np.flipud(Sxx_log), extent=[t[0] - t_shift, t[-1] - t_shift, f[1], f[-1]],
+               cmap=cm.jet, aspect='auto', vmin=cmap_min, vmax=cmap_max)
+
     ax1.set_xlim([det_info['Start'] - 150.0, det_info['End'] + 150.0])
     ax1.axhline(freq_band[0], color='0.5')
     ax1.axhline(freq_band[1], color='0.5')
@@ -185,7 +195,7 @@ def plot_sd_single(trace, det_info, freq_band, spec_option="spectrogram", morlet
     ax0.set_yscale('log')
     ax0.set_xlabel("Time (rel. " + det_info['Time (UTC)'] + ") [s]")
     ax0.set_ylabel("Frequency [Hz]")
-    
+
     trace.filter('bandpass', freqmin=det_info['Freq Range'][0], freqmax=det_info['Freq Range'][1])
 
     ax2 = fig.add_subplot(spec[0, :3], sharex=ax1)
@@ -195,9 +205,12 @@ def plot_sd_single(trace, det_info, freq_band, spec_option="spectrogram", morlet
     ax2.set_ylabel("Press. [Pa]")
 
     ax3 = fig.add_subplot(spec[1:, 3:])
-    ax3.semilogx(det_info['Background Peaks'][0], det_info['Background Peaks'][1], '-k', linewidth=1.0, label="Background (Mean)")
-    ax3.semilogx(det_info['Background Threshold'][0], det_info['Background Threshold'][1], '--k', linewidth=1.0, label="Detection Threshold")
-    ax3.semilogx(det_info['Sxx_det_mean'][0], det_info['Sxx_det_mean'][1], '-b', linewidth=1.5, label="Detection (mean)")
+    ax3.semilogx(det_info['Background Peaks'][0], det_info['Background Peaks'][1], '-k', linewidth=1.0,
+                 label="Background (Mean)")
+    ax3.semilogx(det_info['Background Threshold'][0], det_info['Background Threshold'][1], '--k', linewidth=1.0,
+                 label="Detection Threshold")
+    ax3.semilogx(det_info['Sxx_det_mean'][0], det_info['Sxx_det_mean'][1], '-b', linewidth=1.5,
+                 label="Detection (mean)")
     ax3.semilogx(det_info['Sxx_det_max'][0], det_info['Sxx_det_max'][1], '-r', linewidth=1.0, label="Detection (max)")
     ax3.axvspan(det_info['Freq Range'][0], det_info['Freq Range'][1], color='green', alpha=0.5, edgecolor=None)
     ax3.set_xlabel("Frequency [Hz]")
@@ -209,9 +222,9 @@ def plot_sd_single(trace, det_info, freq_band, spec_option="spectrogram", morlet
 
     if title:
         ax2.set_title(title)
-       
+
     if output_path:
-        plt.savefig(output_path, dpi=300) 
+        plt.savefig(output_path, dpi=300)
 
     if show_fig:
         plt.show()

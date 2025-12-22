@@ -5,32 +5,50 @@ from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import QAction, QActionGroup, QMenuBar, QMenu, QLabel
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, Qt
 
+
 class IPMenuLabel(QLabel):
-    def __init__(self, text, parent):
+    """
+    class for menu label
+    """
+    def __init__(self, text: str, parent):
+        """
+        initialize
+
+        :param text: label text
+        :param parent: parent widget
+        """
         super().__init__(text, parent)
 
 
 class IPMainMenuBar(QMenuBar):
-
+    """
+    class for main menu bar
+    """
     sig_activate_widget = pyqtSignal(str)
     sig_set_theme = pyqtSignal(str)
 
-    def __init__(self, parent, widget_dict):
+    def __init__(self, parent, widget_dict: dict):
+        """
+        initialize
+
+        :param parent: parent widget
+        :param widget_dict: dictionary of widgets
+        """
         super().__init__(parent)
 
         self.main_window = widget_dict['app_window']
 
         if platform.system() == 'Darwin':
-           self.setNativeMenuBar(False)  # This is because I couldn't get the normal mac menu to work correctly...
+            self.setNativeMenuBar(False)  # This is because I couldn't get the normal mac menu to work correctly...
 
         self.apply_stylesheet()
 
         self.make_base_menu()
-    
-    def make_base_menu(self):
-        # This is where we create the menus/actions that will be visible 
-        # for all of the tabs
 
+    def make_base_menu(self):
+        """
+        Create the menus/actions that will be visible for all of the tabs
+        """
         # File Menu #############
         self.file_menu = QMenu('&File', self)
         self.file_menu.addAction(self.tr(' New Project...'), self.main_window.filemenu_NewProject)
@@ -46,8 +64,8 @@ class IPMainMenuBar(QMenuBar):
 
         self.file_menu.addSeparator()
 
-        self.file_menu.addAction(self.tr(' &Exit'), 
-                                 self.main_window.filemenu_Quit, 
+        self.file_menu.addAction(self.tr(' &Exit'),
+                                 self.main_window.filemenu_Quit,
                                  QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
 
         # View Menu ############
@@ -74,8 +92,8 @@ class IPMainMenuBar(QMenuBar):
         self.view_menu.addAction(self.light_action)
         # self.view_menu.addAction(self.auto_action)
         self.view_menu.addSeparator()
-        self.view_menu.addAction(self.tr(' Toggle Fullscreen'), 
-                                 self.main_window.viewmenu_toggle_fullscreen, 
+        self.view_menu.addAction(self.tr(' Toggle Fullscreen'),
+                                 self.main_window.viewmenu_toggle_fullscreen,
                                  shortcut=QKeySequence.FullScreen)
 
         if platform.system() == 'Darwin':
@@ -133,7 +151,7 @@ class IPMainMenuBar(QMenuBar):
                             'location': self.action_location,
                             'spectral': self.action_spectral,
                             'database': self.action_database}
-        
+
         self.toggle_enable('waveforms')
 
         widget_group = QActionGroup(self)
@@ -157,7 +175,12 @@ class IPMainMenuBar(QMenuBar):
         self.sig_activate_widget.connect(self.toggle_enable)
 
     @pyqtSlot(QAction)
-    def change_theme(self, source):
+    def change_theme(self, source: QAction):
+        """
+        change the theme of the application
+
+        :param source: the action that triggered the change
+        """
         if source == self.dark_action:
             self.sig_set_theme.emit('dark')
         elif source == self.light_action:
@@ -166,8 +189,9 @@ class IPMainMenuBar(QMenuBar):
             self.sig_set_theme.emit('auto')
 
     def apply_stylesheet(self):
-        '''manually set the stylesheet of the menu'''
-
+        """
+        manually set the stylesheet of the menu
+        """
         menu_style = '''
         QMenuBar::item:hover{
             background-color: #0F0;
@@ -190,39 +214,70 @@ class IPMainMenuBar(QMenuBar):
 
         self.setStyleSheet(menu_style)
 
-
     @pyqtSlot(bool)
-    def control_toggled(self, checked):
+    def control_toggled(self, checked: bool):
+        """
+        control toggle state
+
+        :param checked: whether the control is checked
+        """
         if checked:
-            self.action_control.setText("Settings \u2191") # up arrow
+            self.action_control.setText("Settings \u2191")  # up arrow
             self.action_control.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Up))
         else:
-            self.action_control.setText("Settings \u2193") # down arrow
+            self.action_control.setText("Settings \u2193")  # down arrow
             self.action_control.setShortcut(QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Down))
         self.action_control.setShortcutContext(Qt.ApplicationShortcut)
 
     @pyqtSlot(str)
     def toggle_enable(self, active_action):
+        """
+        enable the actions
+        """
         for key, value in self.action_dict.items():
             value.setEnabled(key != active_action)
 
     @pyqtSlot(bool)
     def activate_waveforms(self, checked):
+        """
+        activate waveforms tab
+
+        :param checked: not used
+        """
         self.sig_activate_widget.emit('waveforms')
 
     @pyqtSlot(bool)
     def activate_beamforming(self, checked):
+        """
+        activate beamforming tab
+
+        :param checked: not used
+        """
         self.sig_activate_widget.emit('beamforming')
 
     @pyqtSlot(bool)
     def activate_location(self, checked):
+        """
+        activate location tab
+
+        :param checked: not used
+        """
         self.sig_activate_widget.emit('location')
 
     @pyqtSlot(bool)
     def activate_database(self, checked):
+        """
+        activate database tab
+
+        :param checked: not used
+        """
         self.sig_activate_widget.emit('database')
 
     @pyqtSlot(bool)
     def activate_spectral(self, checked):
-        self.sig_activate_widget.emit('spectral')
+        """
+        activate spectral tab
 
+        :param checked: not used
+        """
+        self.sig_activate_widget.emit('spectral')

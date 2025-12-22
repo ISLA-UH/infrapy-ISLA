@@ -5,7 +5,7 @@ from infrapy.database.taskbase.loc import LocInfraPy
 
 
 def run(config_file):
-    pdetect = LocInfraPy(DB)
+    pdetect = LocInfraPy(config_file)
     pdetect.database_connecting()
     pdetect.data_processing()
 
@@ -13,7 +13,7 @@ def run(config_file):
 if __name__ == '__main__':
     try:
         config_file = sys.argv[1]
-    except Exception as ex1:
+    except Exception:
         print('A configuration file is required to start data processing')
         sys.exit()
 

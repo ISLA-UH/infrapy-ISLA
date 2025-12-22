@@ -37,9 +37,9 @@ if __name__ == '__main__':
     back_az_vals = np.arange(-180.0, 180.0, 1.5)
     trc_vel_vals = np.arange(300.0, 600.0, 2.5)
 
-    method="bartlett"
+    method = "bartlett"
 
-    #p = mp.ProcessingPool(cpu_count())
+    # p = mp.ProcessingPool(cpu_count())
     p = Pool(cpu_count() - 1)
     # ######################### #
     #  Read, Shift Start Time,  #

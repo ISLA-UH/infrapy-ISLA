@@ -247,6 +247,7 @@ def make_tables_from_dict(tables=None, schema=None):
     
     return dict_of_classes
 
+
 def eventID_query(session, eventID, db_tables, asquery):
     # session is a current active session
     # eventID is the event id to search for
@@ -264,7 +265,7 @@ def eventID_query(session, eventID, db_tables, asquery):
     else:
         print("no event found")
         return None
-    
+
 
 def event_query_area(session, center_lat, center_lon, minr, maxr, db_tables):
 

@@ -1,4 +1,7 @@
-from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QTableView, QVBoxLayout, QAbstractItemView, QFrame, QLabel, QSizePolicy
+from typing import List, Optional
+
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton, QTableView, QVBoxLayout, QAbstractItemView, \
+                            QFrame, QLabel, QSizePolicy
 from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant, pyqtSignal, pyqtSlot
 
 from obspy.core.stream import Stream
@@ -14,32 +17,57 @@ class IPWfdiscModel(QAbstractTableModel):
     """
     class to populate a tableview with rows of Wfdisc results
     """
+    def __init__(self, wfs: list):
+        """
+        initialize model
 
-    def __init__(self, wfs, parent=None):
+        :param wfs: list of wfdisc rows
+        """
         super().__init__()
 
         self.wfs = wfs
         self.col_headers = [c.name for c in self.wfs[0].__table__.columns]
 
-    def rowCount(self, parent=None):
+    def rowCount(self) -> int:
+        """
+        :return: number of rows
+        """
         return len(self.wfs)
 
-    def columnCount(self, parent=None):
+    def columnCount(self) -> int:
+        """
+        :return: number of columns
+        """
         return len(self.wfs[0])
 
-    def column_headers(self):
+    def column_headers(self) -> List[str]:
+        """
+        :return: column headers
+        """
         return self.col_headers
 
-    def data(self, index, role):
+    def data(self, index, role: Qt.ItemDataRole) -> Optional[str]:
+        """
+        :param index: model index
+        :param role: data role
+        :return: data at index for role or None if not valid
+        """
         if index.isValid():
             if role == Qt.DisplayRole:
                 return str(self.wfs[index.row()][index.column()])
             elif role == Qt.EditRole:
                 return str(self.wfs[index.row()][index.column()])
-
         return None
 
-    def setData(self, index, value, role):
+    def setData(self, index, value, role: Qt.ItemDataRole) -> bool:
+        """
+        set data at index
+
+        :param index: model index
+        :param value: new value
+        :param role: data role
+        :return: True if successful, False otherwise
+        """
         if index.isValid():
             if role == Qt.EditRole:
                 self.wfs[index.row()][index.column()] = value
@@ -48,10 +76,19 @@ class IPWfdiscModel(QAbstractTableModel):
             return False
         return False
 
-    def flags(self, index):
+    def flags(self) -> Qt.ItemFlags:
+        """
+        :return: item flags
+        """
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled
 
-    def headerData(self, section, orientation, role):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
+        """
+        :param section: section index
+        :param orientation: orientation
+        :param role: data role
+        :return: header data, or something...
+        """
         if role == Qt.DisplayRole:
             if orientation == Qt.Horizontal:
                 return self.col_headers[section]
@@ -60,63 +97,67 @@ class IPWfdiscModel(QAbstractTableModel):
         return QVariant()
 
 
-class IPPandasModel(QAbstractTableModel):
-    """
-    NOT CURRENTLY USED!
-    class to populate a tableview with a pandas dataframe
-    """
-    def __init__(self, dataframe, parent=None):
-        super().__init__()
-        self.dataframe = dataframe
+# class IPPandasModel(QAbstractTableModel):
+#     """
+#     NOT CURRENTLY USED!
+#     class to populate a tableview with a pandas dataframe
+#     """
+#     def __init__(self, dataframe, parent=None):
+#         super().__init__()
+#         self.dataframe = dataframe
 
-    def rowCount(self, parent=None):
-        return self.dataframe.shape[0]
+#     def rowCount(self, parent=None):
+#         return self.dataframe.shape[0]
 
-    def columnCount(self, parent=None):
-        return self.dataframe.shape[1]
+#     def columnCount(self, parent=None):
+#         return self.dataframe.shape[1]
 
-    def data(self, index, role):
-        if index.isValid():
-            if role == Qt.DisplayRole:
-                return str(self.dataframe.iloc[index.row()][index.column()])
-            # elif role == Qt.CheckStateRole:
-            #    if (index.row() == 1 and index.column() == 2):
-            #        return Qt.Checked
-            elif role == Qt.EditRole:
-                return str(self.dataframe.iloc[index.row()][index.column()])
-        return None
+#     def data(self, index, role):
+#         if index.isValid():
+#             if role == Qt.DisplayRole:
+#                 return str(self.dataframe.iloc[index.row()][index.column()])
+#             # elif role == Qt.CheckStateRole:
+#             #    if (index.row() == 1 and index.column() == 2):
+#             #        return Qt.Checked
+#             elif role == Qt.EditRole:
+#                 return str(self.dataframe.iloc[index.row()][index.column()])
+#         return None
 
-    def setData(self, index, value, role):
-        if index.isValid():
-            if role == Qt.EditRole:
-                self.dataframe.iat[index.row(), index.column()] = value
-                self.editCompleted.emit(value)
-                return True
-            return False
-        return False
+#     def setData(self, index, value, role):
+#         if index.isValid():
+#             if role == Qt.EditRole:
+#                 self.dataframe.iat[index.row(), index.column()] = value
+#                 self.editCompleted.emit(value)
+#                 return True
+#             return False
+#         return False
 
-    def flags(self, index):
-        # return Qt.ItemIsEditable | QAbstractTableModel.flags(index)
-        # return Qt.ItemIsEditable | Qt.ItemIsSelectable | Qt.ItemIsEnabled
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+#     def flags(self, index):
+#         # return Qt.ItemIsEditable | QAbstractTableModel.flags(index)
+#         # return Qt.ItemIsEditable | Qt.ItemIsSelectable | Qt.ItemIsEnabled
+#         return Qt.ItemIsSelectable | Qt.ItemIsEnabled
 
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
-                return self.dataframe.columns[section]
-            elif orientation == Qt.Vertical:
-                return self.dataframe.index[section]
-        return QVariant()
+#     def headerData(self, section, orientation, role):
+#         if role == Qt.DisplayRole:
+#             if orientation == Qt.Horizontal:
+#                 return self.dataframe.columns[section]
+#             elif orientation == Qt.Vertical:
+#                 return self.dataframe.index[section]
+#         return QVariant()
 
 
 class IPDatabaseQueryResultsTable(QFrame):
     """
     Table widget to view results from an sql query
     """
+    signal_new_stream_from_db = pyqtSignal(Stream, bool)
 
-    signal_new_stream_from_db = pyqtSignal(Stream, bool)      
+    def __init__(self, parent: QWidget = None):
+        """
+        initialize IP Database Query Results Table
 
-    def __init__(self, parent=None):
+        :param parent: parent widget
+        """
         super().__init__(parent)
         self.setFrameStyle(QFrame.Box | QFrame.Plain)
         self.data = None
@@ -125,7 +166,9 @@ class IPDatabaseQueryResultsTable(QFrame):
         self.buildUI()
 
     def buildUI(self):
-        
+        """
+        build the UI
+        """
         title_label = QLabel("\tDatabase Query Results")
         title_label.setStyleSheet("QLabel {font-weight:bold; color: white; background-color: black}")
 
@@ -170,7 +213,7 @@ class IPDatabaseQueryResultsTable(QFrame):
         self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):
-        """I find it useful to group as many connections in one place as possible"""
+        """group as many connections in one place as possible"""
 
         self.clear_button.clicked.connect(self.clearTable)
         self.select_none_button.clicked.connect(self.selectNone)
@@ -179,43 +222,66 @@ class IPDatabaseQueryResultsTable(QFrame):
         self.append_selected_button.clicked.connect(self.getSelected_append)
         self.replace_with_selected_button.clicked.connect(self.getSelected_replace)
 
+    def setData(self, data: list):
+        """
+        This takes Wfdisc rows, and converts it for display in our tableView
 
-    def setData(self, data):
-        '''This takes Wfdisc rows, and converts it for display in our tableView'''
-
+        :param data: list of wfdisc rows
+        """
         self.data = data
         self.model = IPWfdiscModel(data)
         self.tableView.setModel(self.model)
         self.tableView.reset()
 
     def clearTable(self):
+        """
+        Clear the table and perform any necessary cleanup.
+        """
         # maybe do some additional clean-up here?
         if self.model:
             self.model.deleteLater()
 
     def selectAll(self):
+        """
+        Select all rows
+        """
         self.tableView.selectAll()
 
     def selectNone(self):
+        """
+        Deselect all rows
+        """
         self.tableView.clearSelection()
-    
+
     @pyqtSlot()
     def getSelected_append(self):
+        """
+        get selected rows and append to existing stream
+        """
         st = self.getSelected()
-        # this signal will connect to a slot in ApplicationWindow to assemble the streams and inventories and put them on the waveform widget.
+        # this signal will connect to a slot in ApplicationWindow to assemble the streams and inventories and put them
+        # on the waveform widget.
         if st is not None:
             self.signal_new_stream_from_db.emit(st, True)
 
     def getSelected_replace(self):
+        """
+        get selected rows and replace existing stream
+        """
         st = self.getSelected()
-        # this signal will connect to a slot in ApplicationWindow to assemble the streams and inventories and put them on the waveform widget.
+        # this signal will connect to a slot in ApplicationWindow to assemble the streams and inventories and put them
+        # on the waveform widget.
         if st is not None:
             self.signal_new_stream_from_db.emit(st, False)
-    
-    def getSelected(self):
+
+    def getSelected(self) -> Optional[Stream]:
+        """
+        get selected rows and return as a stream
+
+        :return: stream of selected rows or None
+        """
         # if nothing is selected, then selectionModel() will return None
         # maybe this should be in the EventQueryWidget?
-
         if self.tableView.selectionModel():
             rows = self.tableView.selectionModel().selectedRows()
         else:
@@ -237,7 +303,7 @@ class IPDatabaseQueryResultsTable(QFrame):
         # now assemble the output stream
         st = Stream(traces=None)
         starttime, stoptime = self.parent.ipdatabase_query_widget.get_startstop_times()
-        tables= self.get_tables()
+        tables = self.get_tables()
 
         db_tables = database.make_tables_from_dict(tables=tables, schema=self.get_schema())
 
@@ -257,35 +323,64 @@ class IPDatabaseQueryResultsTable(QFrame):
             st += new_stream
 
         return st
-        
 
     def get_session(self):
+        """
+        :return: database session
+        """
         return self.parent.ipdatabase_settings_widget.connect_widget.session
-    
+
     def get_schema(self):
+        """
+        :return: database schema
+        """
         return self.parent.ipdatabase_settings_widget.connect_widget.schema_type_combo.currentText()
 
-    def get_tables(self):
+    def get_tables(self) -> dict:
+        """
+        :return: dictionary of database tables
+        """
         table_dictionary = self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
         return table_dictionary
-        
+
 
 class IPEventsModel(QAbstractTableModel):
+    """
+    class to populate a tableview with rows of Origin results
+    """
+    def __init__(self, origins: list, prefor):
+        """
+        initialize model
 
-    def __init__(self, origins, prefor, parent=None):
+        :param origins: list of Origin rows
+        :param prefor: preferred origin
+        """
         super().__init__()
 
         self.origins = origins
         self.prefor = prefor
         self.col_headers = [c.name for c in self.origins[0].__table__.columns]
 
-    def rowCount(self, parent=None):
+    def rowCount(self) -> int:
+        """
+        :return: number of rows
+        """
         return len(self.origins)
 
-    def columnCount(self, parent=None):
+    def columnCount(self) -> int:
+        """
+        :return: number of columns
+        """
         return len(self.origins[0])
 
-    def data(self, index, role):
+    def data(self, index: QModelIndex, role: Qt.ItemDataRole) -> Optional[str]:
+        """
+        get the data at the given index for the specified role
+
+        :param index: model index
+        :param role: data role
+        :return: data at index for role or None if not valid
+        """
         if index.isValid():
             if role == Qt.DisplayRole:
                 return str(self.origins[index.row()][index.column()])
@@ -294,7 +389,15 @@ class IPEventsModel(QAbstractTableModel):
 
         return None
 
-    def setData(self, index, value, role):
+    def setData(self, index: QModelIndex, value, role: Qt.ItemDataRole) -> bool:
+        """
+        set data at index
+
+        :param index: model index
+        :param value: new value
+        :param role: data role
+        :return: True if successful, False otherwise
+        """
         if index.isValid():
             if role == Qt.EditRole:
                 self.origins[index.row()][index.column()] = value
@@ -304,12 +407,24 @@ class IPEventsModel(QAbstractTableModel):
         return False
 
     def get_data(self):
+        """
+        :return: list of origins
+        """
         return self.origins
 
-    def flags(self, index):
+    def flags(self):
+        """
+        :return: item flags
+        """
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled
 
-    def headerData(self, section, orientation, role):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
+        """
+        :param section: section index
+        :param orientation: orientation
+        :param role: data role
+        :return: header data, or something...
+        """
         if role == Qt.DisplayRole:
             if orientation == Qt.Horizontal:
                 return self.col_headers[section]
@@ -322,10 +437,14 @@ class IPEventQueryResultsTable(QFrame):
     """
     Table widget to view results from an sql event query (evid or name)
     """
-
     sig_origin_changed = pyqtSignal(dict)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget = None):
+        """
+        initialize IP Event Query Results Table
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
         self.setFrameStyle(QFrame.Box | QFrame.Plain)
         self.size_policy = self.sizePolicy()
@@ -336,7 +455,9 @@ class IPEventQueryResultsTable(QFrame):
         self.buildUI()
 
     def buildUI(self):
-        
+        """
+        build the UI
+        """
         title_label = QLabel("\tEvent Query Results")
         title_label.setStyleSheet("QLabel {font-weight:bold; color: white; background-color: black}")
 
@@ -361,43 +482,56 @@ class IPEventQueryResultsTable(QFrame):
         main_layout.addLayout(horiz_layout_0)
         main_layout.addWidget(self.tableView)
         self.setLayout(main_layout)
-        
+
         self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):
+        """
+        connect signals
+        """
         self.clear_button.clicked.connect(self.clearTable)
         self.use_selected_button.clicked.connect(self.useSelected)
 
-    def setData(self, data, prefor):
-        '''This takes Wfdisc rows, and converts it for display in our tableView'''
+    def setData(self, data: list, prefor):
+        """
+        This takes Wfdisc rows, and converts it for display in our tableView
+
+        :param data: list of Origin rows
+        :param prefor: preferred origin
+        """
         self.model = IPEventsModel(data, prefor)
         self.tableView.setModel(self.model)
         self.tableView.reset()
 
-        start_idx = self.model.index(0,0)
+        # start_idx = self.model.index(0, 0)
         # print(self.model.data(start_idx, Qt.DisplayRole))
-        #mdl_idxs = self.model.match(QModelIndex(), Qt.DisplayRole, prefor[0].orid)
-        #print(mdl_idxs)
+        # mdl_idxs = self.model.match(QModelIndex(), Qt.DisplayRole, prefor[0].orid)
+        # print(mdl_idxs)
         for idx, origin in enumerate(data):
             if origin.orid == prefor[0].orid:
                 self.tableView.selectRow(idx)
                 break
-        
 
     def clearTable(self):
+        """
+        clear the table
+        """
         # maybe do some additional clean-up here?
         if self.model:
             self.model.deleteLater()
 
     def useSelected(self):
+        """
+        perform actions on the selected origin
+        """
         if self.tableView.selectionModel():
             model_idx = self.tableView.selectionModel().selectedRows()
         else:
-            return None
-        
+            return
+
         for idx in model_idx:
             selected_origin = self.model.origins[idx.row()]
-            new_origin ={}
+            new_origin = {}
             new_origin['Name'] = selected_origin.evid
             new_origin['Latitude'] = selected_origin.lat
             new_origin['Longitude'] = selected_origin.lon
@@ -407,8 +541,6 @@ class IPEventQueryResultsTable(QFrame):
             new_origin['Orid'] = selected_origin.orid
 
             self.sig_origin_changed.emit(new_origin)
-
-
 
         # selected = self.model.get_data()[row.row()]
         # lat = selected[0]
@@ -422,7 +554,3 @@ class IPEventQueryResultsTable(QFrame):
         # self.parent.parent.eventWidget.setEvent(event)
 
         # self.parent.parent.mainTabs.setCurrentIndex(4)
-
-
-
-

@@ -8,16 +8,18 @@ beamforming methods.
 Author            Philip Blom (pblom@lanl.gov)
 
 """
+from typing import List, Optional, Tuple, Union
 import warnings
 
 import numpy as np
 
 from numba import jit, float64, complex128
 
+from obspy import Stream
 from scipy import signal
 from scipy import stats
 from scipy.interpolate import interp1d
-from scipy.optimize import minimize_scalar, root
+from scipy.optimize import minimize_scalar
 
 from pyproj import Geod
 
@@ -25,11 +27,13 @@ from ..utils import prog_bar
 
 wgs84_proj = Geod(ellps='sphere')
 
+
 # ####################### #
 #    Data manipulation    #
 # ####################### #
-def stream_to_array_data(stream, latlon=None, t_start=None, t_end=None):
-    """Extract time series from ObsPy stream on common time samples and define the array geometry
+def stream_to_array_data(stream: Stream, latlon: Optional[np.ndarray] = None, t_start=None, t_end=None) \
+        -> Tuple[np.ndarray, np.ndarray, np.datetime64, np.ndarray]:
+    """ Extract time series from ObsPy stream on common time samples and define the array geometry
 
         Extracts the time series from individual traces of an Obspy stream and identifies a
         common set of time samples where all are defined.  Interpolates the individual traces
@@ -69,7 +73,7 @@ def stream_to_array_data(stream, latlon=None, t_start=None, t_end=None):
         temp = interp1d(t_ref + tr.times(), signal.detrend(tr.data), kind='linear')
         try:
             x[m] = temp(t) * tr.stats.calib
-        except:
+        except Exception:
             x[m] = temp(t)
 
     # if start/end times are given, apply mask
@@ -82,7 +86,8 @@ def stream_to_array_data(stream, latlon=None, t_start=None, t_end=None):
     dxdy = np.zeros((len(stream), 2))
     if latlon is None:
         for m, tr in enumerate(stream):
-            temp = wgs84_proj.inv(stream[0].stats.sac['stlo'], stream[0].stats.sac['stla'], tr.stats.sac['stlo'], tr.stats.sac['stla'])
+            temp = wgs84_proj.inv(stream[0].stats.sac['stlo'], stream[0].stats.sac['stla'],
+                                  tr.stats.sac['stlo'], tr.stats.sac['stla'])
             dxdy[m] = np.array((temp[2] * np.sin(np.radians(temp[0])), temp[2] * np.cos(np.radians(temp[0]))))
         # Or using 'Coordinate' from stats
         # ...
@@ -94,8 +99,11 @@ def stream_to_array_data(stream, latlon=None, t_start=None, t_end=None):
     return x, t, t0, dxdy
 
 
-def fft_array_data(x, t, window=None, sub_window_len=None, sub_window_overlap=0.5, fft_window="hanning", normalize_windowing=False):
-    """Compute the Fourier transform of the array data to perform analysis
+def fft_array_data(x: np.ndarray, t: np.ndarray, window: Optional[Tuple[float, float]] = None,
+                   sub_window_len: Optional[float] = None, sub_window_overlap: float = 0.5,
+                   fft_window: str = "hanning", normalize_windowing: bool = False) \
+                   -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """ Compute the Fourier transform of the array data to perform analysis
 
         Compute the Fourier transform of the array data within an analysis window defined by window = [t1, t2]
         and potentially using subwindows to obtain a full rank covariance matrix for beamforming analyses
@@ -108,14 +116,14 @@ def fft_array_data(x, t, window=None, sub_window_len=None, sub_window_overlap=0.
             M x N matrix of array data, x[m][n] = x_m(t_n)
         t : 1darray
             Vector of N sampled points in time, t[n] = t_n
-        window : float
+        window: float
             Start and end time of the window relative to times in t, [t_1, t_2]
         sub_window_len : float
             Duration of the subwindow in seconds
         sub_window_overlap : float
             Fraction of subwindow to overlap (limited range of 0.0 to 0.9)
         fft_window : str
-            Fourier windowing method
+            Fourier windowing method.  Options are 'hanning', 'bartlett', 'blackman', 'hamming', 'tukey', or 'boxcar'
         normalize_windowing : boolean
             Boolean to apply normalization of window scaling
 
@@ -129,6 +137,7 @@ def fft_array_data(x, t, window=None, sub_window_len=None, sub_window_overlap=0.
             Vector of N_f frequencies for the FFT'd data, f[n] = f_n
 
     """
+    ermsg = "Unrecognized method in fft_window.  Options are 'hanning', 'bartlett', 'blackman', 'hamming', or 'boxcar'."
 
     M, N = x.shape
     dt = t[1] - t[0]
@@ -141,11 +150,12 @@ def fft_array_data(x, t, window=None, sub_window_len=None, sub_window_overlap=0.
 
     if sub_window_len:
         if sub_window_overlap < 0.0 or sub_window_overlap > 0.9:
-            msg = "Inappropriate value in subwindow overlap.  Value is expected to be a fraction of the window length between 0.0 and 0.9."
+            msg = "Inappropriate value in subwindow overlap.  Value is expected to be a fraction of the window " \
+                  "length between 0.0 and 0.9."
             raise ValueError(msg)
 
         sub_win_N = int(sub_window_len / dt)
-        sub_win_step = sub_win_N * sub_window_overlap
+        # sub_win_step = sub_win_N * sub_window_overlap
 
         padded_N = 2**int(np.ceil(np.log2(sub_win_N)))
         N_f = int(padded_N / 2 + 1)
@@ -161,39 +171,40 @@ def fft_array_data(x, t, window=None, sub_window_len=None, sub_window_overlap=0.
                 break
 
             temp = np.zeros((M, padded_N))
-            temp[:, 0 : sub_win_N] = x[:, n : n + sub_win_N]
+            temp[:, 0: sub_win_N] = x[:, n: n + sub_win_N]
+            # set windowing using variable
+            # boxcar only multiplies by 1.0
             if fft_window == "hanning":
-                temp[:, 0 : sub_win_N] *= np.array([np.hanning(sub_win_N)] * M)
+                temp[:, 0: sub_win_N] *= np.array([np.hanning(sub_win_N)] * M)
                 if normalize_windowing:
                     temp /= np.mean(np.hanning(sub_win_N))
             elif fft_window == "bartlett":
-                temp[:, 0 : sub_win_N] *= np.array([np.bartlett(sub_win_N)] * M)
+                temp[:, 0: sub_win_N] *= np.array([np.bartlett(sub_win_N)] * M)
                 if normalize_windowing:
                     temp /= np.mean(np.bartlett(sub_win_N))
             elif fft_window == "blackman":
-                temp[:, 0 : sub_win_N] *= np.array([np.blackman(sub_win_N)] * M)
+                temp[:, 0: sub_win_N] *= np.array([np.blackman(sub_win_N)] * M)
                 if normalize_windowing:
                     temp /= np.mean(np.blackman(sub_win_N))
             elif fft_window == "hamming":
-                temp[:, 0 : sub_win_N] *= np.array([np.hamming(sub_win_N)] * M)
+                temp[:, 0: sub_win_N] *= np.array([np.hamming(sub_win_N)] * M)
                 if normalize_windowing:
                     temp /= np.mean(np.hamming(sub_win_N))
             elif fft_window == "tukey":
-                temp[:, 0 : sub_win_N] *= np.array([signal.windows.tukey(sub_win_N)] * M)
+                temp[:, 0: sub_win_N] *= np.array([signal.windows.tukey(sub_win_N)] * M)
                 if normalize_windowing:
                     temp /= np.mean(signal.windows.tukey(sub_win_N))
             elif fft_window == "boxcar":
-                temp[:, 0 : sub_win_N] *= 1.0
+                temp[:, 0: sub_win_N] *= 1.0
             else:
-                msg = "Unrecognized method in fft_window.  Options are 'hanning', 'bartlett', 'blackman', 'hamming', 'tukey', or 'boxcar'."
-                raise ValueError(msg)
+                raise ValueError(ermsg)
 
             # fft the data and add their contribution to X and S
             fft = np.fft.rfft(temp, axis=1) * dt
 
             X += fft
             for nf in range(0, int(padded_N / 2 + 1)):
-                S[:,:,nf] += np.outer(fft[:, nf], np.conj(fft[:, nf]))
+                S[:, :, nf] += np.outer(fft[:, nf], np.conj(fft[:, nf]))
             window_cnt += 1
 
         # scale by number of windows used
@@ -210,38 +221,37 @@ def fft_array_data(x, t, window=None, sub_window_len=None, sub_window_overlap=0.
 
         # window and zero pad the data
         temp = np.zeros((M, padded_N))
-        temp[:, 0 : win_N] = x[:, win_n1 : win_n1 + win_N]
+        temp[:, 0: win_N] = x[:, win_n1: win_n1 + win_N]
         if fft_window == "hanning":
-            temp[:, 0 : win_N] *= np.array([np.hanning(win_N)] * M)
+            temp[:, 0: win_N] *= np.array([np.hanning(win_N)] * M)
             if normalize_windowing:
                 temp /= np.mean(np.hanning(win_N))
         elif fft_window == "bartlett":
-            temp[:, 0 : win_N] *= np.array([np.bartlett(win_N)] * M)
+            temp[:, 0: win_N] *= np.array([np.bartlett(win_N)] * M)
             if normalize_windowing:
                 temp /= np.mean(np.bartlett(win_N))
         elif fft_window == "blackman":
-            temp[:, 0 : win_N] *= np.array([np.blackman(win_N)] * M)
+            temp[:, 0: win_N] *= np.array([np.blackman(win_N)] * M)
             if normalize_windowing:
                 temp /= np.mean(np.blackman(win_N))
         elif fft_window == "hamming":
-            temp[:, 0 : win_N] *= np.array([np.hamming(win_N)] * M)
+            temp[:, 0: win_N] *= np.array([np.hamming(win_N)] * M)
             if normalize_windowing:
                 temp /= np.mean(np.hamming(win_N))
         elif fft_window == "tukey":
-            temp[:, 0 : win_N] *= np.array([signal.windows.tukey(win_N)] * M)
+            temp[:, 0: win_N] *= np.array([signal.windows.tukey(win_N)] * M)
             if normalize_windowing:
                 temp /= np.mean(signal.tukey(win_N))
         elif fft_window == "boxcar":
-            temp[:, 0 : win_N] *= 1.0
+            temp[:, 0: win_N] *= 1.0
         else:
-            msg = "Unrecognized method in fft_window.  Options are 'hanning', 'bartlett', 'blackman', 'hamming', or 'boxcar'."
-            temp[:, 0 : win_N] *= 1.0
-            raise(ValueError)
+            temp[:, 0: win_N] *= 1.0
+            raise ValueError(ermsg)
 
         # fft the data and define X(f) and S(f)
         X = np.fft.rfft(temp, axis=1) * dt
         for nf in range(0, int(padded_N / 2) + 1):
-            S[:,:,nf] = np.outer(X[:, nf], np.conj(X[:, nf]))
+            S[:, :, nf] = np.outer(X[:, nf], np.conj(X[:, nf]))
 
     return X, S, f
 
@@ -250,8 +260,8 @@ def fft_array_data(x, t, window=None, sub_window_len=None, sub_window_overlap=0.
 #     Slowness and delays for   #
 #  defining the steering vector #
 # ############################# #
-def build_slowness(back_azs, trc_vels):
-    """Compute the slowness values for a polar grid
+def build_slowness(back_azs: np.ndarray, trc_vels: np.ndarray) -> np.ndarray:
+    """ Compute the slowness values for a polar grid
 
         Computes the slowness grid usingg a polar grid defined by a series of back azimuth
         values and trave velocity values.  Returns a grid specified such that grid[n] is
@@ -277,8 +287,9 @@ def build_slowness(back_azs, trc_vels):
     return slowness_grid
 
 
-def compute_delays(dxdy, param_grid, param_opt='planar', sph_vel=340.0, sph_src_ht=0.0):
-    """Compute the delays for a planewave
+def compute_delays(dxdy: np.ndarray, param_grid: np.ndarray, param_opt: str = 'planar', sph_vel: float = 340.0,
+                   sph_src_ht: float = 0.0) -> np.ndarray:
+    """ Compute the delays for a planewave
 
         Computes the time delays for each pair in param_grid given the
         array geometry in dxdy.  For planar parameterization, grid
@@ -305,11 +316,13 @@ def compute_delays(dxdy, param_grid, param_opt='planar', sph_vel=340.0, sph_src_
         delays : 2darray
             K x M of time delays across the array for each slowness
     """
-
+    # use lambda function for first part, then invoke using one line
     if param_opt == 'planar':
-        delays = np.array([[(param_grid[k][0] * dxdy[m][0] + param_grid[k][1] * dxdy[m][1]) for k in range(param_grid.shape[0])] for m in range(dxdy.shape[0])])
+        delays = np.array([[(param_grid[k][0] * dxdy[m][0] + param_grid[k][1] * dxdy[m][1])
+                            for k in range(param_grid.shape[0])] for m in range(dxdy.shape[0])])
     else:
-        delays = np.array([[np.sqrt(np.linalg.norm(param_grid[k] - dxdy[m])**2 + sph_src_ht**2) / sph_vel for k in range(param_grid.shape[0])] for m in range(dxdy.shape[0])])
+        delays = np.array([[np.sqrt(np.linalg.norm(param_grid[k] - dxdy[m])**2 + sph_src_ht**2) / sph_vel
+                            for k in range(param_grid.shape[0])] for m in range(dxdy.shape[0])])
 
     return delays.T
 
@@ -319,9 +332,9 @@ def compute_delays(dxdy, param_grid, param_opt='planar', sph_vel=340.0, sph_src_
 #   beampower calculations   #
 # ########################## #
 
-@jit(complex128[:](complex128[:,:], complex128[:]), nopython=True)
-def project_Ab(A, b):
-    """Project matrix of K vectors, a_k, onto a vector b
+@jit(complex128[:](complex128[:, :], complex128[:]), nopython=True)
+def project_Ab(A: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """ Project matrix of K vectors, a_k, onto a vector b
 
         Projects a vector, b, of length M onto a set of K vectors, a_k,
         each of length M producing a vector, c, of length K
@@ -336,7 +349,7 @@ def project_Ab(A, b):
         Returns:
         ----------
         c : 1darray
-            Vector c where each scalar c_k = a_k^\dagger b
+            Vector c where each scalar c_k = a_k^\\dagger b
     """
 
     K, M = A.shape
@@ -352,10 +365,9 @@ def project_Ab(A, b):
     return result_real + 1.0j * result_imag
 
 
-@jit(float64[:](complex128[:,:], complex128[:,:]), nopython=True)
-def project_ABA(A, B):
-    """
-    Project matrix of K vectors, a_k, onto Hermitian matrix B
+@jit(float64[:](complex128[:, :], complex128[:, :]), nopython=True)
+def project_ABA(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """ Project matrix of K vectors, a_k, onto Hermitian matrix B
 
         Projects each of K vectors, a_k, in matrix, A, of dimension K x M
         onto a Hermitian matrix, B, of dimension M x M producing a
@@ -371,7 +383,7 @@ def project_ABA(A, B):
         Returns:
         ----------
         c : 1darray
-            Vector c where each scalar c_k = a_k^\dagger B a_k
+            Vector c where each scalar c_k = a_k^\\dagger B a_k
     """
     K, M = A.shape
 
@@ -384,9 +396,9 @@ def project_ABA(A, B):
     return result
 
 
-@jit(complex128[:](complex128[:,:], complex128[:,:], complex128[:]), nopython=True)
-def project_ABc(A, B, c):
-    """Project matrix of K vectors, a_k, through Hermitian matrix B and onto vector c
+@jit(complex128[:](complex128[:, :], complex128[:, :], complex128[:]), nopython=True)
+def project_ABc(A: np.ndarray, B: np.ndarray, c: np.ndarray) -> np.ndarray:
+    """ Project matrix of K vectors, a_k, through Hermitian matrix B and onto vector c
 
         Projects each of K vectors, a_k, in matrix, A, of dimension K x M
         through a Hermitian matrix, B, of dimension M x M and onto a vector,
@@ -404,7 +416,7 @@ def project_ABc(A, B, c):
         Returns:
         ----------
         d : 1darray
-            Vector d where each scalar d_k = a_k^\dagger B c
+            Vector d where each scalar d_k = a_k^\\dagger B c
     """
     K, M = A.shape
 
@@ -424,8 +436,9 @@ def project_ABc(A, B, c):
 #           Run           #
 #       Beamforming       #
 # ####################### #
-def compute_beam_power(data, steering, method="bartlett", ns_covar_inv=None, signal_cnt=1):
-    """Compute the beampower for a specific frequency
+def compute_beam_power(data: np.ndarray, steering: np.ndarray, method: str = "bartlett",
+                       ns_covar_inv: Optional[np.ndarray] = None, signal_cnt: int = 1) -> np.ndarray:
+    """ Compute the beampower for a specific frequency
 
         Computes the beampower at a single frequency using either the FFT'd data, X(f),
         for Bartlett or GLS analysis or the covariance matrix, S(f), for Capon and MUSIC.
@@ -456,8 +469,6 @@ def compute_beam_power(data, steering, method="bartlett", ns_covar_inv=None, sig
         beam_power : 1darray
             Beam power for each steering vector (length K)
         """
-
-
     # note: for Bartlett (bartlett_covar), Capon and MUSIC, "data" contains S(f), while
     # for Bartlett and GLS it contains X(f)
     if method == "bartlett" or method == "gls":
@@ -514,8 +525,10 @@ def compute_beam_power_wrapper(args):
     return compute_beam_power(*args)
 
 
-def run(X, S, f, dxdy, delays, freq_band, method="bartlett", ns_covar_inv=None, signal_cnt=1, normalize_beam=True, pool=None):
-    """Run beamforming analysis over frequencies of interest
+def run(X: np.ndarray, S: np.ndarray, f: np.ndarray, dxdy, delays: np.ndarray, freq_band: Tuple,
+        method: str = "bartlett", ns_covar_inv: Optional[np.ndarray] = None, signal_cnt: int = 1,
+        normalize_beam: bool = True, pool=None) -> np.ndarray:
+    """ Run beamforming analysis over frequencies of interest
 
         Computes the beam at multiple frequencies within a specified band given data in X(f)
         and S(f) and frequencies f as produced by the fft_array_data function.
@@ -527,6 +540,8 @@ def run(X, S, f, dxdy, delays, freq_band, method="bartlett", ns_covar_inv=None, 
         A multiprocessing pool can be used to accelerate calculation of different frequencies
         in parallel.
 
+        dxdy is not used, unsure why it needs to be in function
+
         Parameters
         ----------
         X : 2darray
@@ -537,8 +552,8 @@ def run(X, S, f, dxdy, delays, freq_band, method="bartlett", ns_covar_inv=None, 
             Frequencies
         delays : 1darray
             Set of delays for the parameterization (length K)
-        freq_band : iterable
-            List or tuple with minimum and maximum frequency (e.g.,  [f_min, f_max])
+        freq_band : Tuple
+            Tuple with minimum and maximum frequency (e.g., (f_min, f_max))
         method : str
             Beamforming method to be applied to the data (must match form of data)
         signal_cnt : int
@@ -566,35 +581,50 @@ def run(X, S, f, dxdy, delays, freq_band, method="bartlett", ns_covar_inv=None, 
     f_msk = f[band_mask]
 
     f_cnt = f_msk.shape[0]
+    algs = ["bartlett_covar", "capon", "mvdr", "MVDR", "music", "MUSIC"]
+
     if pool:
-        if method == "bartlett_covar" or method == "capon" or method == "mvdr" or method == "MVDR" or method == "music" or method == "MUSIC":
-            args = [(S_msk[:, :, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) / np.sqrt(X_msk.shape[0]), method, None, signal_cnt) for nf in range(f_cnt)]
+        if method in algs:
+            args = [(S_msk[:, :, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) /
+                     np.sqrt(X_msk.shape[0]), method, None, signal_cnt) for nf in range(f_cnt)]
         else:
             if ns_covar_inv is not None:
-                args = [(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) / np.sqrt(X_msk.shape[0]), method, (ns_covar_inv[:, :, band_mask])[:, :, nf], signal_cnt) for nf in range(f_cnt)]
+                args = [(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) /
+                         np.sqrt(X_msk.shape[0]), method, (ns_covar_inv[:, :, band_mask])[:, :, nf], signal_cnt)
+                        for nf in range(f_cnt)]
             else:
-                args = [(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) / np.sqrt(X_msk.shape[0]), method, None, signal_cnt) for nf in range(f_cnt)]
+                args = [(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) /
+                         np.sqrt(X_msk.shape[0]), method, None, signal_cnt) for nf in range(f_cnt)]
         beam_power = np.array(pool.map(compute_beam_power_wrapper, args))
 
     else:
-        if method == "bartlett_covar" or method == "capon" or method == "mvdr" or method == "MVDR" or method == "music" or method == "MUSIC":
-            beam_power = np.array([compute_beam_power(S_msk[:, :, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) / np.sqrt(X_msk.shape[0]), method, None, signal_cnt) for nf in range(f_cnt)])
+        if method in algs:
+            beam_power = np.array([compute_beam_power(S_msk[:, :, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) /
+                                                      np.sqrt(X_msk.shape[0]), method, None, signal_cnt)
+                                  for nf in range(f_cnt)])
         else:
             if ns_covar_inv is not None:
-                beam_power = np.array([compute_beam_power(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) / np.sqrt(X_msk.shape[0]), method, (ns_covar_inv[:, :, band_mask])[:, :, nf], signal_cnt) for nf in range(f_cnt)])
+                beam_power = np.array([compute_beam_power(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) /
+                                                          np.sqrt(X_msk.shape[0]), method,
+                                                          (ns_covar_inv[:, :, band_mask])[:, :, nf], signal_cnt)
+                                      for nf in range(f_cnt)])
             else:
-                beam_power = np.array([compute_beam_power(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) / np.sqrt(X_msk.shape[0]), method, None, signal_cnt) for nf in range(f_cnt)])
+                beam_power = np.array([compute_beam_power(X_msk[:, nf], np.exp(2.0j * np.pi * f_msk[nf] * delays) /
+                                                          np.sqrt(X_msk.shape[0]), method, None, signal_cnt)
+                                      for nf in range(f_cnt)])
 
     if normalize_beam:
         if method == "bartlett" or method == "bartlett_covar":
             beam_power = np.array([beam_power[nf] / (np.vdot(X_msk[:, nf], X_msk[:, nf])).real for nf in range(f_cnt)])
         elif method == "capon":
-            beam_power = np.array([beam_power[nf] / (np.max(np.linalg.eigh(S_msk[:, :, nf])[0])) for nf in range(f_cnt)])
+            beam_power = np.array([beam_power[nf] / (np.max(np.linalg.eigh(S_msk[:, :, nf])[0]))
+                                   for nf in range(f_cnt)])
         elif method == "gls":
-            for nf in range(f_cnt):
-                den = np.linalg.norm((ns_covar_inv[:, :, band_mask])[:, :, nf] @ X_msk[:, nf])**2
-                beam_power[nf] /= den
-            beam_power = np.array(beam_power)
+            if ns_covar_inv is not None:
+                for nf in range(f_cnt):
+                    den = np.linalg.norm((ns_covar_inv[:, :, band_mask])[:, :, nf] @ X_msk[:, nf])**2
+                    beam_power[nf] /= den
+                beam_power = np.array(beam_power)
 
     return beam_power
 
@@ -603,8 +633,8 @@ def run(X, S, f, dxdy, delays, freq_band, method="bartlett", ns_covar_inv=None, 
 #         Analyze         #
 #    Beamforming Result   #
 # ####################### #
-def pure_state_filter(S):
-    """Compute the pure state filter applied to a Hermitian matrix, S(f)
+def pure_state_filter(S: np.ndarray) -> np.ndarray:
+    """ Compute the pure state filter applied to a Hermitian matrix, S(f)
 
         Computes the pure state filter for a matrix.  Here, the covariance matrix is utilized
         to measure the average coeherence across the entire array at a given frequency.
@@ -615,7 +645,7 @@ def pure_state_filter(S):
         ----------
         S : 3darray
             Covariance matrix of data in analysis window for all frequencies,
-            x(t) --> S(f) = mean(X(f) X^\dagger(f))
+            x(t) --> S(f) = mean(X(f) X^\\dagger(f))
 
         Returns:
         ----------
@@ -633,7 +663,38 @@ def pure_state_filter(S):
     return np.sqrt(np.real((M * np.trace(np.matmul(coh, coh)) - np.trace(coh)**2) / ((M - 1) * np.trace(coh)**2)))
 
 
-def find_peaks(beam_power, slowness_vals1, slowness_vals2, signal_cnt=1, freq_weights=None):
+def _add_peak(peaks: List, n: int, m: int, avg_beam: np.ndarray,
+              slowness_vals1: np.ndarray, slowness_vals2: np.ndarray):
+    """ Add peak to list of peaks"""
+    n_up, n_dn = min(n + 1, len(slowness_vals1) - 1), max(n - 1, 0)
+    m_up, m_dn = min(m + 1, len(slowness_vals2) - 1), max(m - 1, 0)
+
+    dPds1 = (avg_beam[m][n_up] - avg_beam[m][n_dn]) / (slowness_vals1[n_up] - slowness_vals1[n_dn])
+    dPds2 = (avg_beam[m_up][n] - avg_beam[m_dn][n]) / (slowness_vals2[m_up] - slowness_vals2[m_dn])
+
+    ddPds1s1 = (avg_beam[m][n_up] - 2.0 * avg_beam[m][n] + avg_beam[m][n_dn]) \
+        / ((slowness_vals1[n_up] - slowness_vals1[n_dn]) / 2.0)**2
+    ddPds2s2 = (avg_beam[m_up][n] - 2.0 * avg_beam[m][n] + avg_beam[m_dn][n]) \
+        / ((slowness_vals2[m_up] - slowness_vals2[m_dn]) / 2.0)**2
+
+    ddPds1s2 = (avg_beam[m_up][n_up] - avg_beam[m_up][n_dn] - avg_beam[m_dn][n_up] + avg_beam[m_dn][n_dn])
+    ddPds1s2 = ddPds1s2 / ((slowness_vals1[n_up] - slowness_vals1[n_dn])
+                           * (slowness_vals2[m_up] - slowness_vals2[m_dn]))
+
+    if ddPds1s1 * ddPds2s2 - ddPds1s2**2 > 0.0:
+        ds1 = - (ddPds2s2 * dPds1 - dPds2 * ddPds1s2) / (ddPds1s1 * ddPds2s2 - ddPds1s2**2)
+        ds2 = - (ddPds1s1 * dPds2 - dPds1 * ddPds1s2) / (ddPds1s1 * ddPds2s2 - ddPds1s2**2)
+        dP = dPds1 * ds1 + dPds2 * ds2 + (ddPds1s1 / 2.0) * ds1**2 + (ddPds2s2 / 2.0) * ds2**2 + ddPds1s2 * ds1 * ds2
+    else:
+        ds1 = 0.0
+        ds2 = 0.0
+        dP = 0.0
+
+    peaks.append([slowness_vals1[n] + ds1, slowness_vals2[m] + ds2, avg_beam[m][n] + dP, n, m])
+
+
+def find_peaks(beam_power: np.ndarray, slowness_vals1: np.ndarray, slowness_vals2: np.ndarray, signal_cnt: int = 1,
+               freq_weights: Optional[Union[str, np.ndarray]] = None) -> np.ndarray:
     """Identify the peak(s) in the beampower defined over a slowness grid
 
         Finds the peaks of a distribution using a frequency averaged beamforming result
@@ -665,13 +726,14 @@ def find_peaks(beam_power, slowness_vals1, slowness_vals2, signal_cnt=1, freq_we
     if freq_weights == "doa_proj":
         bm_cnt = beam_power.shape[0]
 
-        slowness = build_slowness(slowness_vals1, slowness_vals2) # might need to simplify this part
+        slowness = build_slowness(slowness_vals1, slowness_vals2)  # might need to simplify this part
         pk_slows = np.array([slowness[np.argmax(beam_power[j])] for j in range(bm_cnt)])
         c_ref = min(slowness_vals2)
 
         doa_x = np.array([c_ref * pk_slows[j][0] for j in range(bm_cnt)])
         doa_y = np.array([c_ref * pk_slows[j][1] for j in range(bm_cnt)])
-        doa_z = np.array([np.sqrt(1.0 - 0.99 * c_ref**2 * (pk_slows[j][0]**2 + pk_slows[j][1]**2)) for j in range(bm_cnt)])
+        doa_z = np.array([np.sqrt(1.0 - 0.99 * c_ref**2 * (pk_slows[j][0]**2 + pk_slows[j][1]**2))
+                          for j in range(bm_cnt)])
 
         doa_proj = doa_x * np.mean(doa_x) + doa_y * np.mean(doa_y) + doa_z * np.mean(doa_z)
         doa_std = np.sqrt(np.var(doa_x) + np.var(doa_y) + np.var(doa_z))
@@ -686,74 +748,33 @@ def find_peaks(beam_power, slowness_vals1, slowness_vals2, signal_cnt=1, freq_we
     # Determine the number of peaks on the grid and compare with
     # the specified signal count
     peaks = []
-    if signal_cnt < 2 :
+
+    if signal_cnt < 2:
         x = np.argwhere(avg_beam == avg_beam.max())
         m = x[0][0]
         n = x[0][1]
+        _add_peak(peaks, n, m, avg_beam, slowness_vals1, slowness_vals2)
 
-        n_up, n_dn = min(n + 1, len(slowness_vals1) - 1), max(n - 1, 0)
-        m_up, m_dn = min(m + 1, len(slowness_vals2) - 1), max(m - 1, 0)
-
-        dPds1 = (avg_beam[m][n_up] - avg_beam[m][n_dn]) / (slowness_vals1[n_up] - slowness_vals1[n_dn])
-        dPds2 = (avg_beam[m_up][n] - avg_beam[m_dn][n]) / (slowness_vals2[m_up] - slowness_vals2[m_dn])
-
-        ddPds1s1 = (avg_beam[m][n_up] - 2.0 * avg_beam[m][n] + avg_beam[m][n_dn]) / ((slowness_vals1[n_up] - slowness_vals1[n_dn]) / 2.0)**2
-        ddPds2s2 = (avg_beam[m_up][n] - 2.0 * avg_beam[m][n] + avg_beam[m_dn][n]) / ((slowness_vals2[m_up] - slowness_vals2[m_dn]) / 2.0)**2
-        
-        ddPds1s2 = (avg_beam[m_up][n_up] - avg_beam[m_up][n_dn] - avg_beam[m_dn][n_up] + avg_beam[m_dn][n_dn])
-        ddPds1s2 = ddPds1s2 / ((slowness_vals1[n_up] - slowness_vals1[n_dn]) * (slowness_vals2[m_up] - slowness_vals2[m_dn]))
-        
-        if ddPds1s1 * ddPds2s2 - ddPds1s2**2 > 0.0:
-            ds1 = - (ddPds2s2 * dPds1 - dPds2 * ddPds1s2) / (ddPds1s1 * ddPds2s2 - ddPds1s2**2)
-            ds2 = - (ddPds1s1 * dPds2 - dPds1 * ddPds1s2) / (ddPds1s1 * ddPds2s2 - ddPds1s2**2)        
-            dP = dPds1 * ds1 + dPds2 * ds2 + (ddPds1s1 / 2.0) * ds1**2 + (ddPds2s2 / 2.0) * ds2**2 + ddPds1s2 * ds1 * ds2
-        else:
-            ds1 = 0.0
-            ds2 = 0.0
-            dP = 0.0
-
-        peaks.append([slowness_vals1[n] + ds1, slowness_vals2[m] + ds2, avg_beam[m][n] + dP, n, m])        
-    else :
+    else:
         for n in range(1, len(avg_beam[0, :-1])):
             if np.max(avg_beam[:, n - 1]) <= np.max(avg_beam[:, n]) >= np.max(avg_beam[:, n + 1]):
                 m = np.argmax(avg_beam[1:-1, n])
-
-                n_up, n_dn = min(n + 1, len(slowness_vals1) - 1), max(n - 1, 0)
-                m_up, m_dn = min(m + 1, len(slowness_vals2) - 1), max(m - 1, 0)
-
-                dPds1 = (avg_beam[m][n_up] - avg_beam[m][n_dn]) / (slowness_vals1[n_up] - slowness_vals1[n_dn])
-                dPds2 = (avg_beam[m_up][n] - avg_beam[m_dn][n]) / (slowness_vals2[m_up] - slowness_vals2[m_dn])
-
-                ddPds1s1 = (avg_beam[m][n_up] - 2.0 * avg_beam[m][n] + avg_beam[m][n_dn]) / ((slowness_vals1[n_up] - slowness_vals1[n_dn]) / 2.0)**2
-                ddPds2s2 = (avg_beam[m_up][n] - 2.0 * avg_beam[m][n] + avg_beam[m_dn][n]) / ((slowness_vals2[m_up] - slowness_vals2[m_dn]) / 2.0)**2
-        
-                ddPds1s2 = (avg_beam[m_up][n_up] - avg_beam[m_up][n_dn] - avg_beam[m_dn][n_up] + avg_beam[m_dn][n_dn])
-                ddPds1s2 = ddPds1s2 / ((slowness_vals1[n_up] - slowness_vals1[n_dn]) * (slowness_vals2[m_up] - slowness_vals2[m_dn]))
-        
-                if ddPds1s1 * ddPds2s2 - ddPds1s2**2 > 0.0:
-                    ds1 = - (ddPds2s2 * dPds1 - dPds2 * ddPds1s2) / (ddPds1s1 * ddPds2s2 - ddPds1s2**2)
-                    ds2 = - (ddPds1s1 * dPds2 - dPds1 * ddPds1s2) / (ddPds1s1 * ddPds2s2 - ddPds1s2**2)        
-                    dP = dPds1 * ds1 + dPds2 * ds2 + (ddPds1s1 / 2.0) * ds1**2 + (ddPds2s2 / 2.0) * ds2**2 + ddPds1s2 * ds1 * ds2
-                else:
-                    ds1 = 0.0
-                    ds2 = 0.0
-                    dP = 0.0
-
-                peaks.append([slowness_vals1[n] + ds1, slowness_vals2[m] + ds2, avg_beam[m][n] + dP, n, m]) 
+                _add_peak(peaks, n, m, avg_beam, slowness_vals1, slowness_vals2)
 
     peaks = np.array(peaks)
     sorting = peaks[:, 2].argsort()[::-1]
     peaks = peaks[sorting]
 
     if len(peaks) < signal_cnt:
-        warnings.warn(("Only found " + str(len(peaks) + " local maxima in the grid.")))
+        warnings.warn((f"Only found {len(peaks)} local maxima in the grid."))
     peaks = peaks[:signal_cnt]
 
     return peaks[:, :3]
 
 
-def project_beam(beam_power, back_az_vals, trc_vel_vals, freq_weights=None, method="max"):
-    """Project polar slowness grid onto only azimuth
+def project_beam(beam_power: np.ndarray, back_az_vals: np.ndarray, trc_vel_vals: np.ndarray,
+                 freq_weights: Optional[np.ndarray] = None, method: str = "max") -> Tuple[np.ndarray, np.ndarray]:
+    """ Project polar slowness grid onto only azimuth
 
         Projects the polar slowness grid onto back azimuth and trace velocity in order to
         more easily view each.  The method can either use the maximum value to project or
@@ -798,8 +819,10 @@ def project_beam(beam_power, back_az_vals, trc_vel_vals, freq_weights=None, meth
 
     return back_az_proj, trc_vel_proj
 
-def extract_signal(X, f, slowness, dxdy):
-    """Extract the signal along the beam for a given slowness vector
+
+def extract_signal(X: np.ndarray, f: np.ndarray, slowness: np.ndarray, dxdy: np.ndarray) \
+        -> Tuple[np.ndarray, np.ndarray]:
+    """ Extract the signal along the beam for a given slowness vector
 
         Extract the "best beam" signal from the array data for a given slowness pair and
         array geometry.  Returns both the extracted signal and the residual on each trace
@@ -840,12 +863,12 @@ def extract_signal(X, f, slowness, dxdy):
     return sig_estimate, residual
 
 
-
 # ###################### #
 #        Identify        #
 #       Detections       #
 # ###################### #
-def calc_det_thresh(fstat_vals, det_p_val, TB_prod, channel_cnt, fstat_ref_peak=None):
+def calc_det_thresh(fstat_vals: np.ndarray, det_p_val: float, TB_prod: float, channel_cnt: int,
+                    fstat_ref_peak: Optional[float] = None) -> float:
     fstat_min = np.min(fstat_vals)
     fstat_max = np.max(fstat_vals)
 
@@ -853,15 +876,12 @@ def calc_det_thresh(fstat_vals, det_p_val, TB_prod, channel_cnt, fstat_ref_peak=
     if fstat_ref_peak:
         fstat_peak = fstat_ref_peak
     else:
-        def temp_fstat(f):
-            return -stats.f(TB_prod, TB_prod * (channel_cnt - 1)).pdf(f)
-        fstat_peak = minimize_scalar(temp_fstat, bracket=(fstat_min, fstat_max)).x
-        
-    # compute 
+        fstat_peak = minimize_scalar(lambda f: -stats.f(TB_prod, TB_prod * (channel_cnt - 1)).pdf(f),
+                                     bracket=(fstat_min, fstat_max)).x
+
+    # compute
     kde = stats.gaussian_kde(fstat_vals)
-    def temp_kde(f):
-        return -kde.pdf(f)[0]
-    kde_peak = minimize_scalar(temp_kde, bracket=(fstat_min, fstat_max), options={'maxiter':250}).x
+    kde_peak = minimize_scalar(lambda f: -kde.pdf(f)[0], bracket=(fstat_min, fstat_max), options={'maxiter': 250}).x
 
     return stats.f(TB_prod, TB_prod * (channel_cnt - 1)).ppf(1.0 - det_p_val) * (kde_peak / fstat_peak)
 
@@ -870,9 +890,13 @@ def calc_det_thresh(fstat_vals, det_p_val, TB_prod, channel_cnt, fstat_ref_peak=
 #    Combined Methods    #
 #         For CLI        #
 # ###################### #
-def beam_window(x, t, geom, freq_band, method, window, sub_window_length, delays, back_az_vals, trc_vel_vals, ns_covar_inv, signal_cnt, prog_n):
+def beam_window(x: np.ndarray, t: np.ndarray, geom, freq_band: Union[List, Tuple], method: str,
+                window: Tuple[float, float], sub_window_length: float, delays: np.ndarray,
+                back_az_vals: np.ndarray, trc_vel_vals: np.ndarray, ns_covar_inv: np.ndarray,
+                signal_cnt: int, prog_n: int):
     X, S, f = fft_array_data(x, t, window, sub_window_len=sub_window_length)
-    beam_power = run(X, S, f, geom, delays, freq_band, method=method, ns_covar_inv=ns_covar_inv, signal_cnt=signal_cnt, normalize_beam=True)
+    beam_power = run(X, S, f, geom, delays, freq_band, method=method, ns_covar_inv=ns_covar_inv,
+                     signal_cnt=signal_cnt, normalize_beam=True)
     prog_bar.increment(prog_n)
     return find_peaks(beam_power, back_az_vals, trc_vel_vals)
 
@@ -881,11 +905,13 @@ def beam_window_wrapper(args):
     return beam_window(*args)
 
 
-def run_fk(stream, latlon, freq_band, window_length, sub_window_length, window_step, method, back_az_vals, trc_vel_vals, ns_covar_inv, signal_cnt, pl):
-    """Run the beamforming (fk) analysis on a stream with various parameter specifications
+def run_fk(stream: Stream, latlon: np.ndarray, freq_band: np.ndarray, window_length: float,
+           sub_window_length: float, window_step: float, method: str, back_az_vals: np.ndarray,
+           trc_vel_vals: np.ndarray, ns_covar_inv: np.ndarray, signal_cnt: int, pl) -> Tuple[np.ndarray, np.ndarray]:
+    """ Run the beamforming (fk) analysis on a stream with various parameter specifications
 
         Convert a stream to an array data set on a consistent set of time samples
-        and then run beamforming for the data and return the analysis window times 
+        and then run beamforming for the data and return the analysis window times
         with peak f-stat and direction of arrival (DOA) information (back azimuth
         and trace velocity)
 
@@ -905,7 +931,8 @@ def run_fk(stream, latlon, freq_band, window_length, sub_window_length, window_s
         window_step: float
             Time step between adjacent analysis windows
         method: string
-            Beamforming method (options are "bartlett", "capon"/"mvdr", "GLS"/"gls", "bartlett_covar", and "MUSIC"/"music")
+            Beamforming method (options are "bartlett", "capon"/"mvdr", "GLS"/"gls", "bartlett_covar",
+            and "MUSIC"/"music")
         back_az_vals: 1darray
             List of back azimuth values in the slowness grid
         trc_vel_vals: 1darray
@@ -913,10 +940,9 @@ def run_fk(stream, latlon, freq_band, window_length, sub_window_length, window_s
         ns_covar_inv: ndarray
             Noise covariance inverse used in GLS beam
         signal_cnt: int
-            Number of assumed signals for MUSIC beam            
+            Number of assumed signals for MUSIC beam
         pl: multiprocessing.Pool
             Multiprocessing pool for simulatenous analysis of windows
-
 
         Returns:
         ----------
@@ -926,12 +952,12 @@ def run_fk(stream, latlon, freq_band, window_length, sub_window_length, window_s
             Residual across the array once beamed signal is extracted
         """
 
-    print('\n' + "Running fk analysis..." + '\n\t' + "Progress: ", end = '')
+    print('\n' + "Running fk analysis..." + '\n\t' + "Progress: ", end='')
 
     x, t, t0, geom = stream_to_array_data(stream, latlon=latlon)
     M, N = x.shape
 
-    # define slownes and delays from array geomry
+    # define slowness and delays from array geometry
     slowness = build_slowness(back_az_vals, trc_vel_vals)
     delays = compute_delays(geom, slowness)
 
@@ -946,15 +972,19 @@ def run_fk(stream, latlon, freq_band, window_length, sub_window_length, window_s
                 break
 
             beam_times = beam_times + [[t0 + np.timedelta64(int(window_start + window_length / 2.0), 's')]]
-            args = args + [[x, t, geom, freq_band, method, [window_start, window_start + window_length], sub_window_length, delays, back_az_vals, trc_vel_vals, ns_covar_inv, signal_cnt, prog_bar.set_step(win_n, win_cnt, prog_bar_len)]]
+            args = args + [[x, t, geom, freq_band, method, [window_start, window_start + window_length],
+                            sub_window_length, delays, back_az_vals, trc_vel_vals, ns_covar_inv, signal_cnt,
+                            prog_bar.set_step(win_n, win_cnt, prog_bar_len)]]
         beam_peaks = np.array(pl.map(beam_window_wrapper, args)).reshape(len(beam_times), 3)
     else:
         beam_peaks = []
         for win_n, window_start in enumerate(np.arange(t[0], t[-1], window_step)):
             if window_start + window_length > t[-1]:
                 break
-            
-            peaks = beam_window(x, t, geom, freq_band, method, [window_start, window_start + window_length], sub_window_length, delays, back_az_vals, trc_vel_vals, ns_covar_inv, signal_cnt, prog_bar.set_step(win_n, win_cnt, prog_bar_len))
+
+            peaks = beam_window(x, t, geom, freq_band, method, (window_start, window_start + window_length),
+                                sub_window_length, delays, back_az_vals, trc_vel_vals, ns_covar_inv, signal_cnt,
+                                prog_bar.set_step(win_n, win_cnt, prog_bar_len))
             beam_times = beam_times + [[t0 + np.timedelta64(int(window_start + window_length / 2.0), 's')]]
             beam_peaks = beam_peaks + [[peaks[0][0], peaks[0][1], peaks[0][2]]]
         beam_peaks = np.array(beam_peaks)
@@ -966,8 +996,11 @@ def run_fk(stream, latlon, freq_band, window_length, sub_window_length, window_s
     return beam_times, beam_peaks
 
 
-def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min_seq=5, back_az_lim=15, fixed_thresh=None, thresh_ceil=None, return_thresh=False, merge_dets=False):
-    """Identify detections with beamforming results
+def run_fd(times: np.ndarray, beam_peaks: np.ndarray, win_len: float, TB_prod: int, channel_cnt: int,
+           det_p_val: float = 0.99, min_seq: int = 5, back_az_lim: float = 15, fixed_thresh: Optional[float] = None,
+           thresh_ceil: Optional[float] = None, return_thresh: bool = False, merge_dets: bool = False) \
+            -> Tuple[List, List]:
+    """ Identify detections with beamforming results
 
         Identify detection in the beamforming results using either Kernel Density
         Estimate (KDE) fits to the f-statistic distribution or the adaptive
@@ -979,8 +1012,8 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
             Times of beamforming results as numpy datetime64's
         beam_peaks: 2darray
             Beamforming results consisting of back azimuth, trace velocity, and
-            f-value at each time step. This is a 2D array with dimensions (len(times), 3), 
-            where the first column has back azimuth values, the second has trace velocity 
+            f-value at each time step. This is a 2D array with dimensions (len(times), 3),
+            where the first column has back azimuth values, the second has trace velocity
             values, and the third has f-statistic values
         win_len: float
             Window length to define the adaptive fstat threshold
@@ -997,17 +1030,17 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
             Threshold below which the maximum separation of back azimuths must be
             in order to declare a detection
         fixed_thresh: float
-            A fixed detection threshold for fstat values (overrides adaptive 
+            A fixed detection threshold for fstat values (overrides adaptive
                 threshold calculation)
         thresh_ceil: float
-            A custom detection threshold ceiling value. When used, it modifies the 
+            A custom detection threshold ceiling value. When used, it modifies the
                 detection criterion: fstat > min(thresh_ceil, adaptive_thresh)
         return_thresh: boolean
             Flag to output the adaptive detection threshold computed across times
 
         Returns:
         ----------
-        dets : list
+        dets: list
             List of identified detections including detection time, relative start
             and end times of the detection, back azimuth, trace velocity, and f-stat.
         """
@@ -1020,9 +1053,8 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
     thresh_vals = np.empty_like(fstat_vals)
 
     # define the reference f-stat threshold
-    def temp_fstat(f):
-        return -stats.f(TB_prod, TB_prod * (channel_cnt - 1)).pdf(f)
-    fstat_ref_peak = minimize_scalar(temp_fstat, bracket=(min(fstat_vals), max(fstat_vals))).x
+    fstat_ref_peak = minimize_scalar(lambda f: -stats.f(TB_prod, TB_prod * (channel_cnt - 1)).pdf(f),
+                                     bracket=(min(fstat_vals), max(fstat_vals))).x
 
     if fixed_thresh:
         det_mask = (fstat_vals > fixed_thresh)
@@ -1037,20 +1069,20 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
 
             t1 = min(t1, times[-1] - np.timedelta64(int(win_len), 's'))
             t2 = min(t2, times[-1])
-            
+
             # compute detection threshold from the masked f-stat values
             win_mask = np.logical_and(t1 <= times, times <= t2)
-            thresh = calc_det_thresh(fstat_vals[win_mask], det_p_val, TB_prod, channel_cnt, fstat_ref_peak=fstat_ref_peak)
+            thresh = calc_det_thresh(fstat_vals[win_mask], det_p_val, TB_prod, channel_cnt,
+                                     fstat_ref_peak=fstat_ref_peak)
 
             if thresh_ceil:
                 thresh_vals[n] = min(thresh, thresh_ceil)
-                det_mask[n] = fstat_vals[n] >= min(thresh, thresh_ceil)        
+                det_mask[n] = fstat_vals[n] >= min(thresh, thresh_ceil)
             else:
                 thresh_vals[n] = thresh
                 det_mask[n] = fstat_vals[n] >= thresh
 
-
-    # Check for detections shorter than the minimum sequence 
+    # Check for detections shorter than the minimum sequence
     #   length and with too large of back azimuth deviations
     n, dets = 0, []
     while n < (len(det_mask) - min_seq):
@@ -1067,12 +1099,13 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
             # #     back_az_diff = abs(back_az_diff - 360.0)
 
             # if back_az_diff < back_az_lim:
-            
-            back_az_95conf = stats.circstd(back_az_vals[n:n+det_len], high=360.0) * 2.0
-            
-            if back_az_95conf < back_az_lim:
-                pk_index = np.argmax(fstat_vals[n:n + det_len]) 
 
+            back_az_95conf = stats.circstd(back_az_vals[n:n+det_len], high=360.0) * 2.0
+
+            if back_az_95conf < back_az_lim:
+                pk_index = np.argmax(fstat_vals[n:n + det_len])
+
+                det_time = -1
                 try:
                     det_time = times[n + pk_index]
                     det_start = (times[n] - times[n + pk_index]).astype('m8[s]').astype(float)
@@ -1083,12 +1116,16 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
                     fstat = fstat_vals[n + pk_index]
                     dets = dets + [[det_time, det_start, det_end, back_az, trc_vel, fstat]]
                 except Exception as ex1:
-                    warnings.warn(('Issue with detection time ' + str(det_time), ex1))
+                    warnings.warn(f'Issue with detection time {det_time}: {ex1}')
 
                 if n == 0:
-                    warnings.warn("Detection at time {} is close to the start of analysis.  Detection start time is set to beginning of the data, but this might be incorrect. It is recommended that you rerun the beamforming with a larger analysis window.".format(det_time))
+                    warnings.warn(f"Detection at time {det_time} is close to the start of analysis.  "
+                                  "Detection start time is set to beginning of the data, but this might be incorrect. "
+                                  "It is recommended that you rerun the beamforming with a larger analysis window.")
                 if n + det_len == len(times):
-                    warnings.warn("Detection at time {} is close to end of analysis. Detection end time is set to end of data, but this might be incorrect.  It is recommended that you rerun the beamforming with a larger analysis window.".format(det_time))
+                    warnings.warn(f"Detection at time {det_time} is close to end of analysis. "
+                                  "Detection end time is set to end of the data, but this might be incorrect.  "
+                                  "It is recommended that you rerun the beamforming with a larger analysis window.")
 
             n += det_len
         else:
@@ -1101,7 +1138,7 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
                 if back_az_diff > 180.0:
                     back_az_diff = abs(back_az_diff - 360.0)
 
-                if back_az_diff < back_az_lim: 
+                if back_az_diff < back_az_lim:
                     t1 = dets[j][0] + np.timedelta64(int(dets[j][2] * 1e3), 'ms')
                     t2 = dets[j + 1][0] + np.timedelta64(int(dets[j + 1][1] * 1e3), 'ms')
                     dt = (t2 - t1).astype('m8[s]').astype(float)
@@ -1117,15 +1154,17 @@ def run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val=0.99, min
 
             if dets.count(None) == 0:
                 break
-            
-            dets = [det for det in dets if det is not None]                    
+
+            dets = [det for det in dets if det is not None]
 
     if return_thresh:
         return dets, thresh_vals
     else:
-        return dets
+        return dets, []
 
 
-def detect_signals(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val, min_seq=5, back_az_lim=15, fixed_thresh=None, return_thresh=False):
-    return run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val, min_seq, back_az_lim, fixed_thresh, return_thresh)
-
+def detect_signals(times: np.ndarray, beam_peaks: np.ndarray, win_len: float, TB_prod: int, channel_cnt: int,
+                   det_p_val: float = 0.99, min_seq: int = 5, back_az_lim: float = 15,
+                   fixed_thresh: Optional[float] = None, return_thresh: bool = False) -> Tuple[List, List]:
+    return run_fd(times, beam_peaks, win_len, TB_prod, channel_cnt, det_p_val, min_seq, back_az_lim, fixed_thresh,
+                  return_thresh=return_thresh)

@@ -11,17 +11,24 @@ from obspy.core import read as obspy_read
 from ..utils import config
 from ..detection import beamforming_new as fkd
 
+
 @click.command('run_fd', short_help="Identify detections from beamforming results")
 @click.option("--config-file", help="Configuration file", default=None)
 @click.option("--local-fk", help="Local beamforming (fk) data files", default=None)
 @click.option("--local-dets", help="Local detection data files", default=None)
-@click.option("--window_len", help="Adaptive window length (default: " + config.defaults['FD']['window_len'] + " [s])", default=None, type=float)
-@click.option("--p-value", help="Detection p-value (default: " + config.defaults['FD']['p_value'] + ")", default=None, type=float)
-@click.option("--min-duration", help="Minimum detection duration (default: " + config.defaults['FD']['min_duration'] + " [s])", default=None, type=float)
-@click.option("--back-az-width", help="Maximum azimuth scatter (default: " + config.defaults['FD']['back_az_width'] + " [deg])", default=None, type=float)
+@click.option("--window_len", help="Adaptive window length (default: " + config.defaults['FD']['window_len'] + " [s])",
+              default=None, type=float)
+@click.option("--p-value", help="Detection p-value (default: " + config.defaults['FD']['p_value'] + ")", default=None,
+              type=float)
+@click.option("--min-duration", help="Minimum detection duration (default: " + config.defaults['FD']['min_duration']
+              + " [s])", default=None, type=float)
+@click.option("--back-az-width", help="Maximum azimuth scatter (default: " + config.defaults['FD']['back_az_width']
+              + " [deg])", default=None, type=float)
 @click.option("--fixed-thresh", help="Fixed f-stat threshold (default: None)", default=None, type=float)
-@click.option("--return-thresh", help="Return threshold (default: " + config.defaults['FD']['return_thresh'] + ")", default=None, type=bool)
-def run_fd(config_file, local_fk, local_dets, window_len, p_value, min_duration, back_az_width, fixed_thresh, return_thresh):
+@click.option("--return-thresh", help="Return threshold (default: " + config.defaults['FD']['return_thresh'] + ")",
+              default=None, type=bool)
+def run_fd(config_file, local_fk, local_dets, window_len, p_value, min_duration, back_az_width, fixed_thresh,
+           return_thresh):
     '''
     Identify detections
 
@@ -35,7 +42,7 @@ def run_fd(config_file, local_fk, local_dets, window_len, p_value, min_duration,
     click.echo("##     Detection (fd) Analysis     ##")
     click.echo("##                                 ##")
     click.echo("#####################################")
-    click.echo("")    
+    click.echo("")
 
     if config_file:
         click.echo('\n' + "Loading configuration info from: " + config_file)
@@ -83,7 +90,8 @@ def run_fd(config_file, local_fk, local_dets, window_len, p_value, min_duration,
     channel_cnt = 4
     min_seq = int(max(2, min_duration / window_len))
 
-    dets, thresh_vals = fkd.run_fd(beam_times, beam_peaks, window_len, TB_prod, channel_cnt, p_value, min_seq, back_az_width, fixed_thresh, True)
+    dets, thresh_vals = fkd.run_fd(beam_times, beam_peaks, window_len, TB_prod, channel_cnt, p_value, min_seq,
+                                   back_az_width, fixed_thresh, True)
 
     for det in dets:
         print(det)

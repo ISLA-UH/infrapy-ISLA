@@ -1,6 +1,7 @@
-from PyQt5.QtWidgets import (QDateEdit, QDateTimeEdit, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, 
-                             QPushButton, QSpinBox, QTimeEdit, QVBoxLayout,
-                             QPlainTextEdit, QSizePolicy)
+from typing import Optional, Tuple
+from PyQt5.QtWidgets import (QDateEdit, QDateTimeEdit, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel,
+                             QLineEdit, QPushButton, QSpinBox, QTimeEdit, QVBoxLayout,
+                             QPlainTextEdit, QSizePolicy, QWidget)
 from PyQt5.QtCore import QDate, QTime, pyqtSlot, Qt
 
 from obspy.core.utcdatetime import UTCDateTime
@@ -12,7 +13,15 @@ from InfraView.widgets import IPUtils
 
 
 class IPEventQueryWidget(QFrame):
-    def __init__(self, parent):
+    """
+    class for querying events from an IP database
+    """
+    def __init__(self, parent: QWidget):
+        """
+        Initializes the IPEventQueryWidget
+
+        :param parent: the parent widget
+        """
         super().__init__()
         self.setFrameStyle(QFrame.Box | QFrame.Plain)
         size_policy = self.sizePolicy()
@@ -24,7 +33,10 @@ class IPEventQueryWidget(QFrame):
         self.buildUI()
 
     def buildUI(self):
-        validator = IPUtils.CapsValidator()
+        """
+        Builds the UI for the IPEventQueryWidget
+        """
+        # validator = IPUtils.CapsValidator()
 
         title_label = QLabel("\tEvent Query")
         title_label.setStyleSheet("QLabel {font-weight:bold; color: white; background-color: black}")
@@ -35,14 +47,14 @@ class IPEventQueryWidget(QFrame):
 
         self.startDateTime_edit = QDateTimeEdit()
         self.startDateTime_edit.setDisplayFormat('yyyy-MM-ddTHH:mm:ss.zzz')
-        #self.startDateTime_edit.setDateTime(self.startDateTime_edit.minimumDateTime())
+        # self.startDateTime_edit.setDateTime(self.startDateTime_edit.minimumDateTime())
 
         self.endDateTime_edit = QDateTimeEdit()
         self.endDateTime_edit.setDisplayFormat('yyyy-MM-ddTHH:mm:ss.zzz')
-        #self.endDateTime_edit.setDateTime(self.endDateTime_edit.minimumDateTime())
+        # self.endDateTime_edit.setDateTime(self.endDateTime_edit.minimumDateTime())
 
         self.lat_edit = QDoubleSpinBox()
-        self.lat_edit.setRange(-90.1,90.0)  # the -90.1 is used as the "unset" value 
+        self.lat_edit.setRange(-90.1, 90.0)  # the -90.1 is used as the "unset" value
         self.lat_edit.setDecimals(2)
         self.lat_edit.setMaximumWidth(80)
         self.lat_edit.setSpecialValueText('deg')
@@ -61,16 +73,16 @@ class IPEventQueryWidget(QFrame):
         self.radius_edit.setValue(0)
         self.radius_edit.setSpecialValueText('km')
 
-        #latlon_layout = QHBoxLayout()
-        #latlon_layout.addWidget
+        # latlon_layout = QHBoxLayout()
+        # latlon_layout.addWidget
 
         form_layout1 = QFormLayout()
         form_layout1.addRow("EVID: ", self.evid_edit)
-        #form_layout1.addRow("Start Day/Time: ", self.startDateTime_edit)
-        #form_layout1.addRow("End Day/Time: ", self.endDateTime_edit)
-        #form_layout1.addRow("Lat: ", self.lat_edit)
-        #form_layout1.addRow("Lon: ", self.lon_edit)
-        #form_layout1.addRow("Radius: ", self.radius_edit)
+        # form_layout1.addRow("Start Day/Time: ", self.startDateTime_edit)
+        # form_layout1.addRow("End Day/Time: ", self.endDateTime_edit)
+        # form_layout1.addRow("Lat: ", self.lat_edit)
+        # form_layout1.addRow("Lon: ", self.lon_edit)
+        # form_layout1.addRow("Radius: ", self.radius_edit)
 
         self.query_textEdit = QPlainTextEdit()
         self.query_textEdit.setMaximumHeight(120)
@@ -103,33 +115,60 @@ class IPEventQueryWidget(QFrame):
         self.connect_signals_and_slots()
 
     @pyqtSlot(Session)
-    def set_session(self, session):
+    def set_session(self, session: Session):
+        """
+        sets the current database session
+
+        :param session: the current SQLAlchemy session
+        """
         self.session = session
 
     def connect_signals_and_slots(self):
+        """
+        connects signals to widgets
+        """
         self.clear_button.clicked.connect(self.clear_form)
         self.evid_edit.textEdited.connect(self.update_query_text)
         self.query_button.clicked.connect(self.query_database)
 
     def clear_form(self):
+        """
+        clears the form
+        """
         self.evid_edit.setText("")
         self.query_textEdit.setPlainText("")
 
     def update_query_text(self):
+        """
+        updates the query text box
+        """
         q = self.query_database(asquery=True)
         self.query_textEdit.setPlainText(str(q))
 
     # def get_current_session(self):
     #     return self.parent.ipdatabase_settings_widget.session
 
-    def get_tables(self):
-        table_dictionary= self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
+    def get_tables(self) -> dict:
+        """
+        :return: dictionary of table names
+        """
+        table_dictionary = self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
         return table_dictionary
 
-    def get_schema(self):
+    def get_schema(self) -> str:
+        """
+        :return: current schema type as string
+        """
         return self.parent.ipdatabase_settings_widget.connect_widget.schema_type_combo.currentText()
 
-    def query_database(self, asquery=False):
+    def query_database(self, asquery: bool = False):
+        """
+        query the database using the current form values
+
+        :param asquery: if True, return the query string instead of executing the query
+        :return: if asquery is False, returns a tuple of (prefor, origins).  If asquery is True, returns the
+                query object.  If error occurred, returns None
+        """
         if self.session is None:
             IPUtils.errorPopup("No current active session")
             return
@@ -142,24 +181,33 @@ class IPEventQueryWidget(QFrame):
             return database.eventID_query(self.session, self.evid_edit.text(), db_tables, asquery=True)
         else:
             prefor, origins = database.eventID_query(self.session, self.evid_edit.text(), db_tables, asquery=False)
-            self.parent.ipevent_query_results_table.setData(origins, prefor) 
+            self.parent.ipevent_query_results_table.setData(origins, prefor)
 
 
 class IPDatabaseQueryWidget(QFrame):
+    """
+    class for querying an IP database for waveforms
+    """
+    def __init__(self, parent: QWidget):
+        """
+        Initializes the IPDatabaseQueryWidget
 
-    def __init__(self, parent):
+        :param parent: the parent widget
+        """
         super().__init__()
         self.setFrameStyle(QFrame.Box | QFrame.Plain)
         size_policy = self.sizePolicy()
         size_policy.setHorizontalPolicy(QSizePolicy.Fixed)
         self.setSizePolicy(size_policy)
-        self.parent = parent 
+        self.parent = parent
         self.session = None
         self.query_string = ""
         self.buildUI()
 
     def buildUI(self):
-
+        """
+        Build the UI
+        """
         validator = IPUtils.CapsValidator()
 
         title_label = QLabel("\tWaveform Query")
@@ -167,13 +215,15 @@ class IPDatabaseQueryWidget(QFrame):
 
         self.sta_edit = QLineEdit()
         self.sta_edit.setMaximumWidth(150)
-        self.sta_edit.setToolTip('Wildcards OK \nOne or more SEED station codes. \nMultiple codes are comma-separated (e.g. "ANMO,PFO")')
+        self.sta_edit.setToolTip('Wildcards OK \nOne or more SEED station codes. \nMultiple codes are comma-separated '
+                                 '(e.g. "ANMO,PFO")')
         self.sta_edit.setValidator(validator)
 
         self.cha_edit = QLineEdit()
         self.cha_edit.setText("BDF")
         self.cha_edit.setMaximumWidth(150)
-        self.cha_edit.setToolTip('Wildcards OK \nOne or more SEED channel codes. \nMultiple codes are comma-separated (e.g. "BHZ,HHZ")')
+        self.cha_edit.setToolTip('Wildcards OK \nOne or more SEED channel codes. \nMultiple codes are comma-separated '
+                                 '(e.g. "BHZ,HHZ")')
         self.cha_edit.setValidator(validator)
 
         self.start_date_edit = QDateEdit()
@@ -211,7 +261,7 @@ class IPDatabaseQueryWidget(QFrame):
 
         self.query_button = QPushButton("Query Database")
         self.query_button.setFont(button_font)
-        
+
         # this bit centers the query button...
         horiz_layout = QHBoxLayout()
         horiz_layout.addStretch()
@@ -230,6 +280,9 @@ class IPDatabaseQueryWidget(QFrame):
         self.connect_signals_and_slots()
 
     def connect_signals_and_slots(self):
+        """
+        connect signals to widgets
+        """
         self.clear_button.clicked.connect(self.clear_form)
         self.query_button.clicked.connect(self.query_database)
         self.sta_edit.textEdited.connect(self.update_query_string)
@@ -239,19 +292,29 @@ class IPDatabaseQueryWidget(QFrame):
         self.duration_edit.valueChanged.connect(self.update_query_string)
 
     def clear_form(self):
+        """
+        clears the form
+        """
         self.sta_edit.setText("")
         self.cha_edit.setText("BDF")
         self.start_date_edit.setDate(self.start_date_edit.minimumDate())
-        self.start_time_edit.setTime(QTime(00,00,00))
+        self.start_time_edit.setTime(QTime(00, 00, 00))
         self.duration_edit.setValue(600)
         self.query_textEdit.setPlainText("")
 
     @pyqtSlot(Session)
-    def set_session(self, session):
+    def set_session(self, session: Session):
+        """
+        sets the current database session
+
+        :param session: the current SQLAlchemy session
+        """
         self.session = session
 
     def update_query_string(self):
-        
+        """
+        updates the query text box
+        """
         if self.session is None:
             IPUtils.errorPopup("No current active session")
             return
@@ -276,27 +339,35 @@ class IPDatabaseQueryWidget(QFrame):
 
         tables = self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
         try:
-            new_query = database.query_db(self.session, tables, start_time=start_time, end_time=end_time, sta=sta, cha=cha, return_type='wfdisc_rows', asquery=True)
+            new_query = database.query_db(self.session, tables, start_time=start_time, end_time=end_time, sta=sta,
+                                          cha=cha, return_type='wfdisc_rows', asquery=True)
             self.query_textEdit.setPlainText(str(new_query))
         except KeyError as e:
             IPUtils.errorPopup(str(e) + " is not defined.  Have you defined all your tables?")
 
-    def get_startstop_times(self):
+    def get_startstop_times(self) -> Tuple[UTCDateTime, UTCDateTime]:
+        """
+        :return: start and stop timestamps
+        """
         # returns UTCDateTime objects of the start and stop times
-        starttime_str = self.start_date_edit.date().toString(Qt.ISODate) + "T" + self.start_time_edit.time().toString(Qt.ISODate)
+        starttime_str = self.start_date_edit.date().toString(Qt.ISODate) + "T" \
+            + self.start_time_edit.time().toString(Qt.ISODate)
         starttime = UTCDateTime(starttime_str)
         stoptime = UTCDateTime(starttime) + self.duration_edit.value()
         return starttime, stoptime
-    
+
     @pyqtSlot(dict)
-    def update_time(self, origin):
+    def update_time(self, origin: dict):
+        """
+        update time using origin dict
+        """
         self.start_date_edit.setDate(origin['UTC Date'])
         self.start_time_edit.setTime(origin['UTC Time'])
 
-
-
     def query_database(self):
-
+        """
+        query the database using the current form values
+        """
         if self.session is None:
             IPUtils.errorPopup("No current active session")
             return
@@ -324,10 +395,11 @@ class IPDatabaseQueryWidget(QFrame):
             cha = self.cha_edit.text()
 
         tables = self.parent.ipdatabase_settings_widget.connect_widget.table_dialog.get_tables_from_text()
-        
-        wfs = database.query_db(self.session, tables, start_time=start_time, end_time=end_time, sta=sta, cha=cha, return_type='wfdisc_rows')
-        
-        if len(wfs) > 0:
+
+        wfs = database.query_db(self.session, tables, start_time=start_time, end_time=end_time, sta=sta, cha=cha,
+                                return_type='wfdisc_rows')
+
+        if wfs is not None and len(wfs) > 0:
             self.parent.ipdatabase_query_results_table.setData(wfs)
         else:
             IPUtils.errorPopup("No results found")
