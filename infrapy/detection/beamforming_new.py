@@ -1170,11 +1170,14 @@ def detect_signals(times: np.ndarray, beam_peaks: np.ndarray, win_len: float, TB
                   return_thresh=return_thresh)
 
 
-def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_window_len, window_step, method, back_az_vals, trc_vel_vals, array_data, delays):
-    """Run the beamforming analysis on a stream with various parameter specifications
+def auto_run_bf(signal_start_idx: int, signal_end_idx: int, freq_band: np.ndarray, window_len: float,
+                sub_window_len: float, window_step: float, method: str, back_az_vals: np.ndarray,
+                trc_vel_vals: np.ndarray, array_data: tuple, delays: np.ndarray
+                ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """ Run the beamforming analysis on a stream with various parameter specifications
 
         Convert a stream to an array data set on a consistent set of time samples
-        and then run beamforming for the data and return the analysis window times 
+        and then run beamforming for the data and return the analysis window times
         with peak f-stat and direction of arrival (DOA) information (back azimuth
         and trace velocity)
 
@@ -1183,7 +1186,7 @@ def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_win
 
         Parameters
         ----------
-        signal_start_idx: int 
+        signal_start_idx: int
             Index of the start of the signal in the array data
         signal_end_idx: int
             Index of the end of the signal in the array data
@@ -1196,7 +1199,8 @@ def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_win
         window_step: float
             Time step between adjacent analysis windows
         method: string
-            Beamforming method (options are "bartlett", "capon"/"mvdr", "GLS"/"gls", "bartlett_covar", and "MUSIC"/"music")
+            Beamforming method (options are "bartlett", "capon"/"mvdr", "GLS"/"gls", "bartlett_covar",
+            and "MUSIC"/"music")
         back_az_vals: 1darray
             List of back azimuth values in the slowness grid
         trc_vel_vals: 1darray
@@ -1205,7 +1209,6 @@ def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_win
             Tuple containing array data (x), time vector (t), start time (t0), and array geometry (geom)
         delays: ndarray
             Array of time delays for each sensor in the array
-
 
         Returns:
         ----------
@@ -1223,8 +1226,9 @@ def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_win
     beam_peaks = []
     beam_power = []
 
-    # Run BF the same way as InfraView, IPBeamformingWidget.py line 1562 -> 1622 ; this ensures beamforming is nromalized & returns additional info
-    
+    # Run BF the same way as InfraView, IPBeamformingWidget.py line 1562 -> 1622 ; this ensures beamforming is
+    # normalized & returns additional info
+
     for window_start in np.arange(signal_start_idx, signal_end_idx, window_step):
         if window_start + window_len > signal_end_idx:
             break
@@ -1233,21 +1237,20 @@ def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_win
         beam_times.append(t0 + np.timedelta64(int(window_start + window_len / 2.0), 's'))
 
         # FFT / covariance for this window (uses same defaults: subwindow overlap=0.5, hanning)
-        X, S, f = fft_array_data(x, t, window=[window_start, window_start + window_len], sub_window_len=sub_window_len)
+        X, S, f = fft_array_data(x, t, window=(window_start, window_start + window_len), sub_window_len=sub_window_len)
 
-
-        # Run beamforming 
+        # Run beamforming
         power = run(X,
-                             S,
-                             f,
-                             geom,
-                             delays,
-                             freq_band,
-                             method=method,
-                             normalize_beam=True,
-                             signal_cnt=1,
-                             pool=None,
-                             ns_covar_inv=None)
+                    S,
+                    f,
+                    geom,
+                    delays,
+                    freq_band,
+                    method=method,
+                    normalize_beam=True,
+                    signal_cnt=1,
+                    pool=None,
+                    ns_covar_inv=None)
         beam_power.append(power)
         # Find peaks in beam power
         peaks = find_peaks(power, back_az_vals, trc_vel_vals, signal_cnt=1)
@@ -1261,13 +1264,15 @@ def auto_run_bf(signal_start_idx, signal_end_idx, freq_band, window_len, sub_win
     if beam_peaks.size > 0:
         beam_peaks[:, 2] = beam_peaks[:, 2] / (1.0 - beam_peaks[:, 2]) * (M - 1)
 
-    print(f"Beamforming Complete")
+    print("Beamforming Complete")
     return beam_times, beam_peaks, beam_power
 
 
-
-def adjust_thresh_noise(array_data, window_len, sub_window_len, noise_len, window_step, freq_min, freq_max, method, back_az_vals, trc_vel_vals, delays, p_value, TB_prod):
-    """Run the beamforming analysis on a stream with various parameter specifications
+def adjust_thresh_noise(array_data: tuple, window_len: float, sub_window_len: float, noise_len: float,
+                        window_step: float, freq_min: float, freq_max: float, method: str, back_az_vals: np.ndarray,
+                        trc_vel_vals: np.ndarray, delays: np.ndarray, p_value: float, TB_prod: float
+                        ) -> Optional[float]:
+    """ Run the beamforming analysis on a stream with various parameter specifications
 
         Convert a stream to an array data set on a consistent set of time samples
         and then run beamforming for the data and return the analysis window times 
@@ -1294,7 +1299,8 @@ def adjust_thresh_noise(array_data, window_len, sub_window_len, noise_len, windo
         freq_max: float
             Maximum frequency for analysis
         method: string
-            Beamforming method (options are "bartlett"; "capon"/"mvdr", "GLS"/"gls", "bartlett_covar", and "MUSIC"/"music" should be tested later
+            Beamforming method (options are "bartlett"; "capon"/"mvdr", "GLS"/"gls", "bartlett_covar",
+            and "MUSIC"/"music" should be tested later
         back_az_vals: 1darray
             List of back azimuth values in the slowness grid
         trc_vel_vals: 1darray
@@ -1307,8 +1313,8 @@ def adjust_thresh_noise(array_data, window_len, sub_window_len, noise_len, windo
             Time-bandwidth product for the analysis
         Returns:
         ----------
-        det_thresh : float
-            Detection threshold based on noise statistics and specified p-value
+        det_thresh: float or None
+            Detection threshold based on noise statistics and specified p-value or None
     """
     x, t, t0, geom = array_data
     M, N = x.shape
@@ -1316,8 +1322,9 @@ def adjust_thresh_noise(array_data, window_len, sub_window_len, noise_len, windo
     for n_start in np.arange(0.0, noise_len, window_step):
         if n_start + window_len > noise_len:
             break
-        Xn, Sn, fn = fft_array_data(x, t, window=[n_start, n_start + window_len], sub_window_len=sub_window_len)
-        bp_n = run(Xn, Sn, fn, geom, delays, [freq_min, freq_max], method=method, normalize_beam=True, signal_cnt=1, pool=None, ns_covar_inv=None)
+        Xn, Sn, fn = fft_array_data(x, t, window=(n_start, n_start + window_len), sub_window_len=sub_window_len)
+        bp_n = run(Xn, Sn, fn, geom, delays, (freq_min, freq_max), method=method, normalize_beam=True, signal_cnt=1,
+                   pool=None, ns_covar_inv=None)
         peaks_n = find_peaks(bp_n, back_az_vals, trc_vel_vals, signal_cnt=1)
         if len(peaks_n) > 0:
             noise_fvals.append(peaks_n[0][2] / (1.0 - peaks_n[0][2]) * (M - 1))
