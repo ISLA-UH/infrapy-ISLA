@@ -1,3 +1,4 @@
+from typing import Optional, Tuple
 import pyqtgraph as pg
 
 from pyqtgraph.graphicsItems.InfiniteLine import InfLineLabel
@@ -10,7 +11,9 @@ from PyQt5.QtWidgets import QMenu
 
 
 class IPPickLine(pg.InfiniteLine):
-
+    """
+    class for pick lines
+    """
     sigPickLineMoving = pyqtSignal(pg.InfiniteLine, float)
     sigPickLineMoved = pyqtSignal(float)
     sigCopyPickLine = pyqtSignal(pg.InfiniteLine)
@@ -25,11 +28,13 @@ class IPPickLine(pg.InfiniteLine):
     start_end = None
 
     def __init__(self, pickItem, starting_pos=None):
+        """
+        initialize
+
+        :param pickItem: DetectionItem that holds the information for the line
+        :param starting_pos: number of seconds from earliest_start_time that the detection occurs
+        """
         super().__init__(angle=90, movable=True, pen='r', label='')
-        """
-        pickItem is the DetectionItem that holds the information for the line
-        starting_pos is the number of seconds from earliest_start_time that the detection occurs
-        """
 
         self._Name = pickItem.name
         self._note = pickItem.note
@@ -50,6 +55,11 @@ class IPPickLine(pg.InfiniteLine):
         self.setHoverPen('r', width=3)
 
     def showMenu(self, position):
+        """
+        show menu
+
+        :param position: position to show menu
+        """
         menu = QMenu()
 
         # menu actions
@@ -78,6 +88,11 @@ class IPPickLine(pg.InfiniteLine):
         self.sigCopyPickLine.emit(self)
 
     def mousePressEvent(self, evt):
+        """
+        handles mouse press events
+
+        :param evt: mouse event
+        """
         if evt.button() == Qt.RightButton:
             evt.accept()
             self.showMenu(evt.screenPos())
@@ -88,7 +103,11 @@ class IPPickLine(pg.InfiniteLine):
             super().mousePressEvent(evt)
 
     def mouseDragEvent(self, ev):
+        """
+        handles mouse drag events
 
+        :param ev: mouse event
+        """
         if self.movable and ev.button() == QtCore.Qt.LeftButton:
             super().mouseDragEvent(ev)
             pos = self.getXPos()
@@ -102,31 +121,57 @@ class IPPickLine(pg.InfiniteLine):
                 self.start_end_bars.setRegion((pos + self.start_end[0], pos + self.start_end[1]))
 
     def setColor(self, color):
+        """
+        set color of the pick line
+
+        :param color: QColor object
+        """
         self.setPen(QPen(color))
         self.setHoverPen(color, width=3)
 
     def hoverEnterEvent(self, evt):
+        """
+        hover enter event
+
+        :param evt: hover event (not used)
+        """
         if self._note != '':
             self.label.setText(self._Name + '  [' + self._note + ']')
 
     def hoverLeaveEvent(self, evt):
+        """
+        hover leave event
+
+        :param evt: hover event (not used)
+        """
         self.label.setText(self._Name)
 
-    def addStartEndBars(self, start_end=None):
+    def addStartEndBars(self, start_end: Optional[Tuple[float, float]] = None):
+        """
+        add start/end bars
+
+        :param start_end: tuple of two floats indicating start and end in seconds from pickline position
+        """
         if start_end is None:
-            start_end = [-10, 10]
+            start_end = (-10, 10)
         self.start_end = start_end
         self.start_end_bars = IPStartEndRegionItem(self,
-                                                    values=[self.getXPos() + start_end[0],
-                                                            self.getXPos() + start_end[1]])
+                                                   values=[self.getXPos() + start_end[0],
+                                                           self.getXPos() + start_end[1]])
         self.start_end_bars.sigRegionChanged.connect(self.startEndRegionChanged)
 
     def removeStartEndBars(self):
+        """
+        remove start/end bars
+        """
         self.start_end_bars = None
         self.start_end = None
         self.sigRemoveStartEndBars.emit(self)
 
     def startEndBars(self):
+        """
+        return start/end bars
+        """
         return self.start_end_bars
 
     @pyqtSlot(object)
@@ -137,10 +182,18 @@ class IPPickLine(pg.InfiniteLine):
 
 
 class IPStartEndRegionItem(LinearRegionItem):
-
+    """
+    class for start/end region
+    """
     mirror = False
 
-    def __init__(self, pickline, values=[0, 1], orientation='vertical', brush=None, hoverBrush=None, hoverPen=None, pen=(120,80,80), movable=True):
+    def __init__(self, pickline, values: Tuple[float, float] = (0, 1), orientation: str = 'vertical',
+                 brush: Optional[QtGui.QBrush] = None, hoverBrush: Optional[QtGui.QBrush] = None,
+                 hoverPen: Optional[QtGui.QPen] = None, pen: Tuple[int, int, int] = (120, 80, 80),
+                 movable: bool = True):
+        """
+        initialize
+        """
         super().__init__(values, orientation, brush, hoverBrush, hoverPen, pen, movable)
         self.swapMode = 'block'
         self.pickline = pickline    # reference to the pickline that 'owns' this lri
@@ -152,12 +205,23 @@ class IPStartEndRegionItem(LinearRegionItem):
         self.lines[1].sigPositionChanged.connect(lambda: self.lineMoved(1))
 
     def hideMe(self):
+        """
+        hide the region
+        """
         self.setVisible(False)
 
     def showMe(self):
+        """
+        show the region
+        """
         self.setVisible(True)
 
     def lineMoved(self, i):
+        """
+        handle line moved
+
+        param i: index of line moved (0 or 1)
+        """
         if self.blockLineSignal:
             return
         pos = self.pickline.pos().x()

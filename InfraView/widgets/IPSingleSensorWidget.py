@@ -1,4 +1,5 @@
 
+from typing import List, Optional, Tuple
 from PyQt5.QtWidgets import (QWidget, QRadioButton, QCheckBox, QComboBox, QDoubleSpinBox, QSpinBox, QFormLayout, 
                              QGroupBox, QHBoxLayout, QLabel, QPushButton, QToolBar, QToolButton,
                              QVBoxLayout, QDialog)
@@ -23,8 +24,11 @@ from infrapy.detection import spectral
 
 import traceback
 
-class IPSingleSensorWidget(QWidget):
 
+class IPSingleSensorWidget(QWidget):
+    """
+    class for single sensor display
+    """
     waveform_data_item = None
 
     spec_overlap = 0.8
@@ -33,8 +37,14 @@ class IPSingleSensorWidget(QWidget):
     mp_pool = None
 
     signal_start_sd_calc = pyqtSignal()
-    
-    def __init__(self, parent, pool=None):
+
+    def __init__(self, parent: QWidget, pool=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        :param pool: multiprocessing pool
+        """
         super().__init__(parent)
         self.appWidget = parent
         self.mp_pool = pool
@@ -42,21 +52,32 @@ class IPSingleSensorWidget(QWidget):
         self.buildUI()
 
     def set_controlling_widget(self, cw):
+        """
+        set the controlling widget
+
+        :param cw: controlling widget
+        """
         self.spectrogram_settings_widget = cw
         self.connect_signals_and_slots()
         self.update_values()
 
     def connect_signals_and_slots(self):
+        """
+        connect signals with widgets
+        """
         self.spectrogram_settings_widget.colormap_cb.currentTextChanged.connect(self.signalSpecWidget.set_colormap)
         self.spectrogram_settings_widget.colorbar_rb.toggled.connect(self.signalSpecWidget.show_hide_colorbar)
         self.spectrogram_settings_widget.update_button.clicked.connect(self.updateSpectrograms)
 
     def buildUI(self):
+        """
+        build the UI
+        """
         main_layout = QVBoxLayout()
 
-        ##### TOOLBAR
+        # TOOLBAR
         self.toolbar = QToolBar()
-        
+
         self.tool_runDetector_button = QToolButton()
         self.tool_runDetector_button.setText("Run Detector")
         self.tool_runDetector_button.clicked.connect(self.run_spectral_detector)
@@ -68,25 +89,24 @@ class IPSingleSensorWidget(QWidget):
         self.toolbar.addWidget(self.tool_runDetector_button)
         self.toolbar.addWidget(self.tool_clearDetections_button)
 
-        ##### WAVEFORM PLOTS
+        # WAVEFORM PLOTS
         self.waveformPlot = IPPlotItem.IPPlotItem(mode='waveform', est=None, lris=False)
         self.waveformPlot.setLabel('left', 'Amplitude')
         self.waveformPlot.hideButtons()
         self.waveformPlot.setPlotLabel("Signal Waveform")
 
-        ##### SPECTROGRAM PLOTS
+        # SPECTROGRAM PLOTS
         self.signalSpecWidget = IPSpectrogramWidget(self)
         self.signalSpecWidget.setPlotLabel('Signal')
 
-        ##### DETECTION PLOT
+        # DETECTION PLOT
         self.detectionPlot = IPDetectionPlotItem(self, start_time=None)
-        
 
         # link all the plot x-axes so that when they rescale together
         self.signalSpecWidget.setXLink(self.waveformPlot)
         self.detectionPlot.setXLink(self.waveformPlot)
 
-        ##### LAYOUT
+        # LAYOUT
         self.glWidget = pg.GraphicsLayoutWidget()
         self.glWidget.addItem(self.waveformPlot)
         self.glWidget.nextRow()
@@ -102,15 +122,20 @@ class IPSingleSensorWidget(QWidget):
         self.sdThread = QThread()
 
     @pyqtSlot(str)
-    def update_theme(self, t):
+    def update_theme(self, t: str):
+        """
+        update the theme of the widget
+        """
         if t == 'light':
-            self.glWidget.setBackground((255,255,255))
+            self.glWidget.setBackground((255, 255, 255))
         elif t == 'dark':
             self.glWidget.setBackground(IPUtils.ip_dark_grey)
 
     @pyqtSlot()
     def update_values(self):
-
+        """
+        update internal values based on settings widget
+        """
         new_fmin = self.spectrogram_settings_widget.fmin_spin.value()
         self.spec_overlap = 0.8
 
@@ -121,11 +146,16 @@ class IPSingleSensorWidget(QWidget):
         self.noverlap = int(0.8 * self.nperseg)
         self.nfft = self.nperseg
 
-
-    def get_earliest_start_time(self):
+    def get_earliest_start_time(self) -> UTCDateTime:
+        """
+        :return: earliest start time from app widget
+        """
         return self.appWidget.waveformWidget.get_earliest_start_time()
-    
+
     def run_spectral_detector(self):
+        """
+        run the spectral detector
+        """
         self.detectionPlot.clear()
 
         f_s, t_s, Sxx_log = self.signalSpecWidget.get_logdata()
@@ -134,7 +164,7 @@ class IPSingleSensorWidget(QWidget):
             # pull info from CWT widget
             t_skip = int(self.nperseg * (1.0 - self.spec_overlap))
             pval = self.spectrogram_settings_widget.cwt_pval_spin.value()
-            freq_band = [self.spectrogram_settings_widget.cwt_fmin_spin.value(), 
+            freq_band = [self.spectrogram_settings_widget.cwt_fmin_spin.value(),
                          self.spectrogram_settings_widget.cwt_fmax_spin.value()]
             clustering_freq_scaling = self.spectrogram_settings_widget.cwt_clust_freq_scale_spin.value()
             clustering_eps = self.spectrogram_settings_widget.cwt_clust_eps_spin.value()
@@ -146,34 +176,31 @@ class IPSingleSensorWidget(QWidget):
             # pull settings from spectrogram/stft widget
             t_skip = 1
             pval = self.spectrogram_settings_widget.pval_spin.value()
-            freq_band = [self.spectrogram_settings_widget.fmin_spin.value(), 
+            freq_band = [self.spectrogram_settings_widget.fmin_spin.value(),
                          self.spectrogram_settings_widget.fmax_spin.value()]
-         
             clustering_freq_scaling = self.spectrogram_settings_widget.clust_freq_scale_spin.value()
             clustering_eps = self.spectrogram_settings_widget.clust_eps_spin.value()
             clustering_min_samples = self.spectrogram_settings_widget.clust_min_samples_spin.value()
 
             adaptive_window_length = self.spectrogram_settings_widget.adaptive_win_len_spin.value()
 
-        adaptive_window_step = adaptive_window_length/2
+        adaptive_window_step = adaptive_window_length / 2
 
         signal_t_range = self.signalSpecWidget.get_xrange()
         signal_window_mask = np.logical_and(signal_t_range[0] <= t_s, t_s <= signal_t_range[1])
         signal_Sxx_window = Sxx_log[:, signal_window_mask]
 
-        
-
         self.signal_t_window = t_s[signal_window_mask]
         self.t_s = t_s
         self.f_s = f_s
 
-        self.sd_worker_object = IPSpectralDetectorWorkerObject(self.f_s, self.signal_t_window, 
-                                                                signal_Sxx_window, freq_band, 
-                                                                pval, adaptive_window_length , 
-                                                                adaptive_window_step, clustering_freq_scaling, 
-                                                                clustering_eps, clustering_min_samples,
-                                                                self.mp_pool, t_skip)
-        
+        self.sd_worker_object = IPSpectralDetectorWorkerObject(self.f_s, self.signal_t_window,
+                                                               signal_Sxx_window, freq_band,
+                                                               pval, adaptive_window_length,
+                                                               adaptive_window_step, clustering_freq_scaling,
+                                                               clustering_eps, clustering_min_samples,
+                                                               self.mp_pool, t_skip)
+
         self.signal_start_sd_calc.connect(self.sd_worker_object.run)
         self.sd_worker_object.moveToThread(self.sdThread)
         self.sd_worker_object.signal_runFinished.connect(self.detection_run_finished)
@@ -181,27 +208,40 @@ class IPSingleSensorWidget(QWidget):
         self.signal_start_sd_calc.emit()
 
     @pyqtSlot(np.ndarray, list, str)
-    def detection_run_finished(self, spec_dets, clustering_pts, err_msg):
+    def detection_run_finished(self, spec_dets: np.ndarray, clustering_pts: list, err_msg: str):
+        """
+        function to handle detection run completion
+
+        :param spec_dets: spectral detections
+        :param clustering_pts: clustered detection points
+        :param err_msg: error message
+        """
         if err_msg:
-            # didn't find anything exit tread.
+            # didn't find anything, so exit thread.
             self.sdThread.exit()
             IPUtils.errorPopup(err_msg)
         else:
-            self.detectionPlot.plot_data(spec_dets, 
-                                    self.signal_t_window[1]-self.signal_t_window[0], 
-                                    self.waveformPlot.get_start_time(), 
-                                    [self.t_s[0],self.t_s[-1]], 
-                                    [self.f_s[0], self.f_s[-1]],
-                                    clustering_pts)
+            self.detectionPlot.plot_data(spec_dets,
+                                         self.signal_t_window[1]-self.signal_t_window[0],
+                                         self.waveformPlot.get_start_time(),
+                                         [self.t_s[0], self.t_s[-1]],
+                                         [self.f_s[0], self.f_s[-1]],
+                                         clustering_pts)
 
-        
     @pyqtSlot(object)
     def signal_region_changed(self, lri):
-        #print('signal region changed {}'.format(lri.getRegion()))
+        # print('signal region changed {}'.format(lri.getRegion()))
         pass
 
     @pyqtSlot(pg.PlotDataItem, tuple, str)
-    def setSignalWaveform(self, plotLine, region, plot_label=None):
+    def setSignalWaveform(self, plotLine: pg.PlotDataItem, region: tuple, plot_label: Optional[str] = None):
+        """
+        set the signal waveform plot
+
+        :param plotLine: plot data item to set
+        :param region: region to set x-axis to
+        :param plot_label: optional label for the plot
+        """
         # pretty much the same as the setWaveform in IPBeamformingWidget
 
         initial = False
@@ -211,7 +251,7 @@ class IPSingleSensorWidget(QWidget):
             self.waveform_data_item = pg.PlotDataItem()
             initial = True
 
-        # bringing in a new waveform, we might have a new earliest_start_time, so update that in the 
+        # bringing in a new waveform, we might have a new earliest_start_time, so update that in the
         # plots so that the x-axes will be correct
         self.waveformPlot.setEarliestStartTime(self.get_earliest_start_time())
 
@@ -235,7 +275,12 @@ class IPSingleSensorWidget(QWidget):
         self.updateSignalSpectrogram()
 
     @pyqtSlot(tuple)
-    def updateSignalRange(self, new_range):
+    def updateSignalRange(self, new_range: Tuple[float, float]):
+        """
+        update the signal range
+
+        :param new_range: new range
+        """
         self.waveformPlot.setXRange(new_range[0], new_range[1], padding=0)
         # we want to set the title of the plot to reflect the current start time of the view
         self.start_time = self.get_earliest_start_time() + new_range[0]
@@ -245,60 +290,90 @@ class IPSingleSensorWidget(QWidget):
         self.signalSpecWidget.auto_scale_yaxis()
 
     def updateSignalSpectrogram(self):
-         # generate spectrogram
+        """
+        update the signal spectrogram
+        """
+        # generate spectrogram
         if self.waveform_data_item is not None:
             # calculate the values used in the spectrograms.  These will be used in a few different places
-            self.signalSpecWidget.calc_spectrogram(self.waveform_data_item.getOriginalDataset(), 
-                                                  Fs=self.fs, 
-                                                  nfft=self.nfft,
-                                                  nperseg=self.nperseg,
-                                                  noverlap=self.noverlap,
-                                                  spec_type=self.spectrogram_settings_widget.spec_type_cb.currentText(),
-                                                  morlet_o=self.spectrogram_settings_widget.omega0_spin.value())
+            self.signalSpecWidget.calc_spectrogram(self.waveform_data_item.getOriginalDataset(),
+                                                   Fs=self.fs,
+                                                   nfft=self.nfft,
+                                                   nperseg=self.nperseg,
+                                                   noverlap=self.noverlap,
+                                                   spec_type=self.spectrogram_settings_widget.spec_type_cb.currentText(),
+                                                   morlet_o=self.spectrogram_settings_widget.omega0_spin.value())
             self.signalSpecWidget.set_start_time(self.get_earliest_start_time())
 
-    
     @pyqtSlot()
     def updateSpectrograms(self):
-        if self.spectrogram_settings_widget.spec_type_cb.currentText() != self.spectrogram_settings_widget.last_spec_type:
-            self.spectrogram_settings_widget.last_spec_type = self.spectrogram_settings_widget.spec_type_cb.currentText()
+        """
+        update the spectrograms
+        """
+        if self.spectrogram_settings_widget.spec_type_cb.currentText() != \
+                self.spectrogram_settings_widget.last_spec_type:
+            self.spectrogram_settings_widget.last_spec_type = \
+                self.spectrogram_settings_widget.spec_type_cb.currentText()
             self.detectionPlot.spi.clear()
         self.updateSignalSpectrogram()
-        
+
     def clearWaveformPlots(self):
+        """
+        clear the waveform plots
+        """
         self.waveform_data_item = None
         self.waveformPlot.clear()
         self.waveformPlot.setTitle("")
         self.waveformPlot.clearPlotLabel()
         self.waveformPlot.setYRange(0, 1, padding=0)
-
         self.signalSpecWidget.clear_spectrogram()
-        
         self.clear_detection_plot()
 
     def clear_detection_plot(self):
+        """
+        clear the detection plot
+        """
         self.detectionPlot.clear()
         self.detectionPlot.spi.clear()
         self.detectionPlot.setXLink(self.waveformPlot)
 
+
 class IPSpectralDetectorWorkerObject(QObject):
+    """
+    class for spectral detector
+    """
 
     signal_runFinished = pyqtSignal(np.ndarray, list, str)
 
-    def __init__(self, 
-                 f_s, 
-                 signal_t_window, 
-                 signal_Sxx_window, 
-                 freq_band, 
-                 pval, 
-                 adaptive_window_length , 
-                 adaptive_window_step, 
-                 clustering_freq_scaling, 
-                 clustering_eps, 
-                 clustering_min_samples, 
-                 mp_pool, 
-                 t_skip):
-        
+    def __init__(self,
+                 f_s: np.ndarray,
+                 signal_t_window: np.ndarray,
+                 signal_Sxx_window: np.ndarray,
+                 freq_band: Tuple[float, float],
+                 pval: float,
+                 adaptive_window_length: int,
+                 adaptive_window_step: int,
+                 clustering_freq_scaling: float,
+                 clustering_eps: float,
+                 clustering_min_samples: int,
+                 mp_pool,
+                 t_skip: int):
+        """
+        initialize
+
+        :param f_s: frequency vector
+        :param signal_t_window: time vector for signal
+        :param signal_Sxx_window: spectrogram for signal
+        :param freq_band: frequency band for detector
+        :param pval: p-value for detector
+        :param adaptive_window_length: adaptive window length
+        :param adaptive_window_step: adaptive window step
+        :param clustering_freq_scaling: clustering frequency scaling
+        :param clustering_eps: clustering eps
+        :param clustering_min_samples: clustering min samples
+        :param mp_pool: multiprocessing pool
+        :param t_skip: time skip
+        """
         super().__init__()
         self.f_s = f_s
         self.signal_t_window = signal_t_window
@@ -317,6 +392,9 @@ class IPSpectralDetectorWorkerObject(QObject):
 
     @pyqtSlot()
     def run(self):
+        """
+        run the spectral detector
+        """
         self.thread_stopped = False
 
         try:
@@ -325,40 +403,50 @@ class IPSpectralDetectorWorkerObject(QObject):
             spec_dets = np.empty(0)
             clustering_pts = []
             err_msg = ""
-            spec_dets, clustering_pts, _ = spectral.run_sd(self.f_s, 
-                                                           self.signal_t_window, 
-                                                           self.signal_Sxx_window, 
-                                                            self.freq_band, 
-                                                            self.pval, 
-                                                            self.adaptive_window_length , 
-                                                            self.adaptive_window_step, 
-                                                            self.clustering_freq_scaling, 
-                                                            self.clustering_eps, 
-                                                            self.clustering_min_samples, 
-                                                            clustering_window_len, 
-                                                            self.mp_pool, 
-                                                            self.t_skip)
-            
+            spec_dets, clustering_pts, _ = spectral.run_sd(self.f_s,
+                                                           self.signal_t_window,
+                                                           self.signal_Sxx_window,
+                                                           self.freq_band,
+                                                           self.pval,
+                                                           self.adaptive_window_length,
+                                                           self.adaptive_window_step,
+                                                           self.clustering_freq_scaling,
+                                                           self.clustering_eps,
+                                                           self.clustering_min_samples,
+                                                           clustering_window_len,
+                                                           self.mp_pool,
+                                                           self.t_skip)
 
         except ValueError:
-            err_msg = "Found no detections.  If you believe something is there, try expanding your analysis window to get better statistics for the background calculation."
+            err_msg = "Found no detections.  If you believe something is there, try expanding your analysis window "\
+                      "to get better statistics for the background calculation."
         except Exception as e:
             err_msg = f"Error calculating detections:\n\t{str(e)}"
 
         self.signal_runFinished.emit(spec_dets, clustering_pts, err_msg)
-        self.stop()            
+        self.stop()
 
     @pyqtSlot()
     def stop(self):
+        """
+        stop the thread
+        """
         self.thread_stopped = True
 
 
 class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
-
+    """
+    class for spectrogram display
+    """
     sig_start_spec_calc = pyqtSignal()
     sig_start_stft_calc = pyqtSignal()
 
     def __init__(self, parent, est=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(mode='spectrogram')
         self.singleStationWidget = parent
 
@@ -375,9 +463,12 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.buildUI()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setLabel(axis='left', text='Frequency (Hz)')
-        #self.setLabel(axis='bottom', text='Time') # probably not needed, i think everyone knows what this axis is
-        self.spec_img = pg.ImageItem( image=np.eye(3), levels=(0,1) ) # create example image
+        # self.setLabel(axis='bottom', text='Time') # probably not needed, i think everyone knows what this axis is
+        self.spec_img = pg.ImageItem(image=np.eye(3), levels=(0, 1))  # create example image
         self.addItem(self.spec_img)
 
         self.color_bar = pg.ColorBarItem()
@@ -388,12 +479,12 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         # initial_pos = self.singleStationWidget.spectrogram_settings_widget.fmin_spin.value()
         self.filter_min_line = pg.InfiniteLine(angle=0, pen='k', label="")
         self.filter_min_line.label.setPosition(0.9)
-        self.filter_min_line.label.setColor((128,128,128))
+        self.filter_min_line.label.setColor((128, 128, 128))
 
         # initial_pos = self.singleStationWidget.spectrogram_settings_widget.fmax_spin.value()
         self.filter_max_line = pg.InfiniteLine(angle=0, pen='k', label="")
         self.filter_max_line.label.setPosition(0.9)
-        self.filter_max_line.label.setColor((128,128,128))
+        self.filter_max_line.label.setColor((128, 128, 128))
 
         self.spec_img.getViewBox().addItem(self.filter_min_line)
         self.spec_img.getViewBox().addItem(self.filter_max_line)
@@ -401,72 +492,134 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         self.calc_spec_thread = QThread()
 
     @pyqtSlot(float)
-    def fmin_changed(self, new_val):
+    def fmin_changed(self, new_val: float):
+        """
+        function to handle fmin changes
+
+        :param new_val: new fmin value
+        """
         self.filter_min_line.setValue(new_val)
         self.filter_min_line.label.setText(f'fmin = {new_val}')
 
     @pyqtSlot(float)
-    def fmax_changed(self, new_val):
+    def fmax_changed(self, new_val: float):
+        """
+        function to handle fmax changes
+
+        :param new_val: new fmax value
+        """
         self.filter_max_line.setValue(new_val)
         self.filter_max_line.label.setText(f'fmax = {new_val}')
 
-    def setPlotLabel(self, text):
+    def setPlotLabel(self, text: str):
+        """
+        set the plot label
+
+        :param text: text for the label
+        """
         if self.labi is not None:
             self.vb.removeItem(self.labi)
         self.labi = pg.LabelItem(text=text)
         self.labi.setParentItem(self.vb)
-        self.labi.anchor(itemPos=(0.0,0.0), parentPos=(0.0,0.0))
+        self.labi.anchor(itemPos=(0.0, 0.0), parentPos=(0.0, 0.0))
 
     def set_data(self, data, region):
-        # data is a plot data item, range is the current range viewed
+        """
+        set the data
+
+        :param data: plot data to set
+        :param region: region being viewed to set
+        """
         self.data_item = data
         self.region = region
 
-    def get_logdata(self):
-        # return the f,t,and log10(Sxx) data for further use
+    def get_logdata(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        :return: the f, t, and log10(Sxx) data for further use
+        """
         if self.Sxx is None:
             return None, None, None
         return self.f, self.t, 10 * np.log10(self.Sxx)
-    
+
     def get_xrange(self):
+        """
+        :return: current x-axis range
+        """
         return self.viewRange()[0]
-    
+
     def get_yrange(self):
+        """
+        :return: current y-axis range
+        """
         return self.viewRange()[1]
-    
+
     def get_fmax(self):
-        # needed by the detector, we need to return the maximum frequency of the spectrogram
+        """
+        needed by the detector
+
+        :return: maximum frequency of the spectrogram
+        """
         return self.f[-1]
 
     def set_xaxis(self, range=None):
+        """
+        set x-axis range.  If None, reset to default
+
+        :param range: range to set
+        """
         if range is None:
             self.setXRange(0, 1, padding=0)
         else:
             self.setXRange(range[0], range[1], padding=0)
-    
+
     def set_yaxis(self, range=None):
+        """
+        set y-axis range.  If None, reset to default
+
+        :param range: range to set
+        """
         if range is None:
             self.setYRange(0, 1, padding=0)
         else:
             self.setYRange(range[0], range[1], padding=0)
 
     def auto_scale_yaxis(self):
+        """
+        auto scale the y-axis based on full range
+        """
         if self.full_range_y is not None:
             self.set_yaxis([self.full_range_y[0], self.full_range_y[1]])
 
     def clear_spectrogram(self):
+        """
+        clear the spectrogram data and image
+        """
         self.f = None
-        self.t = None 
+        self.t = None
         self.Sxx = None
-        self.spec_img = pg.ImageItem( image=np.eye(3), levels=(0,1) ) # create example image
+        self.spec_img = pg.ImageItem(image=np.eye(3), levels=(0, 1))  # create example image
         self.clear()
         self.addItem(self.spec_img)
 
-    def calc_spectrogram(self, data, nfft, Fs, noverlap, nperseg, spec_type, morlet_o=None):
+    def calc_spectrogram(self, data: np.ndarray, nfft: int, Fs: float, noverlap: int, nperseg: int, spec_type: str,
+                         morlet_o: Optional[float] = None):
+        """
+        calculate the spectrogram
+
+        :param data: data to calculate spectrogram from
+        :param nfft: nfft value
+        :param Fs: sampling frequency
+        :param noverlap: number of overlapping points
+        :param nperseg: number of points per segment
+        :param spec_type: type of spectrogram ('Spectrogram', 'STFT', 'CWT')
+        :param morlet_o: morlet value
+        """
         if data is None:
             return
-        
-        self.calc_spec_worker_object = IPSpectrogramCalcWorker(data=data, fs=Fs, nfft=nfft, nperseg=nperseg, noverlap=noverlap, spec_type=spec_type, morlet_o=morlet_o)
+
+        self.calc_spec_worker_object = IPSpectrogramCalcWorker(data=data, fs=Fs, nfft=nfft, nperseg=nperseg,
+                                                               noverlap=noverlap, spec_type=spec_type,
+                                                               morlet_o=morlet_o)
         self.sig_start_spec_calc.connect(self.calc_spec_worker_object.run)
         self.calc_spec_worker_object.signal_runFinished.connect(self.run_finished)
         self.calc_spec_worker_object.moveToThread(self.calc_spec_thread)
@@ -475,53 +628,81 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
 
     @pyqtSlot(bool)
     def run_finished(self, success):
+        """
+        function to handle calculation completion
+        """
         if success:
-            #keep Sxx in non-log form.  We will take the log of it later as needed
+            # keep Sxx in non-log form.  We will take the log of it later as needed
             self.f, self.t, self.Sxx = self.calc_spec_worker_object.get_results()
             if self.f is not None:
                 self.plot_spectrogram(self.f, self.t, self.Sxx)
         else:
             IPUtils.errorPopup("Error while calculating the spectrogram")
-    
+
     def set_start_time(self, st):
+        """
+        set the start time of the x-axis
+
+        :param st: start time
+        """
         self.getAxis(name='bottom').set_start_time(st)
 
     def get_start_time(self):
+        """
+        :return: start time of the x-axis
+        """
         return self.getAxis(name='bottom').get_start_time()
-    
+
     @pyqtSlot(str)
-    def set_colormap(self, color_map_str):
+    def set_colormap(self, color_map_str: str):
+        """
+        set the colormap for the spectrogram
+
+        :param color_map_str: colormap string
+        """
         cmap = pg.colormap.get(color_map_str, source='matplotlib')
         self.spec_img.setColorMap(cmap)
         self.color_bar.setColorMap(cmap)
 
     @pyqtSlot(bool)
-    def show_hide_colorbar(self, checked):
+    def show_hide_colorbar(self, checked: bool):
+        """
+        show or hide the colorbar
+
+        :param checked: whether to show or hide
+        """
         if self.color_bar is not None:
             self.color_bar.setVisible(checked)
 
     def plot_spectrogram(self, f, t, Sxx):
+        """
+        plot the spectrogram
 
-        # calc the db of the data (ref at 1.0 - if data is in Pascals, we'll want to do 20log10(P/Pref), but not sure how to know that right now)
+        :param f: frequency vector
+        :param t: time vector
+        :param Sxx: spectrogram data
+        """
+        # calc the db of the data (ref at 1.0 - if data is in Pascals, we'll want to do 20log10(P/Pref), but not sure
+        # how to know that right now)
         Sxx = 10 * np.log10(Sxx)
         Sxx = np.transpose(Sxx)
-        Sxx[Sxx==-np.inf] = 0.000001
-        #####SET UP THE TRANSFORM
+        Sxx[Sxx == -np.inf] = 0.000001
+        # SET UP THE TRANSFORM
         self.transform = QtGui.QTransform()
         yscale = f[-1]/Sxx.shape[1]
         xscale = t[-1]/Sxx.shape[0]
         self.transform.scale(xscale, yscale)
         self.spec_img.setTransform(self.transform)
 
-        #####COLORMAP
+        # COLORMAP
         cmap = self.singleStationWidget.spectrogram_settings_widget.colormap_cb.currentText()
         self.set_colormap(cmap)
 
-        #####SCALE WIDGET
+        # SCALE WIDGET
         minv, maxv = np.nanmin(np.nanmin(Sxx[Sxx != -np.inf])), np.nanmax(np.nanmax(Sxx))
 
-        #####BUILD THE COLORBAR
-        self.color_bar = pg.ColorBarItem(interactive=True, label='magnitude [dB]', values=(-80,80))
+        # BUILD THE COLORBAR
+        self.color_bar = pg.ColorBarItem(interactive=True, label='magnitude [dB]', values=(-80, 80))
         self.color_bar.setColorMap(cmap)
         self.color_bar.setImageItem(self.spec_img, insert_in=self)
         self.color_bar.setLevels(low=minv, high=maxv)
@@ -535,16 +716,25 @@ class IPSpectrogramWidget(IPPlotItem.IPPlotItem):
         # self.setLimits(xMin=0, xMax=t[-1], yMin=0, yMax=f[-1])
         self.full_range_y = [f[0], f[-1]]
         self.set_yaxis(self.full_range_y)
-        
 
 
 class IPDetectionStatusDialog(QDialog):
+    """
+    class for detection status dialog
+    """
     def __init__(self, parent):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent)
         self.buildUI()
 
     def buildUI(self):
-        
+        """
+        build the UI
+        """
         self.threshold_label = QLabel("Threshold: ")
         self.detection_label = QLabel("Detections: ")
         main_layout = QVBoxLayout()
@@ -554,44 +744,87 @@ class IPDetectionStatusDialog(QDialog):
         self.setLayout(main_layout)
 
     def exec_(self):
+        """
+        execute the dialog
+        """
         super().exec_()
 
     def calculating_threshold(self):
+        """
+        set calculating threshold text
+        """
         self.threshold_label.setText("Theshold: Calculating...")
 
     def finished_threshold(self):
-        self.threshold_label.setText("Threshold: complete") 
+        """
+        set finished threshold text
+        """
+        self.threshold_label.setText("Threshold: complete")
 
     def calculating_detections(self):
+        """
+        set calculating detections text
+        """
         self.detection_label.setText("Detections: Calculating...")
 
     def finished_detections(self, value):
+        """
+        set finished detections text
+
+        :param value: number of detections
+        """
         self.detection_label.setText("Detections: " + str(value))
 
 
 class IPScatterPlotTimeAxis(pg.AxisItem):
-    # subclass the basic axis item, mainly to make custom time axis
+    """
+    subclass the basic axis item, mainly to make custom time axis
+    """
     start_time = UTCDateTime(0)
 
     def __init__(self, start_time, *args, **kwargs):
+        """
+        initialize
+
+        :param start_time: start time for the axis
+        :param args: additional args for AxisItem
+        :param kwargs: additional kwargs for AxisItem
+        """
         super().__init__(orientation='bottom', *args, **kwargs)
         # est is the "earliest_start_time"
         self.set_start_time(start_time)
 
-    def tickStrings(self, values, scale, spacing):
+    def tickStrings(self, values, scale, spacing) -> List[str]:
+        """
+        :param values: tick values
+        :return: formatted tick strings
+        """
         return [(self.start_time + value).strftime("%H:%M:%S") for value in values]
 
     def set_start_time(self, st):
+        """
+        set the start time
+
+        :param st: start time
+        """
         self.start_time = st
 
-    def get_start_time(self):
+    def get_start_time(self) -> UTCDateTime:
+        """
+        :return: start time
+        """
         return self.start_time
 
 
 class IPDetectionPlotItem(pg.PlotItem):
     data_item = None
-    def __init__(self, parent, start_time=None):
 
+    def __init__(self, start_time: Optional[UTCDateTime] = None):
+        """
+        initialize
+
+        :param start_time: start time for the axis.  If None, set to epoch
+        """
         if start_time is None:
             start_time = UTCDateTime(0)
         super().__init__(axisItems={'bottom': IPPlotItem.IPSpectrogramTimeAxis()})
@@ -613,20 +846,39 @@ class IPDetectionPlotItem(pg.PlotItem):
         spots3 = []
         for i in range(10):
             for j in range(10):
-                spots3.append({'pos': (1e-3*i, 1e-3*j), 'size': 1e-3, 'pen': {'color': 'w', 'width': 2}, 'brush':pg.intColor(i*10+j, 100)})
+                spots3.append({'pos': (1e-3*i, 1e-3*j), 'size': 1e-3, 'pen': {'color': 'w', 'width': 2},
+                               'brush': pg.intColor(i*10+j, 100)})
         self.spi.addPoints(spots3)
 
     def set_yaxis(self, range=None):
+        """
+        set y-axis range.  If None, reset to default
+
+        :param range: range to set
+        """
         if range is None:
             self.setYRange(0, 1, padding=0)
         else:
             self.setYRange(range[0], range[1], padding=0)
 
     def clear(self):
+        """
+        clear the detection plot
+        """
         self.removeItem(self.spi)
 
     def plot_data(self, detections, dt, start_time, t_range, f_range, cluster_pts):
-        #detection data comes in as a list of lists with each element being [t,f,value]
+        """
+        plot the detection data
+
+        :param detections: detection data (not used)
+        :param dt: time step
+        :param start_time: start time for the x-axis
+        :param t_range: time range for the x-axis
+        :param f_range: frequency range for the y-axis
+        :param cluster_pts: clustered detection points
+        """
+        # detection data comes in as a list of lists with each element being [t,f,value]
         # first clear any old points
         self.spi.clear()
 
@@ -639,11 +891,13 @@ class IPDetectionPlotItem(pg.PlotItem):
             try:
                 col = colors[idx]
             except IndexError:
-                IPUtils.errorPopup("More detections than color options. Perhaps run on a smaller timespan, or increase the linkage (EPS).")
+                IPUtils.errorPopup("More detections than color options. Perhaps run on a smaller timespan, or "
+                                   "increase the linkage (EPS).")
                 return
-            
+
             for pts in det_points:
-                spots.append({'pos': (pts[0], pts[1]), 'pen': {'color': col}, 'brush': col, 'symbol': 's', 'size':5.6*dt})
+                spots.append({'pos': (pts[0], pts[1]), 'pen': {'color': col}, 'brush': col, 'symbol': 's',
+                              'size': 5.6 * dt})
 
         self.spi.addPoints(spots)
         self.addItem(self.spi)
@@ -655,14 +909,28 @@ class IPDetectionPlotItem(pg.PlotItem):
 
 
 class IPSpectrogramCalcWorker(QObject):
+    """
+    class for spectrogram calculation
+    """
     signal_runFinished = pyqtSignal(bool)
 
     f = None
     t = None
     Sxx = None
 
-    def __init__(self, data, fs, nfft, nperseg, noverlap, spec_type, morlet_o=None):
-        ''' options for type are "Spectrogram", "STFT", or "CWT" '''
+    def __init__(self, data: np.ndarray, fs: float, nfft: int, nperseg: int, noverlap: int, spec_type: str,
+                 morlet_o: Optional[float] = None):
+        """
+        initialize
+
+        :param data: data to calculate spectrogram from
+        :param fs: sampling frequency
+        :param nfft: nfft value
+        :param nperseg: number of points per segment
+        :param noverlap: number of overlapping points
+        :param spec_type: type of spectrogram ('Spectrogram', 'STFT', 'CWT')
+        :param morlet_o: morlet value
+        """
         super().__init__()
         self.data = data
         self.fs = fs
@@ -674,55 +942,58 @@ class IPSpectrogramCalcWorker(QObject):
 
     @pyqtSlot()
     def run(self):
+        """
+        execute the spectrogram calculation
+        """
         if self.spec_type.upper() == 'SPECTROGRAM':
             try:
-                self.f, self.t, self.Sxx = spectrogram(self.data[1], 
-                                        self.fs, 
-                                        nfft=self.nfft, 
-                                        noverlap=self.noverlap, 
-                                        nperseg=self.nperseg)
-            except:
+                self.f, self.t, self.Sxx = spectrogram(self.data[1],
+                                                       self.fs,
+                                                       nfft=self.nfft,
+                                                       noverlap=self.noverlap,
+                                                       nperseg=self.nperseg)
+            except Exception:
                 self.signal_runFinished.emit(False)
                 return
 
         elif self.spec_type.upper() == 'STFT':
             try:
-                self.f, self.t, self.Sxx = stft(self.data[1], 
-                                            fs=self.fs, 
-                                            nperseg=self.nperseg, 
-                                            noverlap=self.noverlap, 
-                                            nfft=self.nfft)
-                
-            except:
+                self.f, self.t, self.Sxx = stft(self.data[1],
+                                                fs=self.fs,
+                                                nperseg=self.nperseg,
+                                                noverlap=self.noverlap,
+                                                nfft=self.nfft)
+
+            except Exception:
                 self.signal_runFinished.emit(False)
-                return 
+                return
 
         elif self.spec_type.upper() == 'CWT':
             if self.morlet_omega0 is None:
-                IPUtils.errorPopup("Morelet Omega0 needed to calculate CWT")
+                IPUtils.errorPopup("Morlet Omega0 needed to calculate CWT")
                 self.signal_runFinished.emit(False)
                 return
             try:
-                self.f, _, _ = spectrogram(self.data[1], 
-                                           self.fs, 
-                                           nperseg=self.nperseg, 
+                self.f, _, _ = spectrogram(self.data[1],
+                                           self.fs,
+                                           nperseg=self.nperseg,
                                            noverlap=self.noverlap,
                                            nfft=self.nfft)
                 self.t = self.data[0]
-        
+
                 self.f = self.f[1:]
                 widths = self.morlet_omega0 / (2 * np.pi * self.f) * self.fs
                 self.Sxx = cwt(self.data[1], morlet2, widths, w=self.morlet_omega0)
 
-            except:
+            except Exception:
                 self.signal_runFinished.emit(False)
 
         self.signal_runFinished.emit(True)
 
-
-    def get_results(self):
+    def get_results(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        :return: f, t, Sxx results
+        """
         if self.Sxx is None:
             return None, None, None
         return self.f, self.t, np.abs(self.Sxx)
-
-        

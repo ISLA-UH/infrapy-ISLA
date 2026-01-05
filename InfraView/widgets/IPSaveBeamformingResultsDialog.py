@@ -6,16 +6,27 @@ from PyQt5.QtCore import Qt
 
 from pathlib import Path
 
-class IPSaveBeamformingResultsDialog(QDialog):
 
+class IPSaveBeamformingResultsDialog(QDialog):
+    """
+    class for saving beamforming results dialog
+    """
     path = None
 
     def __init__(self, parent, directory=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super(IPSaveBeamformingResultsDialog, self).__init__(parent)
-        
+
         self.buildUI()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setWindowTitle(self.tr('InfraView: Save Results'))
 
         main_label = QLabel("Export beamforming results to a csv file")
@@ -23,23 +34,22 @@ class IPSaveBeamformingResultsDialog(QDialog):
         self.filepath_line = IPFileBrowseLine(self, self.path)
         form_layout = QFormLayout()
         form_layout.setLabelAlignment(Qt.AlignCenter)
-        
+
         file_label = QLabel("Filename: ")
         file_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         form_layout.addRow(file_label, self.filepath_line)
 
         self.export_waveform_checkbox = QCheckBox()
-        form_layout.addRow(QLabel('Export waveform csv: '), self.export_waveform_checkbox )
+        form_layout.addRow(QLabel('Export waveform csv: '), self.export_waveform_checkbox)
         self.waveform_line = IPFileBrowseLine(self, self.path)
         self.waveform_line.setEnabled(False)
         wave_label = QLabel("Waveform filename:")
         wave_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         form_layout.addRow(wave_label, self.waveform_line)
-        
 
         # OK and Cancel buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal, self)
-        buttons.button(QDialogButtonBox.Ok).setText("Export");
+        buttons.button(QDialogButtonBox.Ok).setText("Export")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -55,15 +65,22 @@ class IPSaveBeamformingResultsDialog(QDialog):
         self.resize(600, self.height())
 
     def exec_(self, directory=None):
+        """
+        execute the dialog
+
+        :param directory: directory to save to
+        """
         if directory is None:
-            self.path = Path.home()     
+            self.path = Path.home()
         else:
             self.path = directory
 
         if not self.path.is_dir():
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Question)
-            msg.setText("The current save directory for beamforming results doesn't seem to exist. \nThis could happen if you are in an older Project.\n  This folder will be created now.\n (" + str(self.path) + ")")
+            msg.setText("The current save directory for beamforming results doesn't seem to exist. \nThis could"
+                        "happen if you are in an older Project.\n  This folder will be created now.\n ("
+                        + str(self.path) + ")")
             msg.exec_()
             self.path.mkdir(parents=True, exist_ok=True)
 
@@ -78,18 +95,36 @@ class IPSaveBeamformingResultsDialog(QDialog):
 
         return super().exec_()
 
-    def wavefileIsChecked(self):
+    def wavefileIsChecked(self) -> bool:
+        """
+        :return: whether waveform export is checked
+        """
         return self.export_waveform_checkbox.isChecked()
 
-    def getWaveFilename(self):
+    def getWaveFilename(self) -> str:
+        """
+        :return: waveform filename
+        """
         return self.waveform_line.getText()
 
-    def getFilename(self):
+    def getFilename(self) -> str:
+        """
+        :return: filename
+        """
         return self.filepath_line.getText()
 
+
 class IPFileBrowseLine(QWidget):
-    # This is a combination of a line edit and a button to launch a file browser
-    def __init__(self, parent, directory):
+    """
+    This is a combination of a line edit and a button to launch a file browser
+    """
+    def __init__(self, parent: QWidget, directory: Path):
+        """
+        initialize
+
+        :param parent: parent widget
+        :param directory: initial directory
+        """
         super().__init__(parent)
 
         self.directory = directory
@@ -107,16 +142,31 @@ class IPFileBrowseLine(QWidget):
 
         self.my_file_dialog = QFileDialog()
 
-    def setText(self, text):
+    def setText(self, text: str):
+        """
+        set the text
+
+        :param text: text to set
+        """
         self.text_edit.setText(text)
 
-    def getText(self):
+    def getText(self) -> str:
+        """
+        :return: the text
+        """
         return self.text_edit.text()
 
-    def setDirectory(self, directory):
+    def setDirectory(self, directory: Path):
+        """
+        set the directory
+
+        :param directory: directory to set
+        """
         self.directory = directory
 
     def run_filedialog(self):
+        """
+        run the file dialog
+        """
         fname = self.my_file_dialog.getSaveFileName(self, str(self.directory), filter="CSV (*.csv)")
         self.text_edit.setText(fname[0])
-

@@ -8,7 +8,7 @@ beamforming methods.
 Author            Philip Blom (pblom@lanl.gov)
 
 """
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 import warnings
 
 import numpy as np
@@ -1220,7 +1220,7 @@ def auto_run_bf(signal_start_idx: int, signal_end_idx: int, freq_band: np.ndarra
             Beam power across the array for each analysis window NOTE: Needs further investigation on how to utilize
         """
     x, t, t0, geom = array_data
-    M, N = x.shape
+    M, _ = x.shape
 
     beam_times = []
     beam_peaks = []
@@ -1268,14 +1268,14 @@ def auto_run_bf(signal_start_idx: int, signal_end_idx: int, freq_band: np.ndarra
     return beam_times, beam_peaks, beam_power
 
 
-def adjust_thresh_noise(array_data: tuple, window_len: float, sub_window_len: float, noise_len: float,
-                        window_step: float, freq_min: float, freq_max: float, method: str, back_az_vals: np.ndarray,
-                        trc_vel_vals: np.ndarray, delays: np.ndarray, p_value: float, TB_prod: float
-                        ) -> Optional[float]:
+def adjust_thresh_noise(array_data: Tuple[np.ndarray, np.ndarray, Any, np.ndarray], window_len: float,
+                        sub_window_len: float, noise_len: float, window_step: float, freq_min: float,
+                        freq_max: float, method: str, back_az_vals: np.ndarray, trc_vel_vals: np.ndarray,
+                        delays: np.ndarray, p_value: float, TB_prod: float) -> Optional[float]:
     """ Run the beamforming analysis on a stream with various parameter specifications
 
         Convert a stream to an array data set on a consistent set of time samples
-        and then run beamforming for the data and return the analysis window times 
+        and then run beamforming for the data and return the analysis window times
         with peak f-stat and direction of arrival (DOA) information (back azimuth
         and trace velocity)
 
@@ -1316,8 +1316,8 @@ def adjust_thresh_noise(array_data: tuple, window_len: float, sub_window_len: fl
         det_thresh: float or None
             Detection threshold based on noise statistics and specified p-value or None
     """
-    x, t, t0, geom = array_data
-    M, N = x.shape
+    x, t, _, geom = array_data
+    M, _ = x.shape
     noise_fvals = []
     for n_start in np.arange(0.0, noise_len, window_step):
         if n_start + window_len > noise_len:

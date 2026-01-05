@@ -25,6 +25,7 @@ from InfraView.widgets import IPNewDetectionDialog
 from InfraView.widgets import IPPickLine
 from InfraView.widgets import IPPlotItem
 from InfraView.widgets import IPPolarPlot
+from InfraView.widgets import IPProject
 from InfraView.widgets import IPSaveBeamformingResultsDialog
 from InfraView.widgets import IPUtils
 
@@ -821,7 +822,7 @@ class IPBeamformingWidget(QWidget):
         a = np.asarray(self._t)
         return (np.abs(a - value)).argmin()
 
-    def getProject(self):
+    def getProject(self) -> IPProject.IPProject:
         """
         :return: the project
         """

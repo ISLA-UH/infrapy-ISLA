@@ -1,3 +1,4 @@
+from typing import List, Optional
 import pyqtgraph as pg
 import numpy as np
 
@@ -6,6 +7,7 @@ from PyQt5.QtCore import Qt, pyqtSlot, QSettings
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTabWidget)
 
 from InfraView.widgets import (IPFilterSettingsWidget,
+                               IPProject,
                                IPPlotViewer,
                                IPPSDWidget,
                                IPStationView,
@@ -22,17 +24,23 @@ from InfraView.widgets import IPUtils
 
 
 class IPWaveformWidget(QWidget):
-
-    """ The IPWaveformWidget holds the waveform and inventory data.  The IPPlotViewer plots the data,
+    """
+    The IPWaveformWidget holds the waveform and inventory data.  The IPPlotViewer plots the data,
     The IPFilterSettingsWidget holds the filter settings and tells the WaveformWidget when to update that
     data.  The IPStatsView displays the trace data, and the IPStationView displays the station data.
     """
-
     _sts = None             # streams
     _sts_filtered = None    # filtered streams
-    #_inv = None             # inventory
+    # _inv = None           # inventory
 
-    def __init__(self, parent=None, pool=None, project=None):
+    def __init__(self, parent: Optional[QWidget] = None, pool=None, project=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        :param pool: multiprocessing pool
+        :param project: current project
+        """
         super().__init__(parent)
 
         self.parent = parent
@@ -41,7 +49,9 @@ class IPWaveformWidget(QWidget):
         self.buildUI()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.arrayViewer = IPStationView.IPArrayView(self)
 
         self.stationViewer = IPStationView.IPStationView(self)
@@ -73,12 +83,20 @@ class IPWaveformWidget(QWidget):
         self.setLayout(main_layout)
 
     @pyqtSlot(str)
-    def update_theme(self, t):
+    def update_theme(self, t: str):
+        """
+        update the theme of all widgets
+
+        :param t: theme name
+        """
         self.plotViewer.pl_widget.update_theme(t)
         self.psdWidget.update_theme(t)
         self.arrayViewer.update_theme(t)
 
     def connect_signals_and_slots(self):
+        """
+        connect signals with widgets
+        """
         self.filterSettingsWidget.sig_filter_changed.connect(self.update_filtered_data)
         self.filterSettingsWidget.sig_filter_display_changed.connect(self.plotViewer.show_hide_lines)
 
@@ -96,20 +114,34 @@ class IPWaveformWidget(QWidget):
 
         self.psdSettingsWidget.fft_N_Spin.valueChanged.connect(self.psdWidget.updatePSDs)
         self.psdSettingsWidget.window_cb.currentIndexChanged.connect(self.psdWidget.updatePSDs)
-        self.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(self.parent.settings_manager.settings_widget_dict['beamforming'].setFreqValues)
+        self.psdWidget.psdPlot.getFreqRegion().sigRegionChanged.connect(
+            self.parent.settings_manager.settings_widget_dict['beamforming'].setFreqValues)
 
     def set_controlling_widget(self, widget):
+        """
+        set the controlling widget
+
+        :param widget: controlling widget
+        """
         self.filterSettingsWidget = widget.filterSettingsWidget
         self.psdSettingsWidget = widget.psdSettingsWidget
         self.psdWidget.set_controlling_widget(self.psdSettingsWidget)
         self.connect_signals_and_slots()
 
-    def get_project(self):
+    def get_project(self) -> IPProject.IPProject:
+        """
+        :return: current project
+        """
         return self.parent.getProject()
 
     @pyqtSlot(Stream, Inventory)
-    def appendTraces(self, newTraces, newInventory):
+    def appendTraces(self, newTraces: Stream, newInventory: Inventory):
+        """
+        append traces to the current stream
 
+        :param newTraces: obspy Stream with traces to append
+        :param newInventory: obspy Inventory to append
+        """
         if newTraces is None:
             return
 
@@ -127,7 +159,7 @@ class IPWaveformWidget(QWidget):
         if self._sts is not None:
             # TODO...is there a better way of doing this?
             self.parent.beamformingWidget.setStreams(self._sts)
-            
+
             self.statsViewer.setStats(self._sts)
 
             self.update_streams(self._sts)
@@ -139,20 +171,29 @@ class IPWaveformWidget(QWidget):
             self.parent.menuBar.activate_waveforms(True)
 
             self.parent.setStatus("Ready", 5000)
-            
+
         else:
             return
 
     @pyqtSlot(Stream, Inventory)
-    def replaceTraces(self, newTraces, newInventory):
-        # same as append, just clear out the old traces and inventory first
+    def replaceTraces(self, newTraces: Stream, newInventory: Inventory):
+        """
+        same as append, just clear out the old traces and inventory first
+
+        :param newTraces: obspy Stream with traces
+        :param newInventory: obspy Inventory
+        """
         self.clearWaveforms()
         self.stationViewer.clear_all()
         self.appendTraces(newTraces, newInventory)
 
     @QtCore.pyqtSlot(str)
-    def remove_trace(self, trace_id):
+    def remove_trace(self, trace_id: str):
+        """
+        remove the trace with the given id from the stream
 
+        :param trace_id: id of the trace to remove
+        """
         for trace in self._sts.select(id=trace_id):
             self._sts.remove(trace)
             self.stationViewer.remove_station(station=trace.stats['station'], channel=trace.stats['channel'])
@@ -164,8 +205,12 @@ class IPWaveformWidget(QWidget):
         self.update_streams(self._sts)
 
     @pyqtSlot(str)
-    def remove_trace_by_id(self, trace_id):
+    def remove_trace_by_id(self, trace_id: str):
+        """
+        remove the trace with the given id from the stream
 
+        :param trace_id: id of the trace to remove
+        """
         if self._sts is not None:
             for tr in self._sts:
                 if tr.id == trace_id:
@@ -176,37 +221,70 @@ class IPWaveformWidget(QWidget):
 
             self.update_streams(self._sts)
 
-
     @pyqtSlot(Inventory, str)
-    def update_inventory(self, new_inventory, mode):
+    def update_inventory(self, new_inventory: Inventory, mode: str):
+        """
+        update the inventory in the station viewer.
+        Refer to the IPStationView.merge_new_inventory function for details on values for mode.
+
+        :param new_inventory: new obspy Inventory
+        :param mode: mode to update inventory with.  options are:
+            'APPEND_KEEP_NEW', 'APPEND_KEEP_CURRENT', 'PROMPT', 'REPLACE'
+        """
         self.stationViewer.merge_new_inventory(new_inventory, mode)
 
-    def remove_from_inventory(self, id):
+    def remove_from_inventory(self, id: str):
+        """
+        remove the station with the given id from the inventory
+
+        :param id: station id
+        """
         self.stationViewer.remove_station_from_inv(id)
 
     def clear_inventory(self):
+        """
+        clear the station inventory
+        """
         self.stationViewer.clear_all()
 
-    def get_streams(self):
+    def get_streams(self) -> Stream:
+        """
+        :return: current stream
+        """
         return self._sts
 
-    def get_filtered_streams(self):
+    def get_filtered_streams(self) -> Stream:
+        """
+        :return: current filtered stream
+        """
         return self._sts_filtered
 
-    def getTraceName(self, trace):
-        traceName = trace.stats['network'] + '.' + trace.stats['station'] + \
-            '.' + trace.stats['location'] + '.' + trace.stats['channel']
-        return traceName
+    def getTraceName(self, trace: obspy.Trace) -> str:
+        """
+        :param trace: obspy Trace
+        :return: trace name string
+        """
+        return f"{trace.stats['network']}.{trace.stats['station']}.{trace.stats['location']}.{trace.stats['channel']}"
 
-    def get_earliest_start_time(self):
+    def get_earliest_start_time(self) -> obspy.UTCDateTime:
+        """
+        :return: earliest start time in the current stream
+        """
         return self.plotViewer.pl_widget.earliest_start_time
-    
-    def get_latest_end_time(self):
+
+    def get_latest_end_time(self) -> obspy.UTCDateTime:
+        """
+        :return: latest end time in the current stream
+        """
         return self.plotViewer.pl_widget.latest_end_time
 
     @pyqtSlot(Stream)
-    def update_streams(self, new_stream):
-        # this should be called when you load new streams, or remove traces
+    def update_streams(self, new_stream: Stream):
+        """
+        this should be called when you load new streams, or remove traces
+
+        :param new_stream: new obspy Stream
+        """
         self._sts = new_stream
         self._sts_filtered = self.filter_stream(self._sts,
                                                 self.filterSettingsWidget.get_filter_settings())
@@ -217,34 +295,44 @@ class IPWaveformWidget(QWidget):
         self.statsViewer.setStats(new_stream)
 
     def debug_trace(self):  # for debugging, you have to call pyqtRemoveInputHook before set_trace()
+        """
+        used when debugging the trace
+        """
         from PyQt5.QtCore import pyqtRemoveInputHook
         from pdb import set_trace
         pyqtRemoveInputHook()
         set_trace()
 
     @pyqtSlot(dict)
-    def update_filtered_data(self, filter_settings):
+    def update_filtered_data(self, filter_settings: dict):
+        """
+        this should be called when settings in the filter widget are changed
 
-        # this should be called when settings in the filter widget are changed
+        :param filter_settings: current filter settings
+        """
         if self._sts is None:
             # Nothing to filter, clear out the filtered_streams and return
             self._sts_filtered = None
             return
 
-        self._sts_filtered = self.filter_stream(self._sts,
-                                                filter_settings)
+        self._sts_filtered = self.filter_stream(self._sts, filter_settings)
 
         self.plotViewer.pl_widget.update_filtered_line_data(self._sts_filtered)
         index = self.plotViewer.pl_widget.get_active_plot()
-        self.update_widgets(index, 
-                            self.plotViewer.get_plot_lines(), 
-                            self.plotViewer.get_filtered_plot_lines(), 
+        self.update_widgets(index,
+                            self.plotViewer.get_plot_lines(),
+                            self.plotViewer.get_filtered_plot_lines(),
                             self.plotViewer.pl_widget.plot_list[index].getSignalRegionRange(),
                             self.plotViewer.pl_widget.plot_list[index].getNoiseRegionRange())
 
-    def filter_stream(self, stream, cfs):
+    def filter_stream(self, stream: Stream, cfs: dict) -> Stream:
+        """
+        filter the given stream according to the given filter settings
 
-        # cfs: Current Filter Settings
+        :param stream: obspy Stream to filter
+        :param cfs: current filter settings
+        :return: filtered obspy Stream
+        """
         if stream is None:
             # nothing to do
             return None
@@ -252,36 +340,33 @@ class IPWaveformWidget(QWidget):
         filtered_stream = Stream()
 
         for trace in stream:
-
             filtered_trace = trace.copy()
-
             filtType = cfs['type']
-
             if filtType == 'High Pass':
                 try:
                     filtered_trace.filter('highpass',
-                                        freq=cfs['F_high'],
-                                        corners=cfs['order'],
-                                        zerophase=cfs['zphase'])
+                                          freq=cfs['F_high'],
+                                          corners=cfs['order'],
+                                          zerophase=cfs['zphase'])
                 except ValueError as e:
                     IPUtils.errorPopup(str(e))
 
             elif filtType == 'Low Pass':
                 try:
                     filtered_trace.filter('lowpass',
-                                        freq=cfs['F_low'],
-                                        corners=cfs['order'],
-                                        zerophase=cfs['zphase'])
+                                          freq=cfs['F_low'],
+                                          corners=cfs['order'],
+                                          zerophase=cfs['zphase'])
                 except ValueError as e:
                     IPUtils.errorPopup(str(e))
 
             elif filtType == 'Band Pass':
                 try:
                     filtered_trace.filter('bandpass',
-                                        freqmin=cfs['F_high'],
-                                        freqmax=cfs['F_low'],
-                                        corners=cfs['order'],
-                                        zerophase=cfs['zphase'])
+                                          freqmin=cfs['F_high'],
+                                          freqmax=cfs['F_low'],
+                                          corners=cfs['order'],
+                                          zerophase=cfs['zphase'])
                 except ValueError as e:
                     IPUtils.errorPopup(str(e))
 
@@ -293,6 +378,9 @@ class IPWaveformWidget(QWidget):
         return filtered_stream
 
     def saveWindowGeometrySettings(self):
+        """
+        save the window geometry settings
+        """
         settings = QSettings('LANL', 'InfraView')
         settings.beginGroup('WaveformWidget')
         settings.setValue("main_splitterSettings", self.main_splitter.saveState())
@@ -302,7 +390,9 @@ class IPWaveformWidget(QWidget):
         settings.endGroup()
 
     def restoreWindowGeometrySettings(self):
-        # Restore settings
+        """
+        Restore settings
+        """
         settings = QSettings('LANL', 'InfraView')
         settings.beginGroup('WaveformWidget')
 
@@ -329,9 +419,6 @@ class IPWaveformWidget(QWidget):
 
         settings.endGroup()
 
-    
-
-
     def inv_remove(self,
                    _inventory,
                    network='*',
@@ -339,7 +426,17 @@ class IPWaveformWidget(QWidget):
                    location='*',
                    channel='*',
                    keep_empty=False):
+        """
+        remove items from inventory
 
+        :param _inventory: obspy Inventory
+        :param network: network code
+        :param station: station code
+        :param location: location code
+        :param channel: channel code
+        :param keep_empty: keep empty networks/stations
+        :return: modified obspy Inventory
+        """
         selected = _inventory.select(network=network,
                                      station=station,
                                      location=location,
@@ -376,10 +473,12 @@ class IPWaveformWidget(QWidget):
             net.stations = stations
             networks.append(net)
 
-        return obspy.core.inventory.inventory.Inventory(networks, 'source')
+        return Inventory(networks, 'source')
 
     def clearWaveforms(self):
-        # empty out the streams
+        """
+        empty out the streams
+        """
         self._sts = None
         self._sts_filtered = None
 
@@ -390,7 +489,11 @@ class IPWaveformWidget(QWidget):
 
     @pyqtSlot(object)
     def update_signal_PSD(self, signal_region_item):
+        """
+        update the signal PSD plot
 
+        :param signal_region_item: region item
+        """
         if len(self._sts) == 0:
             self.psdWidget.clearPlot()
             return
@@ -408,7 +511,11 @@ class IPWaveformWidget(QWidget):
 
     @pyqtSlot(object)
     def update_noise_PSD(self, noise_region_item):
+        """
+        update the noise PSD plot
 
+        :param noise_region_item: region item
+        """
         if len(self._sts) == 0:
             self.psdWidget.clearPlot()
             return
@@ -425,7 +532,17 @@ class IPWaveformWidget(QWidget):
         self.psdWidget.updateNoisePSD(self._sts[active_plot][start:stop])
 
     @pyqtSlot(int, list, list, tuple, tuple)
-    def update_widgets(self, index, lines, filtered_lines, signal_region, noise_region):
+    def update_widgets(self, index: int, lines: list, filtered_lines: list, signal_region: tuple,
+                       noise_region: tuple):
+        """
+        update the other widgets based on the active plot index
+
+        :param index: active plot index (sends -1 if none are visible)
+        :param lines: list of unfiltered plot lines
+        :param filtered_lines: list of filtered plot lines
+        :param signal_region: signal region tuple
+        :param noise_region: noise region tuple
+        """
         # the -1 is sent if none of the plots are visible
         if len(self._sts) < 1 or index == -1:
             self.psdWidget.set_title('...')
@@ -445,9 +562,8 @@ class IPWaveformWidget(QWidget):
             plot_title = self._sts[index].id
             if current_filter_display_settings['apply']:
                 self.parent.beamformingWidget.setWaveform(filtered_lines[index], signal_region, plot_label=plot_title)
-                self.parent.singleSensorWidget.setSignalWaveform(filtered_lines[index], signal_region, plot_label=plot_title)
+                self.parent.singleSensorWidget.setSignalWaveform(filtered_lines[index], signal_region,
+                                                                 plot_label=plot_title)
             else:
                 self.parent.beamformingWidget.setWaveform(lines[index], signal_region, plot_label=plot_title)
                 self.parent.singleSensorWidget.setSignalWaveform(lines[index], signal_region, plot_label=plot_title)
-
-            

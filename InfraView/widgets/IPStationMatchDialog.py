@@ -1,3 +1,4 @@
+from typing import List, Tuple
 from PyQt5.QtWidgets import (QApplication, QComboBox, QDialog, QLabel,
                              QListWidget, QListWidgetItem, QPushButton,
                              QVBoxLayout, QDialogButtonBox, QCheckBox)
@@ -6,25 +7,37 @@ from PyQt5.QtCore import Qt
 from obspy.clients.fdsn import Client
 from obspy.core import UTCDateTime
 from obspy.clients.fdsn.header import URL_MAPPINGS
+from obspy import Inventory
 
 
 class IPStationMatchDialog(QDialog):
-
+    """
+    class for station match dialog
+    """
     # This dialog is used to ATTEMPT to download stations for
     # current waveforms.
 
     new_inv = None
 
     def __init__(self, parent):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super(IPStationMatchDialog, self).__init__(parent)
         self.parent = parent
         self.__buildUI__()
 
     def __buildUI__(self):
-
+        """
+        build the UI
+        """
         self.setWindowTitle('InfraView: Reconcile Stations')
 
-        blurb = QLabel(self.tr("This will ATTEMPT to download from an FDSN service the station info for the selected Stations. A '*' by the label indicates there is alread a station loaded. Uncheck any that you don't want overwritten."))
+        blurb = QLabel(self.tr("This will ATTEMPT to download from an FDSN service the station info for the selected "
+                               "Stations. A '*' by the label indicates there is alread a station loaded. Uncheck any "
+                               "that you don't want overwritten."))
         blurb.setWordWrap(True)
 
         # First lets populate the client drop down
@@ -60,10 +73,17 @@ class IPStationMatchDialog(QDialog):
 
         self.connectSignalsandSlots()
 
-    def exec_(self, channel_ids, existing_channels, timeRange):
+    def exec_(self, channel_ids: List[str], existing_channels: List[str], timeRange: Tuple[UTCDateTime, UTCDateTime]):
+        """
+        execute the dialog
 
+        :param channel_ids: list of channel ids to attempt to download
+        :param existing_channels: list of existing channel ids
+        :param timeRange: time range tuple (starttime, endtime)
+        :return: result of exec_()
+        """
         self.new_inv = None
-        
+
         self.statusLine.setText('')
 
         # clear any existing checkboxes, and load new ones
@@ -74,7 +94,7 @@ class IPStationMatchDialog(QDialog):
                 chan_id += '*'
 
             self.checkbox_list.append(QCheckBox(chan_id, parent=self))
-        
+
         for checkbox in self.checkbox_list:
             text = checkbox.text()
             if '*' in text:
@@ -88,15 +108,24 @@ class IPStationMatchDialog(QDialog):
         return super().exec_()
 
     def connectSignalsandSlots(self):
+        """
+        connect signals with widgets
+        """
         self.attemptButton.clicked.connect(self.download)
 
     def clear_checkboxes(self):
+        """
+        clear checkbox selections
+        """
         self.checkbox_list = []
         # first lets clear out the label layout, and redraw it
-        for i in reversed(range(self.checkbox_layout.count())): 
+        for i in reversed(range(self.checkbox_layout.count())):
             self.checkbox_layout.removeWidget(self.checkbox_layout.itemAt(i).widget())
 
     def download(self):
+        """
+        download data for selected stations
+        """
         self.statusLine.setText('Connecting...')
         QApplication.instance().processEvents()
 
@@ -104,7 +133,7 @@ class IPStationMatchDialog(QDialog):
         try:
             client = Client(service)
             self.statusLine.setText('Connected')
-        except:
+        except Exception:
             self.statusLine.setText('Service unreachable')
 
         foundCount = 0
@@ -126,34 +155,42 @@ class IPStationMatchDialog(QDialog):
 
                 inv = None
                 try:
-                    inv = client.get_stations(network=network, station=station, channel=channel, level='channel', startbefore=UTCDateTime(self.timeRange[0]), endafter=UTCDateTime(self.timeRange[0]))
+                    inv = client.get_stations(network=network, station=station, channel=channel, level='channel',
+                                              startbefore=UTCDateTime(self.timeRange[0]),
+                                              endafter=UTCDateTime(self.timeRange[0]))
                     foundCount += 1
                     checkbox.setStyleSheet('QCheckBox {color: green}')
 
                     print(inv)
-                    
-                except Exception as e:
+
+                except Exception:
                     checkbox.setStyleSheet('QCheckBox {color: red}')
 
-                
                 if inv is not None:
                     if self.new_inv is None:
                         self.new_inv = inv
                     else:
                         self.new_inv += inv
 
-                
                 self.statusLine.setText('Found ' + str(foundCount) + ' stations.')
 
-    def getInventory(self):
+    def getInventory(self) -> Inventory:
+        """
+        :return: the new inventory
+        """
         return self.new_inv
-    
-    
-
 
 
 class IPListItem(QListWidgetItem):
-
+    """
+    class for list items
+    """
     def __init__(self, text, parent=None):
+        """
+        initialize
+
+        :param text: text for the item
+        :param parent: parent widget
+        """
         super(IPListItem, self).__init__(parent)
         self.setText(text)

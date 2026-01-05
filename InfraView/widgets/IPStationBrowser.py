@@ -1,3 +1,4 @@
+from typing import Optional, Tuple
 import obspy
 from obspy.clients.fdsn import Client
 from obspy.clients.fdsn.header import URL_MAPPINGS
@@ -19,10 +20,18 @@ from InfraView.widgets import IPUtils
 
 
 class IPStationBrowser(QWidget):
-
+    """
+    class for station browser
+    """
     inventory = None
 
-    def __init__(self, service=None, network=None):
+    def __init__(self, service: Optional[str] = None, network: Optional[str] = None):
+        """
+        initialize
+
+        :param service: FDSN service to use
+        :param network: default network code(s)
+        """
         super().__init__()
 
         # these are for managing the event info in form elements
@@ -32,7 +41,13 @@ class IPStationBrowser(QWidget):
         self.__buildUI__(service, network)
         self.show()
 
-    def __buildUI__(self, service, network):
+    def __buildUI__(self, service: Optional[str], network: Optional[str]):
+        """
+        build the UI
+
+        :param service: FDSN service to use
+        :param network: default network code(s)
+        """
         vertLayout = QVBoxLayout()
         self.setLayout(vertLayout)
 
@@ -42,7 +57,7 @@ class IPStationBrowser(QWidget):
         self.service_cb = QComboBox()
         # self.service_cb.addItem("choose...")
         fdsn_dictionary = URL_MAPPINGS
-        fdsn_dictionary.update({'RaspShake':'https://fdsnws.rasberryshakedata.com'})
+        fdsn_dictionary.update({'RaspShake': 'https://fdsnws.rasberryshakedata.com'})
 
         for key in sorted(fdsn_dictionary.keys()):
             self.service_cb.addItem(key)
@@ -54,24 +69,29 @@ class IPStationBrowser(QWidget):
 
         # Network selector
         self.network_edit = QLineEdit(network)
-        self.network_edit.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes. \nMultiple codes are comma-separated (e.g. "IU,TA").')
+        self.network_edit.setToolTip('Wildcards OK \nCan be SEED network codes or data center defined codes. '
+                                     '\nMultiple codes are comma-separated (e.g. "IU,TA").')
         self.network_edit.setValidator(validator)
         if network is not None:
             self.network_edit.setText(network)
 
         # Station selector
         self.station_edit = QLineEdit()
-        self.station_edit.setToolTip('Wildcards OK \nOne or more SEED station codes. \nMultiple codes are comma-separated (e.g. "ANMO,PFO")')
+        self.station_edit.setToolTip('Wildcards OK \nOne or more SEED station codes. \nMultiple codes are '
+                                     'comma-separated (e.g. "ANMO,PFO")')
         self.station_edit.setValidator(validator)
 
         # Location selector
         self.location_edit = QLineEdit()
-        self.location_edit.setToolTip('One or more SEED location identifiers. \nMultiple identifiers are comma-separated (e.g. "00,01"). \nAs a special case “--“ (two dashes) will be translated to a string of two space characters to match blank location IDs.')
+        self.location_edit.setToolTip('One or more SEED location identifiers. \nMultiple identifiers are '
+                                      'comma-separated (e.g. "00,01"). \nAs a special case “--“ (two dashes) will '
+                                      'be translated to a string of two space characters to match blank location IDs.')
         self.location_edit.setText('')
 
         # Channel selector
         self.channel_edit = QLineEdit()
-        self.channel_edit.setToolTip('Wildcards OK \nOne or more SEED channel codes. \nMultiple codes are comma-separated (e.g. "BHZ,HHZ")')
+        self.channel_edit.setToolTip('Wildcards OK \nOne or more SEED channel codes. \nMultiple codes are '
+                                     'comma-separated (e.g. "BHZ,HHZ")')
         self.channel_edit.setValidator(validator)
 
         # Date time editors
@@ -231,7 +251,9 @@ class IPStationBrowser(QWidget):
         self.connectSignalsAndSlots()
 
     def connectSignalsAndSlots(self):
-
+        """
+        connect signals to widgets
+        """
         self.searchButton.clicked.connect(self.onActivated_search)
         self.resetButton.clicked.connect(self.onActivated_reset)
         self.evt_import_button.clicked.connect(self.populateEventInfo)
@@ -246,14 +268,21 @@ class IPStationBrowser(QWidget):
         self.startDate_edit.dateChanged.connect(self.adjust_end_date)
 
     @QtCore.pyqtSlot(QDate)
-    def adjust_end_date(self, start_date):
+    def adjust_end_date(self, start_date: QDate):
+        """
+        update the end date based on the start date
+
+        :param start_date: new start date
+        """
         if self.endDate_edit.date() == self.endDate_edit.minimumDate():
             self.endDate_edit.setDate(start_date)
         elif self.endDate_edit.date() < start_date:
             self.endDate_edit.setDate(start_date)
 
     def populateStationInfo(self):
-
+        """
+        populate station info
+        """
         service = self.service_cb.currentText()
 
         if self.network_edit.text() == '':
@@ -333,21 +362,21 @@ class IPStationBrowser(QWidget):
 
             try:
                 self.inventory = client.get_stations(network=network,
-                                                 station=station,
-                                                 location=location,
-                                                 channel=channel,
-                                                 starttime=startDate,
-                                                 endtime=endDate,
-                                                 latitude=lat,
-                                                 longitude=lon,
-                                                 minlongitude=minLon,
-                                                 maxlongitude=maxLon,
-                                                 minlatitude=minLat,
-                                                 maxlatitude=maxLon,
-                                                 minradius=minRad,
-                                                 maxradius=maxRad,
-                                                 format='xml')
-            except:
+                                                     station=station,
+                                                     location=location,
+                                                     channel=channel,
+                                                     starttime=startDate,
+                                                     endtime=endDate,
+                                                     latitude=lat,
+                                                     longitude=lon,
+                                                     minlongitude=minLon,
+                                                     maxlongitude=maxLon,
+                                                     minlatitude=minLat,
+                                                     maxlatitude=maxLat,
+                                                     minradius=minRad,
+                                                     maxradius=maxRad,
+                                                     format='xml')
+            except Exception:
                 emptyMessage = ["...No Data Found..."]
                 self.stationListWidget.clear()
                 self.stationListWidget.addItems(emptyMessage)
@@ -366,6 +395,9 @@ class IPStationBrowser(QWidget):
             self.stationListWidget.addItems(stationList)
 
     def onActivated_search(self):
+        """
+        function to handle search
+        """
         self.stationListWidget.clear()
         QtGui.QGuiApplication.processEvents()
         QApplication.processEvents()
@@ -377,6 +409,9 @@ class IPStationBrowser(QWidget):
         return
 
     def onActivated_reset(self):
+        """
+        function to handle form reset
+        """
         self.inventory = None
         self.network_edit.setText('')
         self.station_edit.setText('')
@@ -396,8 +431,11 @@ class IPStationBrowser(QWidget):
         self.eventInfoPopulated = False
 
     def populateEventInfo(self):
+        """
+        populate event info
+        """
         # find out if there is a valid event in the eventwidget, if there is, proceed
-        #lol...there's got to be a better way
+        # lol...there's got to be a better way
         mw = self.parentWidget().parentWidget().parentWidget().parentWidget()
         event_widget = mw.locationWidget.showgroundtruth.event_widget
         # event_widget = self.parentWidget().parentWidget().parentWidget().parentWidget().eventWidget
@@ -424,12 +462,19 @@ class IPStationBrowser(QWidget):
     #         self.populateEventInfo()
 
     def updateWidget(self):
+        """
+        update radius widget
+        """
         # We need lat and lon values if we are going to use the radius inputs
-        enableRadius = self.lat_edit.value() != self.lat_edit.minimum() and self.lon_edit.value() != self.lon_edit.minimum()
+        enableRadius = self.lat_edit.value() != self.lat_edit.minimum() \
+            and self.lon_edit.value() != self.lon_edit.minimum()
         self.maxRadius_edit.setEnabled(enableRadius)
         self.minRadius_edit.setEnabled(enableRadius)
 
-    def getSelected(self):
+    def getSelected(self) -> dict:
+        """
+        :return: selected station info as dictionary
+        """
         selectedText = self.stationListWidget.currentItem().text()
 
         # first split the string at the first space, this will return just the
@@ -444,9 +489,12 @@ class IPStationBrowser(QWidget):
 
         return result
 
-    def get_current_center(self):
-        # this method will calculate the center of the current inventory and will return a [lat,lon]
+    def get_current_center(self) -> Tuple[float, float]:
+        """
+        this method will calculate the center of the current inventory and will return the lat and lon
 
+        :return: tuple of lat, lon of the center
+        """
         # TODO: This is not really setup right now to handle the (very rare) case where an array straddles the
         # international date line
 
@@ -458,12 +506,18 @@ class IPStationBrowser(QWidget):
                 lon += station.longitude
                 cnt += 1
 
-        return [lat / cnt, lon / cnt]
+        return (lat / cnt, lon / cnt)
 
-    def getInventory(self):
+    def getInventory(self) -> obspy.Inventory:
+        """
+        :return: the inventory object
+        """
         return self.inventory
 
-    def getSelectedInventory(self):
+    def getSelectedInventory(self) -> list:
+        """
+        :return: list containing only selected stations
+        """
         reducedInv = []
         for item in self.inventory:
             if item.isSelected():
@@ -471,10 +525,16 @@ class IPStationBrowser(QWidget):
         return reducedInv
 
     def serviceClicked(self):
+        """
+        clears the station list
+        """
         self.stationListWidget.clear()
         self.network_edit.clear()
 
     def HLine(self):
+        """
+        :return: horizontal line widget
+        """
         hl = QFrame()
         hl.setFrameShape(QFrame.HLine)
         hl.setFrameShadow(QFrame.Sunken)
@@ -482,9 +542,16 @@ class IPStationBrowser(QWidget):
 
 
 class IPStationDialog(QDialog):
-
+    """
+    class for station dialog
+    """
     # I pass event to the Dialog in case the user wants to populate the date/lat/lon fields with its info
     def __init__(self, parent=None):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super(IPStationDialog, self).__init__(parent)
 
         self.setWindowTitle('InfraView: Station Browser')
@@ -506,6 +573,16 @@ class IPStationDialog(QDialog):
         self.setLayout(layout)
 
     def exec_(self, start_date=None, network=None, station=None, location=None, channel=None):
+        """
+        execute the dialog
+
+        :param start_date: start date
+        :param network: network code(s)
+        :param station: station code(s)
+        :param location: location identifier(s)
+        :param channel: channel code(s)
+        :return: result
+        """
         if start_date is not None:
             self.stationBrowser.startDate_edit.setDate(start_date)
 
@@ -524,6 +601,9 @@ class IPStationDialog(QDialog):
         return super().exec_()
 
     def myaccept(self):
+        """
+        accept method
+        """
         inv = self.stationBrowser.getInventory()
         if inv is None:
             IPUtils.errorPopup('No station(s) selected.')
@@ -531,12 +611,16 @@ class IPStationDialog(QDialog):
         else:
             super().accept()
 
-    # this pipes the inventory out of the browser widget
-    def getInventory(self):
+    def getInventory(self) -> obspy.Inventory:
+        """
+        :return: inventory object from browser widget
+        """
         return self.stationBrowser.getInventory()
 
-    # this pipes the start date out of the browser widget
-    def getStartDate(self):
+    def getStartDate(self) -> Optional[QDate]:
+        """
+        :return: start date from browser widget or None if not set
+        """
         if self.stationBrowser.startDate_edit.date() == self.stationBrowser.startDate_edit.minimumDate():
             return None
         else:
@@ -546,4 +630,3 @@ class IPStationDialog(QDialog):
     # @QtCore.pyqtSlot()
     # def setEvent(self, event):
     #     self.stationBrowser.setEvent(event)
-

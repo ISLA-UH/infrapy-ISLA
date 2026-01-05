@@ -1,3 +1,4 @@
+from typing import Optional, Tuple
 import pyqtgraph as pg
 from pyqtgraph.graphicsItems.GraphicsWidget import GraphicsWidget
 from pyqtgraph.graphicsItems.LabelItem import LabelItem
@@ -9,9 +10,16 @@ from pyqtgraph.graphicsItems.GraphicsWidgetAnchor import GraphicsWidgetAnchor
 
 
 class IPSimpleLegend(GraphicsWidget, GraphicsWidgetAnchor):
+    """
+    class for simple legend display
+    """
+    def __init__(self, size: Optional[Tuple[float, float]] = None, offset=None):
+        """
+        initialize
 
-    def __init__(self, size=None, offset=None):
-
+        :param size: (width, height) tuple to set fixed size.
+        :param offset: offset from anchor point.
+        """
         GraphicsWidget.__init__(self)
         GraphicsWidgetAnchor.__init__(self)
         self.setFlag(self.ItemIgnoresTransformations)
@@ -23,6 +31,11 @@ class IPSimpleLegend(GraphicsWidget, GraphicsWidgetAnchor):
             self.setGeometry(QtCore.QRectF(0, 0, self.size[0], self.size[1]))
 
     def setParentItem(self, p):
+        """
+        set parent item and apply offset if specified
+
+        :param p: parent item
+        """
         ret = GraphicsWidget.setParentItem(self, p)
         if self.offset is not None:
             offset = Point(self.offset)
@@ -50,9 +63,15 @@ class IPSimpleLegend(GraphicsWidget, GraphicsWidgetAnchor):
         self.updateSize()
 
     def removeItem(self, item):
-        self.removeItem(self.label)                       # redraq box
+        """
+        remove item from legend
+        """
+        self.removeItem(self.label)  # redraw box
 
     def updateSize(self):
+        """
+        update size of legend box
+        """
         if self.size is not None:
             return
 
@@ -61,18 +80,36 @@ class IPSimpleLegend(GraphicsWidget, GraphicsWidgetAnchor):
 
         self.setGeometry(0, 0, width, height)
 
-    def boundingRect(self):
+    def boundingRect(self) -> QtCore.QRectF:
+        """
+        :return: bounding rect
+        """
         return QtCore.QRectF(0, 0, self.width(), self.height())
 
     def paint(self, p, *args):
+        """
+        paint legend box
+
+        :param p: QPainter
+        """
         p.setPen(fn.mkPen(255, 255, 255, 100))
         p.setBrush(fn.mkBrush(100, 100, 100, 80))
         # p.drawRect(self.boundingRect())
 
     def hoverEvent(self, ev):
+        """
+        handle hover event
+
+        :param ev: hover event
+        """
         ev.acceptDrags(QtCore.Qt.LeftButton)
 
     def mouseDragEvent(self, ev):
+        """
+        handle mouse drag event
+
+        :param ev: mouse drag event
+        """
         if ev.button() == QtCore.Qt.LeftButton:
             dpos = ev.pos() - ev.lastPos()
             self.autoAnchor(self.pos() + dpos)

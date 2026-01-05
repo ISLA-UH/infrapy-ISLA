@@ -1,7 +1,7 @@
+from typing import Tuple
 from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QLabel,  QDoubleSpinBox, QPushButton)
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QPalette
-
 
 import pyqtgraph as pg
 
@@ -13,7 +13,9 @@ import InfraView.widgets.IPUtils as utils
 
 
 class IPPSDWidget(QWidget):
-
+    """
+    class for PSD widget
+    """
     windows = ['hann', 'hamming', 'boxcar', 'bartlett', 'blackman']
 
     noiseCurve = None
@@ -26,6 +28,11 @@ class IPPSDWidget(QWidget):
     red_pen = pg.mkPen(color=utils.lanl_red, width=1)
 
     def __init__(self, parent):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__()
 
         self.parent = parent
@@ -33,6 +40,9 @@ class IPPSDWidget(QWidget):
         self.show()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         # self.setAutoFillBackground(True)
         # pal = self.palette()
         # pal.setColor(QPalette.Window, Qt.white)
@@ -92,30 +102,48 @@ class IPPSDWidget(QWidget):
 
         self.connectSignalsAndSlots()
 
-    def update_theme(self, t):
+    def update_theme(self, t: str):
+        """
+        update the theme of the widget
+
+        :param t: 'light' or 'dark'
+        """
         if t == 'light':
-            self.plotLayoutWidget.setBackground((255,255,255))
+            self.plotLayoutWidget.setBackground((255, 255, 255))
         elif t == 'dark':
             self.plotLayoutWidget.setBackground(utils.ip_dark_grey)
 
     def set_controlling_widget(self, widget):
+        """
+        set the controlling settings widget
+
+        :param widget: settings widget
+        """
         self.settings_widget = widget
 
     def connectSignalsAndSlots(self):
-
+        """
+        connect signals with widgets
+        """
         self.psdPlot.getFreqRegion().sigRegionChanged.connect(self.updateFrequencyIndicators)
         self.f1_Spin.editingFinished.connect(self.updateLinearFrequencyIndicators)
         self.f2_Spin.editingFinished.connect(self.updateLinearFrequencyIndicators)
 
     def updatePSDs(self):
-        # Use this convenience method to update both PSDs when parameters in this widget are changed
-        # Use the indivicual ones below for passing data when the waveform linearregionitems are resized
-        # or when a different plot is activated
-
+        """
+        Use this convenience method to update both PSDs when parameters in this widget are changed
+        Use the other individual functions for passing data when the waveform linearregionitems are resized
+        or when a different plot is activated
+        """
         self.updateSignalPSD()
         self.updateNoisePSD()
 
     def updateNoisePSD(self, data=None):
+        """
+        update the noise PSD
+
+        :param data: optional new data to use
+        """
         # if new data is passed, use that, otherwise use what we have
         if data is not None:
             self.currentNoiseData = data.copy()
@@ -125,6 +153,11 @@ class IPPSDWidget(QWidget):
             self.noiseCurve.setData(f, 10*np.log10(pxx), pen=self.red_pen)
 
     def updateSignalPSD(self, data=None):
+        """
+        update the signal PSD
+
+        :param data: optional new data to use
+        """
         # if new data s passed, use that, otherwise use what we have
         if data is not None:
             self.currentSignalData = data.copy()
@@ -133,7 +166,13 @@ class IPPSDWidget(QWidget):
             f, pxx = self.calculate_psd(self.currentSignalData)
             self.signalCurve.setData(f, 10*np.log10(pxx), pen=self.blue_pen)
 
-    def calculate_psd(self, data):
+    def calculate_psd(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        calculate the PSD of the data
+
+        :param data: data to calculate PSD for
+        :return: frequencies and PSD values
+        """
         if data is not None:
             my_window = self.settings_widget.window_cb.currentText()
 
@@ -148,33 +187,59 @@ class IPPSDWidget(QWidget):
             f, pxx = signal.welch(data, my_fs, my_window, nperseg=my_nperseg, noverlap=my_noverlap)
 
             return f, pxx
+        # if here, data is invalid
+        return None, None
 
-    def set_title(self, title):
+    def set_title(self, title: str):
+        """
+        set the title of the PSD plot
+
+        :param title: title string
+        """
         self.psdPlot.setTitle(title)
 
     @pyqtSlot(tuple)
     def updateFrequencyIndicators(self, region):
+        """
+        update the frequency indicators based on the region
+
+        :param region: region object
+        """
         r = region.getRegion()
         self.f1_Spin.setValue(10**r[0])
         self.f2_Spin.setValue(10**r[1])
 
     def updateLinearFrequencyIndicators(self):
+        """
+        update the frequency indicators
+        """
         self.psdPlot.getFreqRegion().setRegion([np.log10(self.f1_Spin.value()), np.log10(self.f2_Spin.value())])
 
-    def updateFreqRange(self, rgn):
+    def updateFreqRange(self, rgn: Tuple[float, float]):
+        """
+        update the frequency range
+
+        :param rgn: range tuple
+        """
         self.f1_Spin.setValue(rgn[0])
         self.f2_Spin.setValue(rgn[1])
         self.psdPlot.getFreqRegion().setRegion([np.log10(self.f1_Spin.value()), np.log10(self.f2_Spin.value())])
 
     def setFilterFromPSD(self):
+        """
+        set the filter settings from the PSD frequency region
+        """
         filterSettings = self.parent.filterSettingsWidget.get_filter_settings()
-        filter_display_settings = self.parent.filterSettingsWidget.get_filter_display_settings()
+        _ = self.parent.filterSettingsWidget.get_filter_display_settings()
         filterSettings['type'] = 'Band Pass'
         filterSettings['F_low'] = self.f2_Spin.value()
         filterSettings['F_high'] = self.f1_Spin.value()
         self.parent.filterSettingsWidget.set_filter_settings(filterSettings)
 
     def clearPlot(self):
+        """
+        clear plot
+        """
         self.noiseCurve.setData([1], [1])
         self.signalCurve.setData([1], [1])
         self.set_title('...')

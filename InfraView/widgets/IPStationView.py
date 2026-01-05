@@ -1,4 +1,5 @@
 import os
+from typing import Optional, Tuple, Union
 
 from PyQt5.QtWidgets import (QLabel, QHBoxLayout, QCheckBox, QDialogButtonBox,
                              QPushButton, QWidget, QTextEdit, QTabWidget, QFileDialog,
@@ -12,6 +13,7 @@ import obspy
 from obspy.geodetics.base import calc_vincenty_inverse
 from obspy import read_inventory
 from obspy.core.inventory import Inventory
+from obspy.core.inventory.station import Station
 
 import numpy as np
 
@@ -23,19 +25,23 @@ import pyqtgraph as pg
 
 
 class IPStationView(QWidget):
-
-    ''' Widget that shows pertinent information about the current inventory.
-        Note that this widget does not keep a copy of the current inventory, that
-        is stored in the parent waveformwidget.  This widget simply gets and puts inventory 
-        info from there.
-    '''
+    """
+    Widget that shows pertinent information about the current inventory.
+    Note that this widget does not keep a copy of the current inventory, that
+    is stored in the parent waveformwidget.  This widget simply gets and puts inventory info from there.
+    """
 
     savefile = None
 
     inventory_changed = pyqtSignal(Inventory)
     sig_inventory_cleared = pyqtSignal()
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__()
 
         self.parent = parent
@@ -43,17 +49,19 @@ class IPStationView(QWidget):
         self.inv = None
 
         self.buildUI()
-        
+
         self.show()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.setAutoFillBackground(True)
 
         self.buildIcons()
 
         self.station_TabWidget = QTabWidget()
-        self.station_TabWidget.setMinimumSize(200,0)
+        self.station_TabWidget.setMinimumSize(200, 0)
         self.station_TabWidget.setTabsClosable(True)
         self.station_TabWidget.tabCloseRequested.connect(self.remove_station_from_inv)
 
@@ -102,27 +110,39 @@ class IPStationView(QWidget):
         self.connectSignalsandSlots()
 
     def buildIcons(self):
+        """
+        build the icons
+        """
         self.clearIcon = QIcon.fromTheme("edit-clear")
         self.openIcon = QIcon.fromTheme("document-open")
         self.saveIcon = QIcon.fromTheme("document-save")
         self.saveAsIcon = QIcon.fromTheme("document-save-as")
 
     def connectSignalsandSlots(self):
+        """
+        connect signals to widgets
+        """
         self.clearButton.clicked.connect(self.clear_all)
         self.saveButton.clicked.connect(self.saveStations)
         self.saveAsButton.clicked.connect(self.saveStationsAs)
         self.loadButton.clicked.connect(self.loadStations)
         self.reconcileButton.clicked.connect(self.reconcileStations)
 
-    def get_inventory(self):
+    def get_inventory(self) -> Inventory:
+        """
+        :return: current inventory
+        """
         return self.inv
 
-    def populateTextEdit(self, te, sta, net_code):
-        ''' This is the code that generates the text that describes a station and its channels
-        te is the QTextEdit we are editing. Note that these are created on the fly, that's why the ref needs to be passed
-        sta is the station we are writing about
-        net_code is the network code for this particular stations network
-        '''
+    def populateTextEdit(self, te: QTextEdit, sta: Station, net_code: str):
+        """
+        This is the code that generates the text that describes a station and its channels
+        Note that the QTextEdit widgets are created on the fly, that's why the ref needs to be passed
+
+        :param te: QTextEdit we are editing
+        :param sta: Station we are writing about
+        :param net_code: Network code for this particular station's network
+        """
         html_str = ""
         html_str += "<b>Network:</b> " + net_code + "<br>"
         html_str += "<b>Station:</b> " + sta.code + "<ol>"
@@ -132,12 +152,12 @@ class IPStationView(QWidget):
             'Elevation': sta.elevation,
             'Creation Date': sta.creation_date,
             'Termination Date': sta.termination_date,
-            'Historical Code': sta.historical_code, 
+            'Historical Code': sta.historical_code,
             'Total Number of Channels': len(sta.channels)
         }
         for sta_k, sta_v in sta_dictionary.items():
             # loop through the dictionary and combine the key/values
-            html_str += "<li>" +  sta_k + ": " + str(sta_v) + "</li>"
+            html_str += "<li>" + sta_k + ": " + str(sta_v) + "</li>"
         html_str += "</ul>"
 
         for chan in sta.channels:
@@ -150,17 +170,19 @@ class IPStationView(QWidget):
                 'Location Code:': chan.location_code,
                 'Sensor': chan.sensor,
                 'Start Date': chan.start_date,
-                'End Date': chan.end_date 
+                'End Date': chan.end_date
             }
             for ch_k, ch_v in ch_dictionary.items():
                 # loop through the dictionary and combine the key/values
-                html_str += "<li>" +  ch_k + ": " + str(ch_v) + "</li>"
+                html_str += "<li>" + ch_k + ": " + str(ch_v) + "</li>"
             html_str += "</ul>"
-                 
+
         te.setHtml(html_str)
 
     def update_station_view(self):
-        # populate the station tabs in the Station view
+        """
+        populate the station tabs in the Station view
+        """
         self.clear_view()
 
         # Create the Tabs, and fill with metadata
@@ -174,48 +196,63 @@ class IPStationView(QWidget):
         self.inventory_changed.emit(self.inv)
 
     def getStationCount(self):
-
+        """
+        :return: number of stations in current inventory
+        """
         if self.inv is None:
             return 0
         cnt = 0
         for network in self.inv.networks:
-            for station in network.stations:
-                cnt += 1
+            cnt += len(network.stations)
+            # for station in network.stations:
+            #     cnt += 1
         return cnt
 
     def clear_view(self):
-
+        """
+        clear the station view tabs
+        """
         for i in range(self.station_TabWidget.count()):
             self.station_TabWidget.removeTab(0)
 
         # now signal to the application that the inventory needs to be cleared
-        
+
     def clear_inv(self):
-        # resets inv to None
+        """
+        resets inv to None
+        """
         self.inv = None
         self.sig_inventory_cleared.emit()
 
     def clear_all(self):
+        """
+        clear all fields
+        """
         self.clear_view()
         self.clear_inv()
 
     @pyqtSlot(int)
     @pyqtSlot(str)
-    def remove_station_from_inv(self, entry):
-        # you can pass either a tab index, or a trace.id.  
+    def remove_station_from_inv(self, entry: Union[int, str]):
+        """
+        remove a station from the inventory
+
+        :param entry: either a tab index or a trace.id of the station to remove
+        """
         if type(entry) is int:
             # get the name of the tab
             sta_name = self.station_TabWidget.tabText(entry).split('.')[1]
-
         else:
             sta_name = entry.split('.')[1]
 
         self.inv = self.inv.remove(station=sta_name)
-        
+
         self.update_station_view()
 
     def saveStations(self):
-    
+        """
+        save the current stations to a file
+        """
         # if there is no current filename, prompt for one...
         # TODO: if there is an open project, default to that
         if self.savefile is None:
@@ -230,6 +267,9 @@ class IPStationView(QWidget):
             settings.setValue("last_stationfile_directory", path)
 
     def saveStationsAs(self):
+        """
+        save stations to a new file
+        """
         if self.inv is None:
             IPUtils.errorPopup('Oops... There are no stations to save')
             return
@@ -251,7 +291,9 @@ class IPStationView(QWidget):
             settings.setValue("last_stationfile_directory", path)
 
     def loadStations(self):
-
+        """
+        load stations from a file
+        """
         if self.parent.get_project() is None:
             # force a new filename...
             settings = QSettings('LANL', 'InfraView')
@@ -270,19 +312,21 @@ class IPStationView(QWidget):
                 return
 
             self.merge_new_inventory(newinventory, mode='KEEP_NEW')
-    
-    @pyqtSlot(Inventory, str)
-    def merge_new_inventory(self, new_inv, mode):
 
-        '''
-        we don't want duplicate stations in our inventory.  So we have 4 options when merging new inventories into current:
+    @pyqtSlot(Inventory, str)
+    def merge_new_inventory(self, new_inv: Inventory, mode: str):
+        """
+        we don't want duplicate stations in our inventory.  So we have 4 options when merging new inventories:
         1. Keep current stations that have duplicates, discard new duplicates
         2. Automatically keep new duplicate stations, overwriting current
         3. Prompt the user for which new duplicates to keep
         4. Replace current inventory with new inventory
 
         options for mode are 'APPEND_KEEP_NEW', 'APPEND_KEEP_CURRENT', 'PROMPT', 'REPLACE'
-        '''
+
+        :param new_inv: new inventory to merge
+        :param mode: merge mode
+        """
 
         if self.inv is None or len(self.inv) == 0 or mode == 'REPLACE':
             self.inv = new_inv.copy()
@@ -304,19 +348,19 @@ class IPStationView(QWidget):
                 # prompt the user to see which duplicate stations to overwrite
                 if self.duplicate_sta_dialog.exec_(duplicate_sta_codes):
                     selected_codes = self.duplicate_sta_dialog.get_selected_sta_codes()
-                
+
                     for code in selected_codes:
                         trimmed_code = code.split('.')[1]
 
                         self.inv = self.inv.remove(station=trimmed_code)
-                        
+
                     not_selected = self.duplicate_sta_dialog.get_not_selected_sta_codes()
                     for code in not_selected:
                         trimmed_code = code.split('.')[1]
                         new_inv = new_inv.remove(station=trimmed_code)
-                    
+
             elif mode == 'KEEP_NEW':
-                #automatically overwrite duplicates
+                # automatically overwrite duplicates
                 for code in duplicate_sta_codes:
                     trimmed_code = code.split('.')[1]
                     self.inv = self.inv.remove(station=trimmed_code)
@@ -327,29 +371,37 @@ class IPStationView(QWidget):
                     new_inv = new_inv.remove(station=trimmed_code)
 
             self.inv += new_inv
-            
 
-        # inventories have been merged, but we might have duplicate nets, so merge them 
+        # inventories have been merged, but we might have duplicate nets, so merge them
         self.inv = self.merge_inv_networks(self.inv)
 
         # ready to update the view
         self.update_station_view()
 
     def remove_station(self, station, channel='*'):
+        """
+        remove a station (or channel) from the current inventory
+
+        :param station: station code to remove
+        :param channel: channel code to remove (default '*', meaning all channels)
+        """
         self.inv = self.inv.remove(station=station, channel=channel, keep_empty=False)
         self.update_station_view()
-    
 
     def merge_inv_networks(self, inv):
-        # This function exists because the notation inv += new_inv doesn't merge networks, which causes
-        # issues with inv.remove()
+        """
+        This function exists because the notation inv += new_inv doesn't merge networks, which causes
+        issues with inv.remove()
+
+        :param inv: inventory to merge networks for
+        """
 
         merged_inventory = Inventory(
                 # We'll add networks later.
                 networks=[],
                 # The source should be the id whoever create the file.
                 source="InfraView")
-        
+
         net_code_list = []
 
         for network in inv.networks:
@@ -366,12 +418,13 @@ class IPStationView(QWidget):
                     if net.code == network.code:
                         for sta in stas:
                             net.stations.append(sta)
-        
+
         return merged_inventory
 
-    def get_current_center(self):
-        # this method will calculate the center of the current inventory and will return a [lat,lon]
-
+    def get_current_center(self) -> Tuple[float, float, float]:
+        """
+        :return: the center of the current inventory as a tuple of lat, lon, alt
+        """
         # TODO: This is not really setup right now to handle the (very rare) case where an array straddles the
         # international date line
 
@@ -384,15 +437,16 @@ class IPStationView(QWidget):
                 ele += station.elevation
                 cnt += 1
 
-        return [lat / cnt, lon / cnt, ele / cnt]
-    
+        return (lat / cnt, lon / cnt, ele / cnt)
 
     def reconcileStations(self):
-        
-        trace_ids= []
+        """
+        reconcile stations
+        """
+        trace_ids = []
 
         streams = self.parent.get_streams()
-        
+
         if streams is None:
             return  # Nothing to reconcile
 
@@ -405,10 +459,10 @@ class IPStationView(QWidget):
         for network in self.inv.networks:
             for station in network.stations:
                 for chan in station.channels:
-                    existing_channels.append(network.code + '.' + station.code + '.' + chan.location_code + '.' + chan.code)
+                    existing_channels.append(f"{network.code}.{station.code}.{chan.location_code}.{chan.code}")
 
-        
-        if self.matchDialog.exec_(trace_ids, existing_channels, (self.parent.get_earliest_start_time(), self.parent.get_latest_end_time())):
+        if self.matchDialog.exec_(trace_ids, existing_channels, (self.parent.get_earliest_start_time(),
+                                                                 self.parent.get_latest_end_time())):
             new_inventory = self.matchDialog.getInventory()
             new_inventory = self.merge_inv_networks(new_inventory)
 
@@ -418,14 +472,24 @@ class IPStationView(QWidget):
 
 
 class IPDuplicateStationDialog(QDialog):
-
+    """
+    class for duplicate station dialog
+    """
     def __init__(self, parent):
+        """
+        intialize
+
+        :param parent: parent widget
+        """
         super(IPDuplicateStationDialog, self).__init__(parent)
 
         self.duplicate_sta_codes = []
         self.__buildUI__()
 
     def __buildUI__(self):
+        """
+        build the UI
+        """
         self.main_layout = QVBoxLayout()
         self.label_layout = QVBoxLayout()
 
@@ -442,14 +506,19 @@ class IPDuplicateStationDialog(QDialog):
         self.setLayout(self.main_layout)
 
     def exec_(self, duplicate_stas):
+        """
+        removes duplicate stations
 
+        :return: exec result
+        """
         self.duplicate_sta_codes = duplicate_stas
 
         # first lets clear out the label layout, and redraw it
-        for i in reversed(range(self.label_layout.count())): 
+        for i in reversed(range(self.label_layout.count())):
             self.label_layout.removeWidget(self.label_layout.itemAt(i).widget())
 
-        self.intro_label = QLabel("The following station(s) are duplicated between \nthe current inventory and the new inventory.")
+        self.intro_label = QLabel("The following station(s) are duplicated between "
+                                  "\nthe current inventory and the new inventory.")
         self.label_layout.addWidget(self.intro_label)
 
         self.checkbox_list = []
@@ -459,15 +528,21 @@ class IPDuplicateStationDialog(QDialog):
         self.label_layout.addStretch()
 
         return super().exec_()
-    
-    def get_selected_sta_codes(self):
+
+    def get_selected_sta_codes(self) -> list:
+        """
+        :return: list of selected station codes
+        """
         selected_codes = []
         for idx, check in enumerate(self.checkbox_list):
             if check.isChecked():
                 selected_codes.append(self.duplicate_sta_codes[idx].split('.')[1])
         return selected_codes
-    
-    def get_not_selected_sta_codes(self):
+
+    def get_not_selected_sta_codes(self) -> list:
+        """
+        :return: list of not selected station codes
+        """
         not_selected = []
         for idx, check in enumerate(self.checkbox_list):
             if not check.isChecked():
@@ -476,8 +551,15 @@ class IPDuplicateStationDialog(QDialog):
 
 
 class IPArrayView(QWidget):
+    """
+    class for array view
+    """
+    def __init__(self, parent: QWidget):
+        """
+        initialize
 
-    def __init__(self, parent):
+        :param parent: parent widget
+        """
         super().__init__(parent)
 
         # self.setAutoFillBackground(True)
@@ -535,18 +617,28 @@ class IPArrayView(QWidget):
 
     @pyqtSlot(bool)
     def update_theme(self, t):
+        """
+        update theme
+        """
         if t == 'light':
-            self.station_plot.setBackground((255,255,255))
+            self.station_plot.setBackground((255, 255, 255))
         elif t == 'dark':
             self.station_plot.setBackground(IPUtils.ip_dark_grey)
 
-    
     @pyqtSlot(bool)
     def set_data_from_radio(self, dummy):
+        """
+        set data from radio button
+        """
         self.set_data()
 
     @pyqtSlot(Inventory)
-    def set_data(self, inv=None):
+    def set_data(self, inv: Optional[Inventory] = None):
+        """
+        set all data
+
+        :param inv: inventory to use
+        """
         self.clear()
 
         self.sta_spots = []          # clear array of datas
@@ -558,10 +650,9 @@ class IPArrayView(QWidget):
         self.station_plot.addItem(self.sta_spi)
         self.station_plot.addItem(self.chan_spi)
 
-
         if inv is not None:
             self.inv = inv
-        
+
         if self.latlon_radio.isChecked():
             self.station_plot.getAxis('bottom').setLabel('Longitude')
             self.station_plot.getAxis('left').setLabel('Latitude')
@@ -576,7 +667,8 @@ class IPArrayView(QWidget):
                         self.chan_spots.append({'pos': c_loc, 'symbol': 'x', 'pen': {'color': 'b'}})
                         self.create_label(c_loc, sta.code + '.' + chan.location_code + '.' + chan.code, type='chan')
         else:
-            # we need to covert to a metric coordinate system.  Let's set the zero of the coordinates to the min lat and min lon
+            # we need to covert to a metric coordinate system.  Let's set the zero of the
+            # coordinates to the min lat and min lon
             self.station_plot.getAxis('bottom').setLabel('Distance (m)')
             self.station_plot.getAxis('left').setLabel('Distance (m)')
             # station lat/lons
@@ -592,7 +684,7 @@ class IPArrayView(QWidget):
 
                     for chan in sta.channels:
                         c_lats.append(chan.latitude)
-                        c_lons.append(chan.longitude) 
+                        c_lons.append(chan.longitude)
 
             x_list = []
             y_list = []
@@ -605,23 +697,23 @@ class IPArrayView(QWidget):
 
             x_min = min(x_list)
             y_min = min(y_list)
-            for x,y in zip(x_list, y_list):
-                self.sta_spots.append({'pos': (x - x_min ,y - y_min), 'symbol': '+'})
+            for x, y in zip(x_list, y_list):
+                self.sta_spots.append({'pos': (x - x_min, y - y_min), 'symbol': '+'})
                 self.create_label((x - x_min, y - y_min), sta.code, type='sta')
 
             x_list = []
             y_list = []
             for idx in range(len(c_lats)):
                 delta, az, _ = calc_vincenty_inverse(c_lats[0], c_lons[0], c_lats[idx], c_lons[idx])
-                az = (450 -az) % 360
+                az = (450 - az) % 360
                 x_list.append(delta * np.cos(az*np.pi/180.))
                 y_list.append(delta * np.sin(az*np.pi/180.))
 
             x_min = min(x_list)
             y_min = min(y_list)
-            for x,y in zip(x_list, y_list):
-                self.chan_spots.append({'pos': (x - x_min ,y - y_min), 'symbol': 'x', 'pen': {'color': 'b'}})
-                self.create_label((x - x_min ,y - y_min), sta.code + '.' + chan.location_code + '.' + chan.code, type='chan')
+            for x, y in zip(x_list, y_list):
+                self.chan_spots.append({'pos': (x - x_min, y - y_min), 'symbol': 'x', 'pen': {'color': 'b'}})
+                self.create_label((x - x_min, y - y_min), f"{sta.code}.{chan.location_code}.{chan.code}", type='chan')
 
         self.sta_spi.addPoints(self.sta_spots)
         self.chan_spi.addPoints(self.chan_spots)
@@ -630,6 +722,9 @@ class IPArrayView(QWidget):
 
     @pyqtSlot()
     def update_visibilities(self):
+        """
+        update visibility of widgets
+        """
         if self.sta_spi is not None:
             self.sta_spi.setPointsVisible(self.show_stas_ckbox.isChecked())
         if self.chan_spi is not None:
@@ -640,6 +735,9 @@ class IPArrayView(QWidget):
             label.setVisible(self.show_chans_ckbox.isChecked())
 
     def clear(self):
+        """
+        clear all data
+        """
         self.station_plot.clear()
         if self.sta_spi is not None:
             self.sta_spi.clear()
@@ -650,13 +748,18 @@ class IPArrayView(QWidget):
         for label in self.chan_labels:
             self.station_plot.removeItem(label)
 
-        
-    def create_label(self, location, label, type):
-        # type can be 'sta' or 'chan'
+    def create_label(self, location: Tuple[float, float], label: str, type: str):
+        """
+        create a label
+
+        :param location: location tuple (x, y)
+        :param label: label text
+        :param type: label type.  Either 'sta' or 'chan'
+        """
         text_label = pg.TextItem(label)
         text_label.setPos(location[0], location[1])
         self.station_plot.addItem(text_label, ignoreBounds=True)
-        if type=='sta':
+        if type == 'sta':
             self.sta_labels.append(text_label)
-        elif type=='chan':
+        elif type == 'chan':
             self.chan_labels.append(text_label)

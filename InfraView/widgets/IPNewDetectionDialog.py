@@ -358,11 +358,20 @@ class IPNewDetectionDialog(QDialog):
     def reset(self):
         pass
 
-    def getName(self):
+    def getName(self) -> str:
+        """
+        return: detection name
+        """
         return self.lineEdit_pick_name.text()
 
-    def getNote(self):
+    def getNote(self) -> str:
+        """
+        return: detection note
+        """
         return self.lineEdit_note.text()
 
-    def getEvent(self):
+    def getEvent(self) -> str:
+        """
+        return: detection event
+        """
         return self.lineEdit_event.text()

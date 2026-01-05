@@ -222,7 +222,7 @@ if __name__ == "__main__":
             method=method,
             back_az_vals=back_az_vals,
             trc_vel_vals=trc_vel_vals,
-            array_data=[x, t, t0, geom],
+            array_data=(x, t, t0, geom),
             delays=delays,
         )
         # Run detection
@@ -238,7 +238,7 @@ if __name__ == "__main__":
                 n_x, n_t, n_t0, n_geom = fkd.stream_to_array_data(n_strm, latlon=latlon)
                 n_delays = fkd.compute_delays(n_geom, slowness)
                 thresh = fkd.adjust_thresh_noise(
-                    [n_x, n_t, n_t0, n_geom],
+                    (n_x, n_t, n_t0, n_geom),
                     window_len,
                     sub_window_len,
                     noise_len,
@@ -366,7 +366,7 @@ if __name__ == "__main__":
             dets = 0
             prev_start_time = subset_start
             new_thresh = fkd.adjust_thresh_noise(
-                [x, t, t0, geom],
+                (x, t, t0, geom),
                 window_len,
                 sub_window_len,
                 noise_len,

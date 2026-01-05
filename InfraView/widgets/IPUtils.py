@@ -5,12 +5,10 @@ from PyQt5.QtCore import Qt, pyqtSlot
 import pyqtgraph as pg
 
 
-    
-
 # Define some useful colors here
 reb_blue = pg.mkColor(80, 159, 250)
-reb_red = pg.mkColor(255, 71, 71)  
-reb_powder_blue = pg.mkColor(0, 107, 166) 
+reb_red = pg.mkColor(255, 71, 71)
+reb_powder_blue = pg.mkColor(0, 107, 166)
 
 lanl_primary = pg.mkColor("#000F7E")
 lanl_gradient = pg.mkColor("#090238")
@@ -33,19 +31,23 @@ lanl_green_tint = pg.mkColor("#2CC486")
 ip_darker_grey = pg.mkColor("#202020")
 ip_dark_grey = pg.mkColor("#303030")
 ip_dark_grey_hex = "#303030"
-ip_mid_grey = pg.mkColor(128,128,128)
-ip_light_grey = pg.mkColor(220,220,220)
-ip_black = pg.mkColor(0,0,0)
-ip_white = pg.mkColor(255,255,255)
+ip_mid_grey = pg.mkColor(128, 128, 128)
+ip_light_grey = pg.mkColor(220, 220, 220)
+ip_black = pg.mkColor(0, 0, 0)
+ip_white = pg.mkColor(255, 255, 255)
 
 # arrays of QColors
 # blue to red... one white color removed
-blue_to_red = [pg.mkColor("#1984c5"), pg.mkColor("#c23728"), pg.mkColor("#22a7f0"), pg.mkColor("#63bff0"), pg.mkColor("#a7d5ed"), pg.mkColor("#e1a692"), pg.mkColor("#de6e56"), pg.mkColor("#e14b31")]
+blue_to_red = [pg.mkColor("#1984c5"), pg.mkColor("#c23728"), pg.mkColor("#22a7f0"), pg.mkColor("#63bff0"),
+               pg.mkColor("#a7d5ed"), pg.mkColor("#e1a692"), pg.mkColor("#de6e56"), pg.mkColor("#e14b31")]
+
 
 @pyqtSlot(str, str)
-def errorPopup(message, title="Oops..."):
-    # generic error popup dialog for generic errors
-    title = "InfraView: " + title 
+def errorPopup(message, title: str = "Oops..."):
+    """
+    generic error popup dialog for generic errors
+    """
+    title = "InfraView: " + title
     msgBox = QMessageBox()
     msgBox.setIcon(QMessageBox.Warning)
     msgBox.setText(message)
@@ -54,12 +56,18 @@ def errorPopup(message, title="Oops..."):
 
 
 class CapsValidator(QValidator):
-    ''' 
+    """
     since many text fields require capitalized values only, here is a validator for the lineEdits etc
     general usage is something like...
     my_validator = IPUtils.CapsValidator()
     my_lineedit.setValidator(my_validator)
-    '''
+    """
+    def validate(self, string: str, pos) -> tuple:
+        """
+        validates the input string
 
-    def validate(self, string, pos):
+        :param string: input string
+        :param pos: position
+        :return: tuple of (validation state, modified string, position)
+        """
         return QValidator.Acceptable, string.upper(), pos

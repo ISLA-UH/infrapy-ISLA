@@ -19,23 +19,33 @@ from obspy.core.stream import Stream
 
 import pyproj
 
-class IPPlotViewer(IPBaseWidgets.IPSplitter):
 
+class IPPlotViewer(IPBaseWidgets.IPSplitter):
+    """
+    class for plot viewer
+    """
     def __init__(self, parent):
+        """
+        initializ
+
+        :param parent: parent widget
+        """
         super().__init__(orientation=Qt.Horizontal, parent=parent)
         self.parent = parent
 
         self.buildUI()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.pl_widget = IPPlotLayoutWidget(self)
         self.waveform_selector = IPWaveformSelectorWidget.IPWaveformSelectorWidget(self)
         self.title = QLabel("")
         waveform_selector_scrollarea = QScrollArea()
         waveform_selector_scrollarea.setWidget(self.waveform_selector)
         self.lr_settings_widget = IPLinearRegionSettingsWidget(self)
-        
+
         rhs_widget = QWidget()
         rhs_layout = QVBoxLayout()
 
@@ -49,13 +59,22 @@ class IPPlotViewer(IPBaseWidgets.IPSplitter):
         self.addWidget(rhs_widget)
 
     def set_streams(self, st, st_filtered, c_f_d_s):
-        # c_f_d_s is the current filter display settings
+        """
+        set the streams to plot
+
+        :param st: the unfiltered stream
+        :param st_filtered: the filtered stream
+        :param c_f_d_s: current filter display settings
+        """
         if st is None:
             self.clear()
         self.waveform_selector.update_selections(st)
         self.pl_widget.plot_traces(st, st_filtered, c_f_d_s)
 
     def clear(self):
+        """
+        clear the plots
+        """
         self.pl_widget.sts = None
         self.pl_widget.plot_list.clear()
         self.pl_widget.filtered_plot_lines.clear()
@@ -66,17 +85,30 @@ class IPPlotViewer(IPBaseWidgets.IPSplitter):
 
     @pyqtSlot(dict)
     def show_hide_lines(self, current_filter_display_settings):
+        """
+        show/hide plot lines based on current filter display settings
+
+        :param current_filter_display_settings: current filter display settings
+        """
         self.pl_widget.draw_plot_lines(current_filter_display_settings)
 
     def get_plot_lines(self):
+        """
+        :return: list of plot lines
+        """
         return self.pl_widget.plot_lines
 
     def get_filtered_plot_lines(self):
+        """
+        :return: list of filtered plot lines
+        """
         return self.pl_widget.filtered_plot_lines
 
 
 class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
-
+    """
+    class for plot layout widget
+    """
     sig_active_plot_changed = pyqtSignal(int, list, list, tuple, tuple)
 
     plot_list = []              # this list will hold references to the plots
@@ -84,7 +116,7 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
     filtered_plot_lines = []    # this list will hold references to the filtered plot lines
 
     t = []  # this will hold the list of time series for all the plots
-    freqs = [] # this will hold the frequency list for the spectrograms
+    freqs = []  # this will hold the frequency list for the spectrograms
 
     earliest_start_time = None
     latest_end_time = None
@@ -101,6 +133,11 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
     last_range = []
 
     def __init__(self, parent):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__(parent=parent)
         self.parent = parent
 
@@ -108,7 +145,12 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.setMouseTracking(True)
 
     @pyqtSlot(str)
-    def update_theme(self, t):
+    def update_theme(self, t: str):
+        """
+        update theme
+
+        :param t: theme type.  allowed values: 'light' or 'dark'
+        """
         if t == 'light':
             self.bg = utils.ip_white
             self.disabled = utils.ip_light_grey
@@ -123,16 +165,19 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.update_plot_colors()
 
     def update_plot_colors(self):
+        """
+        update plot colors based on current theme
+        """
         for idx, plot in enumerate(self.plot_list):
             vb = plot.getViewBox()
             if idx == self.active_plot:
                 plot.setBackgroundColor(self.bg)
-                vb.setBorder(pg.mkPen(0,0,0), width=10)
+                vb.setBorder(pg.mkPen(0, 0, 0), width=10)
             else:
                 plot.setBackgroundColor(self.disabled)
                 vb.setBorder(None)
 
-            #cluge because setting background color covers axis for some reason
+            # cluge because setting background color covers axis for some reason
             plot.getAxis("top").setZValue(0)
             plot.getAxis("bottom").setZValue(0)
             plot.getAxis("left").setZValue(0)
@@ -143,16 +188,26 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
 
         for line in self.h_lines:
             line.setPen(self.marker_color)
-        
 
     def connect_signals_and_slots(self):
+        """
+        connect signals with widgets
+        """
         self.scene().sigMouseMoved.connect(self.myMouseMoved)
         self.scene().sigMouseClicked.connect(self.myMouseClicked)
 
     def get_active_plot(self):
+        """
+        :return: active plot
+        """
         return self.active_plot
 
-    def calc_spectrograms(self, streams):
+    def calc_spectrograms(self, streams: list):
+        """
+        calculate spectrograms for the given streams
+
+        :param streams: list of streams
+        """
         self.freqs.clear()
         self.times.clear()
         self.hist.clear()
@@ -170,10 +225,12 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             self.spectrograms.append(np.log10(spectrogram))
 
     def plot_traces(self,
-                    sts,
-                    filtered_sts,
-                    current_filter_display_settings):
-
+                    sts: list,
+                    filtered_sts: list,
+                    current_filter_display_settings: dict):
+        """
+        plot the traces
+        """
         pg.setConfigOptions(antialias=False)
 
         self.plot_list.clear()
@@ -240,7 +297,8 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             new_plot.getSignalRegion().sigRegionChanged.connect(self.parent.parent.update_signal_PSD)
 
             # this will tell the single station widget to update when the LRIs finish being moved
-            new_plot.getSignalRegion().sigRegionChangeFinished.connect(self.parent.parent.parent.singleSensorWidget.signal_region_changed)
+            new_plot.getSignalRegion().sigRegionChangeFinished.connect(
+                self.parent.parent.parent.singleSensorWidget.signal_region_changed)
 
             # cluge because setting background color covers axis for some reason
             new_plot.getAxis("top").setZValue(0)
@@ -255,17 +313,17 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             # keep the new_plot reference in a list
             self.plot_list.append(new_plot)
 
-        # Now set up the crosshairs and position labels for each plot. 
+        # Now set up the crosshairs and position labels for each plot.
         self.v_lines.clear()
         self.h_lines.clear()
         for idx, my_plot in enumerate(self.plot_list):
-            
+
             self.v_lines.append(pg.InfiniteLine(angle=90, movable=False, pen='k'))
             self.h_lines.append(pg.InfiniteLine(angle=0, movable=False, pen='k'))
             self.v_lines[idx].setZValue(10)
             self.h_lines[idx].setZValue(11)
 
-            self.position_labels.append(pg.TextItem(color=(128,128,128), html=None, anchor=(1, 0)))
+            self.position_labels.append(pg.TextItem(color=(128, 128, 128), html=None, anchor=(1, 0)))
 
             my_plot.addItem(self.v_lines[idx], ignoreBounds=True)
             my_plot.addItem(self.h_lines[idx], ignoreBounds=True)
@@ -281,14 +339,15 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.updateAxes()
         # signal to the psd viewer that the plots are loaded and to draw the initial psd
         self.sig_active_plot_changed.emit(self.active_plot,
-                                              self.plot_lines,
-                                              self.filtered_plot_lines,
-                                              self.plot_list[self.active_plot].getSignalRegion().getRegion(),
-                                              self.plot_list[self.active_plot].getNoiseRegion().getRegion())
+                                          self.plot_lines,
+                                          self.filtered_plot_lines,
+                                          self.plot_list[self.active_plot].getSignalRegion().getRegion(),
+                                          self.plot_list[self.active_plot].getNoiseRegion().getRegion())
 
     def draw_plots(self):
-        # The idea here is to draw the plots that are currently selected in the waveformselectorwidget
-
+        """
+        draw the plots currently selected in the waveform selector widget
+        """
         # first step is to clear out the current layout
         self.clear()
 
@@ -312,18 +371,21 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
                                               self.filtered_plot_lines,
                                               self.plot_list[self.active_plot].getSignalRegion().getRegion(),
                                               self.plot_list[self.active_plot].getNoiseRegion().getRegion())
-                
-        for idx, plot in enumerate(self.plot_list):   
+
+        for idx, plot in enumerate(self.plot_list):
             # add the checked plots in the waveformselector to the layout
             if values[idx]:
                 self.nextRow()
                 self.addItem(plot)
 
-        
         self.update_plot_colors()
 
     def draw_plot_lines(self, current_filter_display_settings):
+        """
+        draw the plots lines
 
+        :param current_filter_display_settings: current filter display settings
+        """
         # Now we need to make sure the correct plot lines are turned on/off
         if current_filter_display_settings['apply']:
             for idx, _ in enumerate(self.plot_lines):
@@ -360,7 +422,9 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
     # Event line routines...
     @pyqtSlot()
     def plotEventLines(self):
-
+        """
+        plot event lines
+        """
         eventWidget = self.window().locationWidget.showgroundtruth.event_widget       # reference for convenience
 
         if eventWidget.hasValidEvent():
@@ -389,16 +453,18 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.plotArrivalLines()
 
     def plotArrivalLines(self):
+        """
+        plot arrival lines
+        """
         self.clearArrivalLines()
-        
-        #reference for convenience
+        # reference for convenience
         eventWidget = self.window().locationWidget.showgroundtruth.event_widget       # reference for convenience
         if eventWidget.hasValidEvent():     # only continue if there is a valid event with location and time
 
             # now if the user has selected the display arrivals checkbox, proceed
             if eventWidget.displayArrivals_cb.isEnabled() and eventWidget.displayArrivals_cb.isChecked():
-                
-                #reference for convenience
+
+                # reference for convenience
                 waveformWidget = self.window().waveformWidget
 
                 # we need the current inventory for the receiver locations
@@ -445,7 +511,7 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
                     plot.addItem(self.arrival_line_list[idx+2])
                     self.arrival_line_list[idx+2].setVisible(eventWidget.displayArrivals_cb.isChecked())
 
-                    idx+=3
+                    idx += 3
 
             else:
                 for line in self.arrival_line_list:
@@ -455,6 +521,9 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
     # saying something has changed
     @pyqtSlot()
     def updateEventLines(self):
+        """
+        update event lines
+        """
         eventWidget = self.window().locationWidget.showgroundtruth.event_widget       # reference for convenience
         waveformWidget = self.window().waveformWidget
 
@@ -474,6 +543,9 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
 
     @pyqtSlot()
     def updateEventWidget(self):
+        """
+        update event widget
+        """
         eventWidget = self.window().eventWidget       # reference for convenience
 
         sender = self.sender()
@@ -483,6 +555,9 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
 
     @pyqtSlot()
     def clearEventLines(self):
+        """
+        clear event lines
+        """
         for plot in self.plot_list:
             for item in reversed(plot.items):
                 if isinstance(item, IPEventLine.IPEventLine):
@@ -492,6 +567,9 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.clearArrivalLines()
 
     def clearArrivalLines(self):
+        """
+        clear arrival lines
+        """
         for plot in self.plot_list:
             for item in reversed(plot.items):
                 if isinstance(item, IPEventLine.IPArrivalLine):
@@ -503,11 +581,18 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
     # --------------------------------------------------------------
 
     def updateAxes(self):
-        # This little bit links the axes of the newly created plot to those of the first one
-        # so they scale the same (this could be optional)
+        """
+        Links the axes of the newly created plot to those of the first one
+        so they scale the same (this could be optional)
+        """
         self.setXaxisCoupling(True)
-        
+
     def normalize_traces_to_largest(self, stream):
+        """
+        Normalize all traces to the largest absolute amplitude trace
+
+        :param stream: the stream containing the traces
+        """
         my_max = 0
         max_i = 0
         for idx, trace in enumerate(stream):
@@ -516,20 +601,30 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
                 my_max = m
                 max_i = idx
         self.plot_list[max_i].getViewBox().autoRange(padding=0)
-        
 
     @pyqtSlot(object, object)
     def adjustSignalRegionRange(self, dummy, new_range):
+        """
+        adjust the signal region range
+
+        :param dummy: dummy parameter
+        :param new_range: new range for the signal region
+        """
         if len(self.plot_list) > 0:
             self.plot_list[0].getSignalRegion().setRegion(new_range)
 
     def getAllTraceTimeSeries(self, sts):
+        """
+        get time series for all traces in the stream list
+
+        :param sts: list of streams
+        """
         self.earliest_start_time = None
         self.latest_end_time = None
         for trace in sts:
-            b = 0.0
+            _ = 0.0
             if trace.stats['_format'] == 'SAC':
-                b = trace.stats.get('sac').get('b')
+                _ = trace.stats.get('sac').get('b')
 
             if self.earliest_start_time is None:
                 self.earliest_start_time = trace.stats.starttime
@@ -547,10 +642,10 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         offsets = []
         for trace in sts:
             # if the trace is from a SAC file, find out if there is a b value
-            b = 0.0
+            _ = 0.0
             if trace.stats['_format'] == 'SAC':
-                b = trace.stats.get('sac').get('b')
-                
+                _ = trace.stats.get('sac').get('b')
+
             offsets.append(UTCDateTime(trace.stats.starttime) -
                            UTCDateTime(self.earliest_start_time))
 
@@ -562,7 +657,13 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
 
     # ---------------------------------------------------------------------------
 
-    def setXaxisCoupling(self, coupled, index=0):
+    def setXaxisCoupling(self, coupled: bool, index: int = 0):
+        """
+        set x-axis coupling
+
+        :param coupled: whether to couple the x-axes
+        :param index: index of the plot to couple to
+        """
         if coupled:
             for idx, my_plot in enumerate(self.plot_list):
                 if idx != index:
@@ -571,18 +672,26 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             for my_plot in self.plot_list:
                 my_plot.setXLink(None)
 
-    def setYaxisCoupling(self, coupled, index=0):
+    def setYaxisCoupling(self, coupled: bool, index: int = 0):
+        """
+        set y-axis coupling
+
+        :param coupled: whether to couple the y-axes
+        :param index: index of the plot to couple to
+        """
         if coupled:
             for idx, my_plot in enumerate(self.plot_list):
                 if idx != index:
                     my_plot.setYLink(self.plot_list[index])
         else:
             for my_plot in self.plot_list:
-                my_plot.setYLink(None) 
+                my_plot.setYLink(None)
                 my_plot.enableAutoRange(axis=my_plot.vb.YAxis, enable=True)
 
     def clearAll(self):
-
+        """
+        clear all plots and data
+        """
         self.plot_lines.clear()
         self.filtered_plot_lines.clear()
         self.plot_list.clear()
@@ -592,6 +701,9 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.active_plot = 0
 
     def clearLayout(self):
+        """
+        clear the layout
+        """
         for plot in reversed(self.plot_list):
             self.removeItem(plot)
 
@@ -600,6 +712,11 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
 
     # Mouse move handler
     def myMouseMoved(self, evt):
+        """
+        handle mouse moved events
+
+        :param evt: mouse event
+        """
         # This takes care of the crosshairs
         pos = evt
         mirrorCrosshairs = True
@@ -623,8 +740,9 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
                     try:
                         self.position_labels[idx].setText("UTC = {0}".format(self.earliest_start_time + mousePoint.x()))
                     except Exception:
-                        # it's possible to zoom out so far the the mousepoint will be so large when you add it t the start time
-                        # obspy will throw a Value Error.  This is fine, just return and don't update the labels
+                        # it's possible to zoom out so far the the mousepoint will be so large when you add it to the
+                        # start time obspy will throw a Value Error.  This is fine, just return and don't update the
+                        # labels
                         return
                 else:
                     self.position_labels[idx].setVisible(False)
@@ -641,7 +759,11 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
     # Mouse click handlers
 
     def myMouseClicked(self, evt):
+        """
+        handle mouse clicked events
 
+        :param evt: mouse event
+        """
         # if there's no data loaded, return immediately
         if len(self.plot_list) < 1:
             return
@@ -650,7 +772,11 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             self.mouseClick_Left(evt)
 
     def mouseClick_Left(self, evt):
+        """
+        handle left mouse click events
 
+        :param evt: mouse event
+        """
         scenePos = evt.scenePos()
 
         for idx, my_plot in enumerate(self.plot_list):
@@ -658,15 +784,15 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
             mySceneBoundingRect = my_plot.sceneBoundingRect()
             if mySceneBoundingRect.contains(scenePos):
                 self.active_plot = idx
-                
+
                 self.sig_active_plot_changed.emit(idx,
                                                   self.plot_lines,
                                                   self.filtered_plot_lines,
                                                   self.plot_list[0].getSignalRegion().getRegion(),
                                                   self.plot_list[0].getNoiseRegion().getRegion())
-                
+
         self.update_plot_colors()
-    
+
     # ------------------------------------------------------------------------------
     # Key press events...
 
@@ -674,22 +800,35 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         pass
 
     def myNoiseSpinsChanged(self):
+        """
+        handle noise spin box changes
+        """
         start = self.noiseStartSpin.value()
         stop = start + self.noiseDurationSpin.value()
         self.noiseSpinsChanged.emit((start, stop))
 
     def mySignalSpinsChanged(self):
+        """
+        handle signal spin box changes
+        """
         start = self.signalStartSpin.value()
         stop = start + self.signalDurationSpin.value()
         self.signalSpinsChanged.emit((start, stop))
 
 
 class IPLinearRegionSettingsWidget(QWidget):
-
+    """
+    class for linear region settings widget
+    """
     noiseSpinsChanged = pyqtSignal(tuple)
     signalSpinsChanged = pyqtSignal(tuple)
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__()
 
         self.parent = parent
@@ -735,6 +874,11 @@ class IPLinearRegionSettingsWidget(QWidget):
         layout.addWidget(self.signalDurationSpin)
 
     def updateSpinValues(self, regionItem):
+        """
+        update spin box values based on region item
+
+        :param regionItem: region item
+        """
         nrange = regionItem.getRegion()
 
         # All of the regions are linked, so pull off the values of the first one
@@ -747,11 +891,17 @@ class IPLinearRegionSettingsWidget(QWidget):
             self.signalDurationSpin.setValue(nrange[1] - nrange[0])
 
     def myNoiseSpinsChanged(self):
+        """
+        handle noise spin box changes
+        """
         start = self.noiseStartSpin.value()
         stop = start + self.noiseDurationSpin.value()
         self.noiseSpinsChanged.emit((start, stop))
 
     def mySignalSpinsChanged(self):
+        """
+        handle signal spin box changes
+        """
         start = self.signalStartSpin.value()
         stop = start + self.signalDurationSpin.value()
         self.signalSpinsChanged.emit((start, stop))

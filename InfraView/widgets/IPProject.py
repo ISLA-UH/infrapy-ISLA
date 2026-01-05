@@ -1,6 +1,7 @@
 import sys
 
 from pathlib import Path
+from typing import Tuple, Union
 
 from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtWidgets import (QDialog, QGridLayout, QLabel, QLineEdit,
@@ -9,24 +10,34 @@ from PyQt5.QtWidgets import (QDialog, QGridLayout, QLabel, QLineEdit,
 
 
 class IPProject:
+    """
+    class to manage project
+    """
+    basePath: Union[Path, None] = None                 # base path projects are saved in
+    projectPath: Union[Path, None] = None              # path of actual project
+    dataPath: Union[Path, None] = None                 # where locally stored data (can) be saved
+    beamformingResutsPath: Union[Path, None] = None    # path to csv files holding fstat, ba, and tracev data
+    detectionsPath: Union[Path, None] = None           # where picks will be saved
+    customFilterPath: Union[Path, None] = None         # where custom filters will be saved
+    homePath: Union[Path, None] = None                 # user's home directory
+    stationsPath: Union[Path, None] = None             # where station xml files will be saved
+    eventPath: Union[Path, None] = None                # where event json files will be saved
 
-    basePath = None                 # base path projects are saved in
-    projectPath = None              # path of actual project
-    dataPath = None                 # where locally stored data (can) be saved
-    beamformingResutsPath = None    # path to csv files holding fstat, ba, and tracev data
-    detectionsPath = None           # where picks will be saved
-    customFilterPath = None         # where custom filters will be saved
-    homePath = None                 # user's home directory
-    stationsPath = None             # where station xml files will be saved
-    eventPath = None                # where event json files will be saved
-
-    projectName = None
-    projectFileName = None
+    projectName: Union[str, None] = None
+    projectFileName: Union[str, None] = None
 
     def __init__(self):
+        """
+        initialize
+        """
         self.globalSettings = QSettings('LANL', 'InfraView')
 
-    def makeNewProject(self):
+    def makeNewProject(self) -> bool:
+        """
+        create a new project
+
+        :return: True if project created, False if cancelled
+        """
         newDialog = IPNewProjectDialog(self)
         if newDialog.exec_():
             self.basePath, self.projectName = newDialog.getBasePathAndProjectName()
@@ -143,12 +154,17 @@ class IPProject:
             return True
 
         else:
-
             return False
 
-    def loadProject(self):
+    def loadProject(self) -> bool:
+        """
+        load an existing project
+
+        :return: True if project loaded, False if cancelled
+        """
         mydirectory = self.globalSettings.value('last_baseProject_directory', self.homePath)
-        ipprjPathname, _ = QFileDialog.getOpenFileName(caption='Open InfraView Project', directory=mydirectory, filter='InfraView Project Files (*.ipprj)')
+        ipprjPathname, _ = QFileDialog.getOpenFileName(caption='Open InfraView Project', directory=mydirectory,
+                                                       filter='InfraView Project Files (*.ipprj)')
         if ipprjPathname:
             self.projectSettings = QSettings(ipprjPathname, QSettings.IniFormat)
             self.projectSettings.beginGroup('Main')
@@ -181,40 +197,78 @@ class IPProject:
         else:
             return False
 
-    def get_basePath(self):
+    def get_basePath(self) -> Union[Path, None]:
+        """
+        :return: base path or None if not set
+        """
         return self.basePath
 
-    def get_projectPath(self):
+    def get_projectPath(self) -> Union[Path, None]:
+        """
+        :return: project path or None if not set
+        """
         return self.projectPath
 
-    def get_dataPath(self):
+    def get_dataPath(self) -> Union[Path, None]:
+        """
+        :return: data path or None if not set
+        """
         return self.dataPath
 
-    def set_dataPath(self, path):
+    def set_dataPath(self, path: Union[Path, None]):
+        """
+        set data path
+
+        :param path: data path or None to unset
+        """
         self.dataPath = path
 
-    def get_detectionsPath(self):
+    def get_detectionsPath(self) -> Union[Path, None]:
+        """
+        :return: detections path or None if not set
+        """
         return self.detectionsPath
 
-    def get_stationsPath(self):
+    def get_stationsPath(self) -> Union[Path, None]:
+        """
+        :return: stations path or None if not set
+        """
         return self.stationsPath
 
-    def get_customFilterPath(self):
+    def get_customFilterPath(self) -> Union[Path, None]:
+        """
+        :return: custom filter path or None if not set
+        """
         return self.customFilterPath
 
-    def get_projectName(self):
+    def get_projectName(self) -> Union[str, None]:
+        """
+        :return: project name or None if not set
+        """
         return self.projectName
 
-    def get_projectFileName(self):
+    def get_projectFileName(self) -> Union[str, None]:
+        """
+        :return: project file name or None if not set
+        """
         return self.projectFileName
 
-    def get_beamformResultsPath(self):
+    def get_beamformResultsPath(self) -> Union[Path, None]:
+        """
+        :return: beamforming results path or None if not set
+        """
         return self.beamformingResutsPath
 
-    def get_eventPath(self):
+    def get_eventPath(self) -> Union[Path, None]:
+        """
+        :return: event path or None if not set
+        """
         return self.eventPath
 
     def clear(self):
+        """
+        clear project info
+        """
         self.basePath = None                # base path projects are saved in
         self.projectPath = None             # path of actual project
         self.dataPath = None                # where locally stored data (can) be saved
@@ -229,11 +283,16 @@ class IPProject:
 
 
 class IPNewProjectDialog(QDialog):
-
+    """
+    class for project dialog box
+    """
     basePath = None
     projectName = None
 
     def __init__(self, parent):
+        """
+        initialize
+        """
         super().__init__()
 
         homePath = Path.home()
@@ -242,6 +301,9 @@ class IPNewProjectDialog(QDialog):
         self.buildUI()
 
     def buildUI(self):
+        """
+        build the UI
+        """
         self.setWindowTitle('InfraView: Create a New Project')
         label_projectName = QLabel(self.tr('Project Name: '))
         self.lineEdit_projectName = QLineEdit()
@@ -280,11 +342,18 @@ class IPNewProjectDialog(QDialog):
         self.setLayout(mainLayout)
 
     def updateProjectPath(self):
+        """
+        update project path display
+        """
         self.basePath = self.lineEdit_basePath.text()
         self.projectName = self.lineEdit_projectName.text()
-        self.label_projectDirectory_value.setText(self.lineEdit_basePath.text() + '/' + self.lineEdit_projectName.text())
+        self.label_projectDirectory_value.setText(
+            f"{self.lineEdit_basePath.text()}/{self.lineEdit_projectName.text()}")
 
     def directoryDialog(self):
+        """
+        open directory dialog
+        """
         newBasePathName = QFileDialog.getExistingDirectory(
             self, "Choose a Directory", str(self.basePath), QFileDialog.ShowDirsOnly)
         if newBasePathName != '':
@@ -292,5 +361,8 @@ class IPNewProjectDialog(QDialog):
             self.lineEdit_basePath.setText(newBasePathName)
             self.basePath = Path(newBasePathName)
 
-    def getBasePathAndProjectName(self):
+    def getBasePathAndProjectName(self) -> Tuple[Union[Path, None], Union[str, None]]:
+        """
+        :return: base path and project name.  Some values can be None if not set.
+        """
         return self.basePath, self.projectName

@@ -14,7 +14,9 @@ from InfraView.widgets import IPUtils
 
 
 class IPSaveAllDialog(QDialog):
-
+    """
+    class for saving dialog
+    """
     streams = []
     fileInfo = []
     filtered_fileInfo = []
@@ -22,13 +24,23 @@ class IPSaveAllDialog(QDialog):
     filtered_fileEdits = []
 
     def __init__(self, parent):
+        """
+        initialize
+
+        :param parent: parent widget
+        """
         super().__init__()
         self.parent = parent
         self.directoryName = None
         self.buildUI()
 
     def exec_(self, streams='', directoryPath=None):
+        """
+        perform the save
 
+        :param streams: streams to save
+        :param directoryPath: directory path to save to
+        """
         self.streams = streams
 
         self.settings = QSettings('LANL', 'InfraView')
@@ -46,7 +58,9 @@ class IPSaveAllDialog(QDialog):
         return super().exec_()
 
     def buildUI(self):
-
+        """
+        build the UI
+        """
         self.setWindowTitle('InfraView: Save Data')
         self.setMinimumWidth(500)
 
@@ -115,6 +129,9 @@ class IPSaveAllDialog(QDialog):
         self.saveOriginal_check.setChecked(True)
 
     def generateOriginalDataFileInfo(self):
+        """
+        generate original data file info
+        """
         for idx, trace in enumerate(self.streams):
             stats = trace.stats
             file_format = stats['_format']
@@ -131,6 +148,9 @@ class IPSaveAllDialog(QDialog):
             self.fileGridLayout.addWidget(self.fileEdits[idx], idx, 0)
 
     def generateFilteredDataFileInfo(self):
+        """
+        generate filtered data file info
+        """
         for idx, trace in enumerate(self.streams):
             stats = trace.stats
             file_format = stats['_format']
@@ -147,21 +167,37 @@ class IPSaveAllDialog(QDialog):
             self.filteredGridLayout.addWidget(self.filtered_fileEdits[idx], idx, 0)
 
     def directoryDialog(self):
-        self.directoryName = QFileDialog.getExistingDirectory(self, "Choose a Directory", self.directoryName, QFileDialog.ShowDirsOnly)
+        """
+        directory dialog
+        """
+        self.directoryName = QFileDialog.getExistingDirectory(self, "Choose a Directory", self.directoryName,
+                                                              QFileDialog.ShowDirsOnly)
         if self.directoryName != '':
             self.settings.setValue("last_save_directory", self.directoryName)
             self.lineEdit_Directory.setText(self.directoryName)
 
-    def getSaveDirectory(self):
+    def getSaveDirectory(self) -> str:
+        """
+        :return: save directory
+        """
         return self.lineEdit_Directory.text()
 
-    def getFileInfo(self):
+    def getFileInfo(self) -> list:
+        """
+        :return: file info
+        """
         return self.fileInfo
 
-    def getFilteredFileInfo(self):
+    def getFilteredFileInfo(self) -> list:
+        """
+        :return: filtered file info
+        """
         return self.filtered_fileInfo
 
-    def getFileChoiceData(self):
+    def getFileChoiceData(self) -> int:
+        """
+        :return: code indicating what data to save
+        """
         # This is the for the checkboxes for whether to save the original data, filtered data, or both
         if self.saveOriginal_check.isChecked() and not self.saveFiltered_check.isChecked():
             # Save just the original data
@@ -178,19 +214,25 @@ class IPSaveAllDialog(QDialog):
 
     @QtCore.pyqtSlot()
     def fileEditsChanged(self):
-        # slot function called when a fileEdit box is edited
+        """
+        function called when a fileEdit box is edited
+        """
         for idx, _ in enumerate(self.fileEdits):
             self.fileInfo[idx]['fname'] = self.fileEdits[idx].text()
 
     @QtCore.pyqtSlot()
     def filtered_fileEditsChanged(self):
-        # slot function called when a fileEdit box is edited
+        """
+        function called when a fileEdit box is edited
+        """
         for idx, _ in enumerate(self.filtered_fileEdits):
             self.filtered_fileInfo[idx]['fname'] = self.filtered_fileEdits[idx].text()
 
     @QtCore.pyqtSlot()
     def checkBoxClicked(self):
-
+        """
+        function called when a checkbox is clicked
+        """
         if self.saveFiltered_check.isChecked():
             filterDisplaySettings = self.parent.waveformWidget.filterSettingsWidget.get_filter_display_settings()
 
