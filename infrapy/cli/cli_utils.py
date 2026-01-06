@@ -258,16 +258,16 @@ def check_db_wvfrm(config_file, db_config, network, station, location, channel, 
         user_config = None
 
     # Database and data IO parameters
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     click.echo('\n' + "Data parameters:")
     click.echo("  db_config: " + str(db_config))
@@ -336,19 +336,19 @@ def write_wvfrms(config_file, db_config, fdsn, network, station, location, chann
         user_config = None
 
     # Database and data IO parameters
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     click.echo('\n' + "Data parameters:")
     if fdsn is not None:
@@ -448,27 +448,27 @@ def best_beam(config_file, local_wvfrms, fdsn, db_url, db_site, db_wfdisc, local
         user_config = None
 
     # Database and data IO parameters
-    db_url = config.set_param(user_config, 'WAVEFORM IO', 'db_url', db_url, 'string')
-    db_site = config.set_param(user_config, 'WAVEFORM IO', 'db_site', db_site, 'string')
-    db_wfdisc = config.set_param(user_config, 'WAVEFORM IO', 'db_wfdisc', db_wfdisc, 'string')
+    db_url = config.get_param(user_config, 'WAVEFORM IO', 'db_url', db_url, 'string')
+    db_site = config.get_param(user_config, 'WAVEFORM IO', 'db_site', db_site, 'string')
+    db_wfdisc = config.get_param(user_config, 'WAVEFORM IO', 'db_wfdisc', db_wfdisc, 'string')
 
     # Local waveform IO parameters
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    local_latlon = config.get_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Local fk file
-    local_fk_label = config.set_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
+    local_fk_label = config.get_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
 
     click.echo('\n' + "Data parameters:")
     if local_wvfrms is not None:
@@ -499,11 +499,11 @@ def best_beam(config_file, local_wvfrms, fdsn, db_url, db_site, db_wfdisc, local
         click.echo("  local_fk_label: " + str(local_fk_label))
 
     # Algorithm parameters
-    freq_min = config.set_param(user_config, 'FK', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'FK', 'freq_max', freq_max, 'float')
+    freq_min = config.get_param(user_config, 'FK', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'FK', 'freq_max', freq_max, 'float')
 
-    signal_start = config.set_param(user_config, 'FK', 'signal_start', signal_start, 'string')
-    signal_end = config.set_param(user_config, 'FK', 'signal_end', signal_end, 'string')
+    signal_start = config.get_param(user_config, 'FK', 'signal_start', signal_start, 'string')
+    signal_end = config.get_param(user_config, 'FK', 'signal_end', signal_end, 'string')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  freq_min: " + str(freq_min))

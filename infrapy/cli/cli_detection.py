@@ -96,26 +96,26 @@ def run_fk(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, st
         user_config = None
 
     # Database configuration and info
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Local waveform IO parameters
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    local_latlon = config.get_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Result IO
-    local_fk_label = config.set_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
+    local_fk_label = config.get_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
 
     click.echo('\n' + "Data parameters:")
     if local_wvfrms is not None:
@@ -149,23 +149,23 @@ def run_fk(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, st
     click.echo("  local_fk_label: " + str(local_fk_label))
 
     # Algorithm parameters
-    freq_min = config.set_param(user_config, 'FK', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'FK', 'freq_max', freq_max, 'float')
-    back_az_min = config.set_param(user_config, 'FK', 'back_az_min', back_az_min, 'float')
-    back_az_max = config.set_param(user_config, 'FK', 'back_az_max', back_az_max, 'float')
-    back_az_step = config.set_param(user_config, 'FK', 'back_az_step', back_az_step, 'float')
-    trace_vel_min = config.set_param(user_config, 'FK', 'trace_vel_min', trace_vel_min, 'float')
-    trace_vel_max = config.set_param(user_config, 'FK', 'trace_vel_max', trace_vel_max, 'float')
-    trace_vel_step = config.set_param(user_config, 'FK', 'trace_vel_step', trace_vel_step, 'float')
-    method = config.set_param(user_config, 'FK', 'method', method, 'string')
-    signal_start = config.set_param(user_config, 'FK', 'signal_start', signal_start, 'string')
-    signal_end = config.set_param(user_config, 'FK', 'signal_end', signal_end, 'string')
-    noise_start = config.set_param(user_config, 'FK', 'noise_start', noise_start, 'string')
-    noise_end = config.set_param(user_config, 'FK', 'noise_end', noise_end, 'string')
-    window_len = config.set_param(user_config, 'FK', 'window_len', window_len, 'float')
-    sub_window_len = config.set_param(user_config, 'FK', 'sub_window_len', sub_window_len, 'float')
-    window_step = config.set_param(user_config, 'FK', 'window_step', window_step, 'float')
-    cpu_cnt = config.set_param(user_config, 'FK', 'cpu_cnt', cpu_cnt, 'int')
+    freq_min = config.get_param(user_config, 'FK', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'FK', 'freq_max', freq_max, 'float')
+    back_az_min = config.get_param(user_config, 'FK', 'back_az_min', back_az_min, 'float')
+    back_az_max = config.get_param(user_config, 'FK', 'back_az_max', back_az_max, 'float')
+    back_az_step = config.get_param(user_config, 'FK', 'back_az_step', back_az_step, 'float')
+    trace_vel_min = config.get_param(user_config, 'FK', 'trace_vel_min', trace_vel_min, 'float')
+    trace_vel_max = config.get_param(user_config, 'FK', 'trace_vel_max', trace_vel_max, 'float')
+    trace_vel_step = config.get_param(user_config, 'FK', 'trace_vel_step', trace_vel_step, 'float')
+    method = config.get_param(user_config, 'FK', 'method', method, 'string')
+    signal_start = config.get_param(user_config, 'FK', 'signal_start', signal_start, 'string')
+    signal_end = config.get_param(user_config, 'FK', 'signal_end', signal_end, 'string')
+    noise_start = config.get_param(user_config, 'FK', 'noise_start', noise_start, 'string')
+    noise_end = config.get_param(user_config, 'FK', 'noise_end', noise_end, 'string')
+    window_len = config.get_param(user_config, 'FK', 'window_len', window_len, 'float')
+    sub_window_len = config.get_param(user_config, 'FK', 'sub_window_len', sub_window_len, 'float')
+    window_step = config.get_param(user_config, 'FK', 'window_step', window_step, 'float')
+    cpu_cnt = config.get_param(user_config, 'FK', 'cpu_cnt', cpu_cnt, 'int')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  freq_min: " + str(freq_min))
@@ -335,28 +335,28 @@ def run_fd(config_file, local_fk_label, local_detect_label, window_len, p_value,
 
     # Data IO parameters
     # use local ingestion for initial testing
-    local_fk_label = config.set_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_fk_label = config.get_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
 
     if local_fk_label == 'auto':
         # try loading waveform data and see if fk_label can be built
-        local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', None, 'string')
-        fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', None, 'string')
-        db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', None, 'string')
+        local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', None, 'string')
+        fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', None, 'string')
+        db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', None, 'string')
         if db_config is not None:
             db_info = cnfg.ConfigParser()
             db_info.read(db_config)
         else:
             db_info = None
 
-        network = config.set_param(user_config, 'WAVEFORM IO', 'network', None, 'string')
-        station = config.set_param(user_config, 'WAVEFORM IO', 'station', None, 'string')
-        location = config.set_param(user_config, 'WAVEFORM IO', 'location', None, 'string')
-        channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', None, 'string')
+        network = config.get_param(user_config, 'WAVEFORM IO', 'network', None, 'string')
+        station = config.get_param(user_config, 'WAVEFORM IO', 'station', None, 'string')
+        location = config.get_param(user_config, 'WAVEFORM IO', 'location', None, 'string')
+        channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', None, 'string')
 
-        starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', None, 'string')
-        endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', None, 'string')
+        starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', None, 'string')
+        endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', None, 'string')
 
         stream, _ = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel,
                                        starttime, endtime, None)
@@ -379,14 +379,14 @@ def run_fd(config_file, local_fk_label, local_detect_label, window_len, p_value,
     click.echo("  local_detect_label: " + local_detect_label)
 
     # Algorithm parameters
-    window_len = config.set_param(user_config, 'FD', 'window_len', window_len, 'float')
-    p_value = config.set_param(user_config, 'FD', 'p_value', p_value, 'float')
-    min_duration = config.set_param(user_config, 'FD', 'min_duration', min_duration, 'float')
-    back_az_width = config.set_param(user_config, 'FD', 'back_az_width', back_az_width, 'float')
-    fixed_thresh = config.set_param(user_config, 'FD', 'fixed_thresh', fixed_thresh, 'float')
-    thresh_ceil = config.set_param(user_config, 'FD', 'thresh_ceil', thresh_ceil, 'float')
-    return_thresh = config.set_param(user_config, 'FD', 'return_thresh', return_thresh, 'bool')
-    merge_dets = config.set_param(user_config, 'FD', 'merge_dets', merge_dets, 'bool')
+    window_len = config.get_param(user_config, 'FD', 'window_len', window_len, 'float')
+    p_value = config.get_param(user_config, 'FD', 'p_value', p_value, 'float')
+    min_duration = config.get_param(user_config, 'FD', 'min_duration', min_duration, 'float')
+    back_az_width = config.get_param(user_config, 'FD', 'back_az_width', back_az_width, 'float')
+    fixed_thresh = config.get_param(user_config, 'FD', 'fixed_thresh', fixed_thresh, 'float')
+    thresh_ceil = config.get_param(user_config, 'FD', 'thresh_ceil', thresh_ceil, 'float')
+    return_thresh = config.get_param(user_config, 'FD', 'return_thresh', return_thresh, 'bool')
+    merge_dets = config.get_param(user_config, 'FD', 'merge_dets', merge_dets, 'bool')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  window_len: " + str(window_len))
@@ -541,27 +541,27 @@ def run_fkd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, s
         user_config = None
 
     # Database configuration and info
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Local waveform IO parameters
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    local_latlon = config.get_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Result IO
-    local_fk_label = config.set_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_fk_label = config.get_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
 
     click.echo('\n' + "Data parameters:")
@@ -596,32 +596,32 @@ def run_fkd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, s
     click.echo("  local_detect_label: " + str(local_detect_label))
 
     # Algorithm parameters
-    freq_min = config.set_param(user_config, 'FK', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'FK', 'freq_max', freq_max, 'float')
-    back_az_min = config.set_param(user_config, 'FK', 'back_az_min', back_az_min, 'float')
-    back_az_max = config.set_param(user_config, 'FK', 'back_az_max', back_az_max, 'float')
-    back_az_step = config.set_param(user_config, 'FK', 'back_az_step', back_az_step, 'float')
-    trace_vel_min = config.set_param(user_config, 'FK', 'trace_vel_min', trace_vel_min, 'float')
-    trace_vel_max = config.set_param(user_config, 'FK', 'trace_vel_max', trace_vel_max, 'float')
-    trace_vel_step = config.set_param(user_config, 'FK', 'trace_vel_step', trace_vel_step, 'float')
-    method = config.set_param(user_config, 'FK', 'method', method, 'string')
-    signal_start = config.set_param(user_config, 'FK', 'signal_start', signal_start, 'string')
-    signal_end = config.set_param(user_config, 'FK', 'signal_end', signal_end, 'string')
-    noise_start = config.set_param(user_config, 'FK', 'noise_start', noise_start, 'string')
-    noise_end = config.set_param(user_config, 'FK', 'noise_end', noise_end, 'string')
-    fk_window_len = config.set_param(user_config, 'FK', 'window_len', fk_window_len, 'float')
-    fk_sub_window_len = config.set_param(user_config, 'FK', 'sub_window_len', fk_sub_window_len, 'float')
-    fk_window_step = config.set_param(user_config, 'FK', 'window_step', fk_window_step, 'float')
-    cpu_cnt = config.set_param(user_config, 'FK', 'cpu_cnt', cpu_cnt, 'int')
+    freq_min = config.get_param(user_config, 'FK', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'FK', 'freq_max', freq_max, 'float')
+    back_az_min = config.get_param(user_config, 'FK', 'back_az_min', back_az_min, 'float')
+    back_az_max = config.get_param(user_config, 'FK', 'back_az_max', back_az_max, 'float')
+    back_az_step = config.get_param(user_config, 'FK', 'back_az_step', back_az_step, 'float')
+    trace_vel_min = config.get_param(user_config, 'FK', 'trace_vel_min', trace_vel_min, 'float')
+    trace_vel_max = config.get_param(user_config, 'FK', 'trace_vel_max', trace_vel_max, 'float')
+    trace_vel_step = config.get_param(user_config, 'FK', 'trace_vel_step', trace_vel_step, 'float')
+    method = config.get_param(user_config, 'FK', 'method', method, 'string')
+    signal_start = config.get_param(user_config, 'FK', 'signal_start', signal_start, 'string')
+    signal_end = config.get_param(user_config, 'FK', 'signal_end', signal_end, 'string')
+    noise_start = config.get_param(user_config, 'FK', 'noise_start', noise_start, 'string')
+    noise_end = config.get_param(user_config, 'FK', 'noise_end', noise_end, 'string')
+    fk_window_len = config.get_param(user_config, 'FK', 'window_len', fk_window_len, 'float')
+    fk_sub_window_len = config.get_param(user_config, 'FK', 'sub_window_len', fk_sub_window_len, 'float')
+    fk_window_step = config.get_param(user_config, 'FK', 'window_step', fk_window_step, 'float')
+    cpu_cnt = config.get_param(user_config, 'FK', 'cpu_cnt', cpu_cnt, 'int')
 
-    fd_window_len = config.set_param(user_config, 'FD', 'window_len', fd_window_len, 'float')
-    p_value = config.set_param(user_config, 'FD', 'p_value', p_value, 'float')
-    min_duration = config.set_param(user_config, 'FD', 'min_duration', min_duration, 'float')
-    back_az_width = config.set_param(user_config, 'FD', 'back_az_width', back_az_width, 'float')
-    fixed_thresh = config.set_param(user_config, 'FD', 'fixed_thresh', fixed_thresh, 'float')
-    thresh_ceil = config.set_param(user_config, 'FD', 'thresh_ceil', thresh_ceil, 'float')
-    return_thresh = config.set_param(user_config, 'FD', 'return_thresh', return_thresh, 'bool')
-    merge_dets = config.set_param(user_config, 'FD', 'merge_dets', merge_dets, 'bool')
+    fd_window_len = config.get_param(user_config, 'FD', 'window_len', fd_window_len, 'float')
+    p_value = config.get_param(user_config, 'FD', 'p_value', p_value, 'float')
+    min_duration = config.get_param(user_config, 'FD', 'min_duration', min_duration, 'float')
+    back_az_width = config.get_param(user_config, 'FD', 'back_az_width', back_az_width, 'float')
+    fixed_thresh = config.get_param(user_config, 'FD', 'fixed_thresh', fixed_thresh, 'float')
+    thresh_ceil = config.get_param(user_config, 'FD', 'thresh_ceil', thresh_ceil, 'float')
+    return_thresh = config.get_param(user_config, 'FD', 'return_thresh', return_thresh, 'bool')
+    merge_dets = config.get_param(user_config, 'FD', 'merge_dets', merge_dets, 'bool')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  freq_min: " + str(freq_min))
@@ -857,26 +857,26 @@ def run_sd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, st
         user_config = None
 
     # Database configuration and info
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Local waveform IO parameters
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    local_latlon = config.get_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Result IO
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
 
     click.echo('\n' + "Data parameters:")
@@ -915,20 +915,20 @@ def run_sd(config_file, local_wvfrms, fdsn, db_config, local_latlon, network, st
         pl = None
 
     # Algorithm parameters
-    spectral_option = config.set_param(user_config, 'SD', 'spectral_option', spectral_option, 'string')
-    morlet_omega0 = config.set_param(user_config, 'SD', 'morlet_omega0', morlet_omega0, 'float')
-    freq_min = config.set_param(user_config, 'SD', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'SD', 'freq_max', freq_max, 'float')
-    signal_start = config.set_param(user_config, 'SD', 'signal_start', signal_start, 'string')
-    signal_end = config.set_param(user_config, 'SD', 'signal_end', signal_end, 'string')
-    window_len = config.set_param(user_config, 'SD', 'window_len', window_len, 'float')
-    window_step = config.set_param(user_config, 'SD', 'window_step', window_step, 'float')
-    p_value = config.set_param(user_config, 'SD', 'p_value', p_value, 'float')
-    freq_tm_factor = config.set_param(user_config, 'SD', 'freq_tm_factor', freq_tm_factor, 'float')
-    cluster_eps = config.set_param(user_config, 'SD', 'cluster_eps', cluster_eps, 'float')
-    cluster_min_samples = config.set_param(user_config, 'SD', 'cluster_min_samples', cluster_min_samples, 'int')
-    cluster_window_len = config.set_param(user_config, 'SD', 'cluster_window_len', cluster_window_len, 'float')
-    cpu_cnt = config.set_param(user_config, 'SD', 'cpu_cnt', cpu_cnt, 'int')
+    spectral_option = config.get_param(user_config, 'SD', 'spectral_option', spectral_option, 'string')
+    morlet_omega0 = config.get_param(user_config, 'SD', 'morlet_omega0', morlet_omega0, 'float')
+    freq_min = config.get_param(user_config, 'SD', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'SD', 'freq_max', freq_max, 'float')
+    signal_start = config.get_param(user_config, 'SD', 'signal_start', signal_start, 'string')
+    signal_end = config.get_param(user_config, 'SD', 'signal_end', signal_end, 'string')
+    window_len = config.get_param(user_config, 'SD', 'window_len', window_len, 'float')
+    window_step = config.get_param(user_config, 'SD', 'window_step', window_step, 'float')
+    p_value = config.get_param(user_config, 'SD', 'p_value', p_value, 'float')
+    freq_tm_factor = config.get_param(user_config, 'SD', 'freq_tm_factor', freq_tm_factor, 'float')
+    cluster_eps = config.get_param(user_config, 'SD', 'cluster_eps', cluster_eps, 'float')
+    cluster_min_samples = config.get_param(user_config, 'SD', 'cluster_min_samples', cluster_min_samples, 'int')
+    cluster_window_len = config.get_param(user_config, 'SD', 'cluster_window_len', cluster_window_len, 'float')
+    cpu_cnt = config.get_param(user_config, 'SD', 'cpu_cnt', cpu_cnt, 'int')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  spectral_option: " + spectral_option)

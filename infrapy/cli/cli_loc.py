@@ -98,9 +98,9 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
         user_config = None
 
     # Data IO parameters
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
-    local_loc_label = config.set_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
+    local_loc_label = config.get_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
 
     if ".loc.json" in local_loc_label:
         local_loc_label = local_loc_label[:-9]
@@ -110,32 +110,32 @@ def run_loc(config_file, local_detect_label, local_loc_label, back_az_width, ran
     click.echo("  local_loc_label: " + str(local_loc_label))
 
     # Algorithm parameters
-    back_az_width = config.set_param(user_config, 'LOC', 'back_az_width', back_az_width, 'float')
-    range_max = config.set_param(user_config, 'LOC', 'range_max', range_max, 'float')
-    grid_resol = config.set_param(user_config, 'LOC', 'grid_resol', grid_resol, 'int')
+    back_az_width = config.get_param(user_config, 'LOC', 'back_az_width', back_az_width, 'float')
+    range_max = config.get_param(user_config, 'LOC', 'range_max', range_max, 'float')
+    grid_resol = config.get_param(user_config, 'LOC', 'grid_resol', grid_resol, 'int')
 
-    ll_corner = config.set_param(user_config, 'LOC', 'll_corner', ll_corner, 'str')
-    ur_corner = config.set_param(user_config, 'LOC', 'ur_corner', ur_corner, 'str')
-    latlon_resol = config.set_param(user_config, 'LOC', 'latlon_resol', latlon_resol, 'float')
+    ll_corner = config.get_param(user_config, 'LOC', 'll_corner', ll_corner, 'str')
+    ur_corner = config.get_param(user_config, 'LOC', 'ur_corner', ur_corner, 'str')
+    latlon_resol = config.get_param(user_config, 'LOC', 'latlon_resol', latlon_resol, 'float')
 
-    tm_min = config.set_param(user_config, 'LOC', 'tm_min', tm_min, 'str')
-    tm_max = config.set_param(user_config, 'LOC', 'tm_max', tm_max, 'str')
-    tm_resol = config.set_param(user_config, 'LOC', 'tm_resol', tm_resol, 'float')
+    tm_min = config.get_param(user_config, 'LOC', 'tm_min', tm_min, 'str')
+    tm_max = config.get_param(user_config, 'LOC', 'tm_max', tm_max, 'str')
+    tm_resol = config.get_param(user_config, 'LOC', 'tm_resol', tm_resol, 'float')
 
-    celerity_model = config.set_param(user_config, 'LOC', 'celerity_model', celerity_model, 'str')
-    rcel_wts = config.set_param(user_config, 'LOC', 'rcel_wts', rcel_wts, 'str')
-    rcel_mns = config.set_param(user_config, 'LOC', 'rcel_mns', rcel_mns, 'str')
-    rcel_sds = config.set_param(user_config, 'LOC', 'rcel_sds', rcel_sds, 'str')
-    pgm_file = config.set_param(user_config, 'LOC', 'pgm_file', pgm_file, 'str')
+    celerity_model = config.get_param(user_config, 'LOC', 'celerity_model', celerity_model, 'str')
+    rcel_wts = config.get_param(user_config, 'LOC', 'rcel_wts', rcel_wts, 'str')
+    rcel_mns = config.get_param(user_config, 'LOC', 'rcel_mns', rcel_mns, 'str')
+    rcel_sds = config.get_param(user_config, 'LOC', 'rcel_sds', rcel_sds, 'str')
+    pgm_file = config.get_param(user_config, 'LOC', 'pgm_file', pgm_file, 'str')
 
-    atmo_data = config.set_param(user_config, 'LOC', 'atmo_data', atmo_data, 'str')
-    alt_lims = config.set_param(user_config, 'LOC', 'alt_lims', alt_lims, 'str')
-    alt_resol = config.set_param(user_config, 'LOC', 'alt_resol', alt_resol, 'float')
-    grnd_snd_spd = config.set_param(user_config, 'LOC', 'grnd_snd_spd', grnd_snd_spd, 'float')
-    c0_stdev = config.set_param(user_config, 'LOC', 'c0_stdev', c0_stdev, 'float')
-    det_tm_stdev = config.set_param(user_config, 'LOC', 'det_tm_stdev', det_tm_stdev, 'float')
-    local_temp_dir = config.set_param(user_config, 'LOC', 'local_temp_dir', local_temp_dir, 'str')
-    cpu_cnt = config.set_param(user_config, 'ASSOC', 'cpu_cnt', cpu_cnt, 'int')
+    atmo_data = config.get_param(user_config, 'LOC', 'atmo_data', atmo_data, 'str')
+    alt_lims = config.get_param(user_config, 'LOC', 'alt_lims', alt_lims, 'str')
+    alt_resol = config.get_param(user_config, 'LOC', 'alt_resol', alt_resol, 'float')
+    grnd_snd_spd = config.get_param(user_config, 'LOC', 'grnd_snd_spd', grnd_snd_spd, 'float')
+    c0_stdev = config.get_param(user_config, 'LOC', 'c0_stdev', c0_stdev, 'float')
+    det_tm_stdev = config.get_param(user_config, 'LOC', 'det_tm_stdev', det_tm_stdev, 'float')
+    local_temp_dir = config.get_param(user_config, 'LOC', 'local_temp_dir', local_temp_dir, 'str')
+    cpu_cnt = config.get_param(user_config, 'ASSOC', 'cpu_cnt', cpu_cnt, 'int')
 
     # Summarie parameters
     click.echo('\n' + "Parameter summary:")
@@ -383,18 +383,18 @@ def regional(config_file, local_wvfrms, fdsn, db_config, local_detect_label, loc
         user_config = None
 
     # Waveform info
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Data IO parameters
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
-    local_loc_label = config.set_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
-    local_loc_label = config.set_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
-    src_lat = config.set_param(user_config, 'YIELD', 'src_lat', src_lat, 'float')
-    src_lon = config.set_param(user_config, 'YIELD', 'src_lon', src_lon, 'float')
+    local_loc_label = config.get_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
+    local_loc_label = config.get_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
+    src_lat = config.get_param(user_config, 'YIELD', 'src_lat', src_lat, 'float')
+    src_lon = config.get_param(user_config, 'YIELD', 'src_lon', src_lon, 'float')
 
     click.echo('\n' + "Data parameters:")
     click.echo("  local_detect_label: " + str(local_detect_label))
@@ -426,19 +426,19 @@ def regional(config_file, local_wvfrms, fdsn, db_config, local_detect_label, loc
         click.echo("  fdsn")
         click.echo("  db_url (and other database info)")
 
-    freq_min = config.set_param(user_config, 'YIELD', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'YIELD', 'freq_max', freq_max, 'float')
-    yld_min = config.set_param(user_config, 'YIELD', 'yld_min', yld_min, 'float')
-    yld_max = config.set_param(user_config, 'YIELD', 'yld_max', yld_max, 'float')
-    ref_rng = config.set_param(user_config, 'YIELD', 'ref_rng', ref_rng, 'float')
-    resolution = config.set_param(user_config, 'YIELD', 'resolution', resolution, 'int')
+    freq_min = config.get_param(user_config, 'YIELD', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'YIELD', 'freq_max', freq_max, 'float')
+    yld_min = config.get_param(user_config, 'YIELD', 'yld_min', yld_min, 'float')
+    yld_max = config.get_param(user_config, 'YIELD', 'yld_max', yld_max, 'float')
+    ref_rng = config.get_param(user_config, 'YIELD', 'ref_rng', ref_rng, 'float')
+    resolution = config.get_param(user_config, 'YIELD', 'resolution', resolution, 'int')
 
-    noise_option = config.set_param(user_config, 'YIELD', 'noise_option', noise_option, 'str')
-    window_buffer = config.set_param(user_config, 'YIELD', 'window_buffer', window_buffer, 'float')
-    amb_press = config.set_param(user_config, 'YIELD', 'amb_press', amb_press, 'float')
-    amb_temp = config.set_param(user_config, 'YIELD', 'amb_temp', amb_temp, 'float')
-    grnd_burst = config.set_param(user_config, 'YIELD', 'grnd_burst', grnd_burst, 'bool')
-    exp_type = config.set_param(user_config, 'YIELD', 'exp_type', exp_type, 'str')
+    noise_option = config.get_param(user_config, 'YIELD', 'noise_option', noise_option, 'str')
+    window_buffer = config.get_param(user_config, 'YIELD', 'window_buffer', window_buffer, 'float')
+    amb_press = config.get_param(user_config, 'YIELD', 'amb_press', amb_press, 'float')
+    amb_temp = config.get_param(user_config, 'YIELD', 'amb_temp', amb_temp, 'float')
+    grnd_burst = config.get_param(user_config, 'YIELD', 'grnd_burst', grnd_burst, 'bool')
+    exp_type = config.get_param(user_config, 'YIELD', 'exp_type', exp_type, 'str')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  freq_min: " + str(freq_min))
@@ -582,18 +582,18 @@ def single_station(config_file, local_wvfrms, fdsn, db_config, local_detect_labe
         user_config = None
 
     # Waveform info
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Data IO parameters
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
-    local_loc_label = config.set_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
-    local_loc_label = config.set_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
-    src_lat = config.set_param(user_config, 'YIELD', 'src_lat', src_lat, 'float')
-    src_lon = config.set_param(user_config, 'YIELD', 'src_lon', src_lon, 'float')
+    local_loc_label = config.get_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
+    local_loc_label = config.get_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
+    src_lat = config.get_param(user_config, 'YIELD', 'src_lat', src_lat, 'float')
+    src_lon = config.get_param(user_config, 'YIELD', 'src_lon', src_lon, 'float')
 
     click.echo('\n' + "Data parameters:")
     click.echo("  local_detect_label: " + str(local_detect_label))
@@ -627,12 +627,12 @@ def single_station(config_file, local_wvfrms, fdsn, db_config, local_detect_labe
         click.echo("  fdsn")
         click.echo("  db_url (and other database info)")
 
-    freq_min = config.set_param(user_config, 'YIELD', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'YIELD', 'freq_max', freq_max, 'float')
-    ref_rng = config.set_param(user_config, 'YIELD', 'ref_rng', ref_rng, 'float')
-    resolution = config.set_param(user_config, 'YIELD', 'resolution', resolution, 'int')
-    noise_option = config.set_param(user_config, 'YIELD', 'noise_option', noise_option, 'str')
-    window_buffer = config.set_param(user_config, 'YIELD', 'window_buffer', window_buffer, 'float')
+    freq_min = config.get_param(user_config, 'YIELD', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'YIELD', 'freq_max', freq_max, 'float')
+    ref_rng = config.get_param(user_config, 'YIELD', 'ref_rng', ref_rng, 'float')
+    resolution = config.get_param(user_config, 'YIELD', 'resolution', resolution, 'int')
+    noise_option = config.get_param(user_config, 'YIELD', 'noise_option', noise_option, 'str')
+    window_buffer = config.get_param(user_config, 'YIELD', 'window_buffer', window_buffer, 'float')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  freq_min: " + str(freq_min))
@@ -735,14 +735,14 @@ def combine(config_file, local_pdf_label, local_yld_label, yld_min, yld_max, ref
     click.echo("  local_pdf_label: " + str(local_pdf_label))
     click.echo("  local_yld_label: " + str(local_yld_label))
 
-    yld_min = config.set_param(user_config, 'YIELD', 'yld_min', yld_min, 'float')
-    yld_max = config.set_param(user_config, 'YIELD', 'yld_max', yld_max, 'float')
-    ref_rng = config.set_param(user_config, 'YIELD', 'ref_rng', ref_rng, 'float')
-    resolution = config.set_param(user_config, 'YIELD', 'resolution', resolution, 'int')
-    amb_press = config.set_param(user_config, 'YIELD', 'amb_press', amb_press, 'float')
-    amb_temp = config.set_param(user_config, 'YIELD', 'amb_temp', amb_temp, 'float')
-    grnd_burst = config.set_param(user_config, 'YIELD', 'grnd_burst', grnd_burst, 'bool')
-    exp_type = config.set_param(user_config, 'YIELD', 'exp_type', exp_type, 'str')
+    yld_min = config.get_param(user_config, 'YIELD', 'yld_min', yld_min, 'float')
+    yld_max = config.get_param(user_config, 'YIELD', 'yld_max', yld_max, 'float')
+    ref_rng = config.get_param(user_config, 'YIELD', 'ref_rng', ref_rng, 'float')
+    resolution = config.get_param(user_config, 'YIELD', 'resolution', resolution, 'int')
+    amb_press = config.get_param(user_config, 'YIELD', 'amb_press', amb_press, 'float')
+    amb_temp = config.get_param(user_config, 'YIELD', 'amb_temp', amb_temp, 'float')
+    grnd_burst = config.get_param(user_config, 'YIELD', 'grnd_burst', grnd_burst, 'bool')
+    exp_type = config.get_param(user_config, 'YIELD', 'exp_type', exp_type, 'str')
 
     click.echo('\n' + "Algorithm parameters:")
     click.echo("  yld_min: " + str(yld_min))

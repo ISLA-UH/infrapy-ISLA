@@ -20,9 +20,19 @@ LOCAL_SEEDLINK = "192.168.112.200"
 nrt_stime = obspy.UTCDateTime("2025-12-10T18:30:00.000000Z")
 nrt_etime = obspy.UTCDateTime("2025-12-10T19:30:00.000000Z")
 
-def cfg(param_section, param_name, dtype="float", cli_val=None):
-    """Helper to pull params from InfraPy user config"""
-    return infraconfig.set_param(user_config, param_section, param_name, cli_val, dtype)
+
+def cfg(param_section: str, param_name: str, dtype: str = "float", cli_val=None):
+    """
+    Helper to pull params from InfraPy user config
+
+    :param param_section: Section in config file
+    :param param_name: Parameter name
+    :param dtype: Data type of parameter (float, int, bool, str)
+    :param cli_val: Value from command line interface
+    :return: Parameter value
+    """
+    return infraconfig.get_param(user_config, param_section, param_name, cli_val, dtype)
+
 
 if __name__ == "__main__":
     """
@@ -37,15 +47,15 @@ if __name__ == "__main__":
     trace_vel_min = cfg("FK", "trace_vel_min", "float")
     trace_vel_max = cfg("FK", "trace_vel_max", "float")
     trace_vel_step = cfg("FK", "trace_vel_step", "float")
-    method = infraconfig.set_param(user_config, "FK", "method", None, "string")
-    signal_start = infraconfig.set_param(user_config, "FK", "signal_start", None, "string")
-    signal_end = infraconfig.set_param(user_config, "FK", "signal_end", None, "string")
-    noise_start = infraconfig.set_param(user_config, "FK", "noise_start", None, "string")
-    noise_end = infraconfig.set_param(user_config, "FK", "noise_end", None, "string")
+    method = infraconfig.get_param(user_config, "FK", "method", None, "string")
+    signal_start = infraconfig.get_param(user_config, "FK", "signal_start", None, "string")
+    signal_end = infraconfig.get_param(user_config, "FK", "signal_end", None, "string")
+    noise_start = infraconfig.get_param(user_config, "FK", "noise_start", None, "string")
+    noise_end = infraconfig.get_param(user_config, "FK", "noise_end", None, "string")
     window_len = cfg("FK", "window_len", "float")
     sub_window_len = cfg("FK", "sub_window_len", "float")
     window_step = cfg("FK", "window_step", "float")
-    cpu_cnt = infraconfig.set_param(user_config, "FK", "cpu_cnt", None, "int")
+    cpu_cnt = infraconfig.get_param(user_config, "FK", "cpu_cnt", None, "int")
 
     # Detection parameters
     fd_window_len = cfg("FD", "window_len", "float")
@@ -55,16 +65,17 @@ if __name__ == "__main__":
     fixed_thresh = cfg("FD", "fixed_thresh", "float")
     thresh_ceil = cfg("FD", "thresh_ceil", "float")
     return_thresh = (
-        infraconfig.set_param(user_config, "FD", "return_thresh", None, "bool") or False
+        infraconfig.get_param(user_config, "FD", "return_thresh", None, "bool") or False
     )
-    # NOTE: Merge detections currently needs to be improved. Should investigate how they associate nearby detections (time window, etc).
+    # NOTE: Merge detections currently needs to be improved. Should investigate how they associate nearby detections
+    # (time window, etc).
     merge_dets = (
-        infraconfig.set_param(user_config, "FD", "merge_dets", None, "bool") or True
+        infraconfig.get_param(user_config, "FD", "merge_dets", None, "bool") or True
     )
     """
-    This section runs an automated infrasonic detection using InfraPy's beamforming and detection modules. 
-    It will pull data from either IRIS or a local seedlink server, process it in overlapping time windows, and save detections 
-    and raw data to specified directories. Please update them to match the intented directories.
+    This section runs an automated infrasonic detection using InfraPy's beamforming and detection modules.
+    It will pull data from either IRIS or a local seedlink server, process it in overlapping time windows,
+    and save detections and raw data to specified directories. Please update them to match the intended directories.
     """
     i = 0
     # Currently using while loop for simplicity, ideally would be updated with a start/stop callback to interrupt
@@ -112,12 +123,12 @@ if __name__ == "__main__":
                 )
             except Exception as e:
                 print(
-                    f"Error fetching data from FDSN client. Please check network/station codes and time range. Exception: {e}"
+                    f"Error fetching data from FDSN client. Please check network/station codes and time range. "
+                    f"Exception: {e}"
                 )
                 break
 
         # Set up seedlink and take in stream
-
         seed = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180)
         try:
             if wf_client:
@@ -133,7 +144,8 @@ if __name__ == "__main__":
                     print("Data Found on seedlink")
                 else:
                     print(
-                        "Error fetching data from Seedlink. WiFi is correct, possibly an issue with retrieving data from CTBTO."
+                        "Error fetching data from Seedlink. WiFi is correct, possibly an issue with retrieving data"
+                        "from CTBTO."
                     )
             else:
                 g_stream = client.get_waveforms(
@@ -148,7 +160,8 @@ if __name__ == "__main__":
                     print("Data Found on IRIS")
         except Exception as e:
             print(f"Error fetching data. Exception: {e}")
-        # Add coordinates to stream using inv feteched from IRIS
+
+        # Add coordinates to stream using inv fetched from IRIS
         latlon = []
         for tr in g_stream:
             coords = inventory.get_coordinates(
@@ -165,7 +178,8 @@ if __name__ == "__main__":
             print(tr.stats.starttime, tr.stats.station)
         print(f"Fetched {len(g_stream)} traces from {network}.{station}.")
 
-        # Get the centroid of the array. Standard coords are fine bc array isn't big enough for geodeisic shifting to occur.
+        # Get the centroid of the array. Standard coords are fine bc array isn't big enough for geodeisic shifting
+        # to occur.
         centroid = np.mean([lat for lat, lon in latlon]), np.mean(
             [lon for lat, lon in latlon]
         )
@@ -174,9 +188,10 @@ if __name__ == "__main__":
         strm = g_stream.copy()
         print(f"Run iteration {i}")
 
-        # Noise is calculated based on the previous stream. If the previous stream has detections it wil use the most current stream that does not have any detections.
+        # Noise is calculated based on the previous stream. If the previous stream has detections it will use the most
+        # current stream that does not have any detections.
         if not i:
-            # i==0 is a special case in which the previous 8 minutes of signal as the baseline noise.
+            # i==0 is a special case in which the previous 8 minutes of signal is the baseline noise.
             prev_start_time = t1
             dets = 0
             noise_start = t1
@@ -211,7 +226,8 @@ if __name__ == "__main__":
         slowness = fkd.build_slowness(back_az_vals, trc_vel_vals)
         delays = fkd.compute_delays(geom, slowness)
 
-        # Beamforming returns beam_power as a 3D array. Need to look into what actually is returned and best way to access this data
+        # Beamforming returns beam_power as a 3D array. Need to look into what actually is returned and best way to
+        # access this data
         beam_times, beam_peaks, beam_power = fkd.auto_run_bf(
             (subset_start - t1),
             (t2 - subset_start),
@@ -232,8 +248,8 @@ if __name__ == "__main__":
         if fixed_thresh:
             thresh = fixed_thresh
         else:
-            #
-            # If detections were found thresh will be the same as previous valid fstat threshold. If not recompute with the previous timeslot
+            # If detections were found thresh will be the same as previous valid fstat threshold. If not recompute
+            # with the previous timeslot
             if not i:
                 n_x, n_t, n_t0, n_geom = fkd.stream_to_array_data(n_strm, latlon=latlon)
                 n_delays = fkd.compute_delays(n_geom, slowness)
@@ -309,7 +325,7 @@ if __name__ == "__main__":
             )
             str_info = [
                 strm[0].stats.network,
-                strm[0].stats.station + "-" + strm[-1].stats.station,
+                fstrm[0].stats.station + "-" + strm[-1].stats.station,
                 strm[0].stats.channel,
             ]
             data_io.detection_list_to_json(det_out, det_list, str_info)
@@ -358,7 +374,7 @@ if __name__ == "__main__":
                 window_step,
             )
 
-            rd_out = det_fpath + str_name + "_raw_data.txt"
+            rd_out = os.path.join(det_fpath, f"{str_name}_raw_data.txt")
             np.savetxt(rd_out, raw_data, header=rd_header)
             print(f"  Wrote FK results to {rd_out}")
         else:
@@ -383,7 +399,7 @@ if __name__ == "__main__":
         if real_time:
             T = time.time() - stop_watch
             print(
-                f"Sleeping for {510-T} seconds until {obspy.UTCDateTime()+(510-T)-36000} (HST)"
+                f"Sleeping for {510 - T} seconds until {obspy.UTCDateTime() + (510 - T) - 36000} (HST)"
             )
             time.sleep(510 - T)
         i += 1

@@ -73,30 +73,30 @@ def fk(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         user_config = None
 
     # Database configuration and info
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Local waveform IO parameters
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    local_latlon = config.get_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Frequency limits
-    freq_min = config.set_param(user_config, 'FK', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'FK', 'freq_max', freq_max, 'float')
+    freq_min = config.get_param(user_config, 'FK', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'FK', 'freq_max', freq_max, 'float')
 
     # Result IO
-    local_fk_label = config.set_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
+    local_fk_label = config.get_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
 
     click.echo('\n' + "Data parameters:")
     if local_wvfrms is not None:
@@ -231,27 +231,27 @@ def fd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         user_config = None
 
     # Database configuration and info
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Local waveform IO parameters
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    local_latlon = config.get_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Result IO
-    local_fk_label = config.set_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_fk_label = config.get_param(user_config, 'DETECTION IO', 'local_fk_label', local_fk_label, 'string')
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
 
     click.echo('\n' + "Data parameters:")
@@ -416,26 +416,26 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         user_config = None
 
     # Database configuration and info
-    db_config = config.set_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
+    db_config = config.get_param(user_config, 'WAVEFORM IO', 'db_config', db_config, 'string')
     db_info = None
 
     # Local waveform IO parameters
-    local_wvfrms = config.set_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
-    local_latlon = config.set_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
+    local_wvfrms = config.get_param(user_config, 'WAVEFORM IO', 'local_wvfrms', local_wvfrms, 'string')
+    local_latlon = config.get_param(user_config, 'WAVEFORM IO', 'local_latlon', local_latlon, 'string')
 
     # FDSN waveform IO parameters
-    fdsn = config.set_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
-    network = config.set_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
-    station = config.set_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
-    location = config.set_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
-    channel = config.set_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
+    fdsn = config.get_param(user_config, 'WAVEFORM IO', 'fdsn', fdsn, 'string')
+    network = config.get_param(user_config, 'WAVEFORM IO', 'network', network, 'string')
+    station = config.get_param(user_config, 'WAVEFORM IO', 'station', station, 'string')
+    location = config.get_param(user_config, 'WAVEFORM IO', 'location', location, 'string')
+    channel = config.get_param(user_config, 'WAVEFORM IO', 'channel', channel, 'string')
 
     # Trimming times
-    starttime = config.set_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
+    starttime = config.get_param(user_config, 'WAVEFORM IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'WAVEFORM IO', 'endtime', endtime, 'string')
 
     # Result IO
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
 
     click.echo('\n' + "Data parameters:")
@@ -467,12 +467,12 @@ def sd(config_file, local_wvfrms, local_latlon, fdsn, db_config, network, statio
         click.echo("  figure_out: " + figure_out)
 
     # Algorithm parameters
-    spectral_option = config.set_param(user_config, 'SD', 'spectral_option', spectral_option, 'string')
-    morlet_omega0 = config.set_param(user_config, 'SD', 'morlet_omega0', morlet_omega0, 'float')
-    freq_min = config.set_param(user_config, 'SD', 'freq_min', freq_min, 'float')
-    freq_max = config.set_param(user_config, 'SD', 'freq_max', freq_max, 'float')
-    signal_start = config.set_param(user_config, 'SD', 'signal_start', signal_start, 'string')
-    signal_end = config.set_param(user_config, 'SD', 'signal_end', signal_end, 'string')
+    spectral_option = config.get_param(user_config, 'SD', 'spectral_option', spectral_option, 'string')
+    morlet_omega0 = config.get_param(user_config, 'SD', 'morlet_omega0', morlet_omega0, 'float')
+    freq_min = config.get_param(user_config, 'SD', 'freq_min', freq_min, 'float')
+    freq_max = config.get_param(user_config, 'SD', 'freq_max', freq_max, 'float')
+    signal_start = config.get_param(user_config, 'SD', 'signal_start', signal_start, 'string')
+    signal_end = config.get_param(user_config, 'SD', 'signal_end', signal_end, 'string')
 
     stream, _ = data_io.set_stream(local_wvfrms, fdsn, db_info, network, station, location, channel,
                                    starttime, endtime, local_latlon)
@@ -571,14 +571,14 @@ def dets(config_file, range_max, local_detect_label, figure_out, offline_maps_di
     else:
         user_config = None
 
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label,
                                           'string')
 
     click.echo('\n' + "Data summary:")
     click.echo("  local_detect_label: " + str(local_detect_label))
 
-    range_max = config.set_param(user_config, 'LOC', 'range_max', range_max, 'float')
-    offline_maps_dir = config.set_param(user_config, 'VISUALIZATION', 'offline_maps_dir', offline_maps_dir, 'string')
+    range_max = config.get_param(user_config, 'LOC', 'range_max', range_max, 'float')
+    offline_maps_dir = config.get_param(user_config, 'VISUALIZATION', 'offline_maps_dir', offline_maps_dir, 'string')
 
     click.echo('\n' + "Visualization parameters:")
     click.echo("  range_max: " + str(range_max) + '\n')
@@ -630,15 +630,15 @@ def loc(config_file, local_detect_label, local_loc_label, range_max, zoom, figur
     else:
         user_config = None
 
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label, 'string')
-    local_loc_label = config.set_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label', local_detect_label, 'string')
+    local_loc_label = config.get_param(user_config, 'DETECTION IO', 'local_loc_label', local_loc_label, 'string')
 
     click.echo('\n' + "Data summary:")
     click.echo("  local_event_label: " + str(local_detect_label))
     click.echo("  local_loc_label: " + str(local_loc_label))
 
-    range_max = config.set_param(user_config, 'LOC', 'range_max', range_max, 'float')
-    offline_maps_dir = config.set_param(user_config, 'VISUALIZATION', 'offline_maps_dir', offline_maps_dir, 'string')
+    range_max = config.get_param(user_config, 'LOC', 'range_max', range_max, 'float')
+    offline_maps_dir = config.get_param(user_config, 'VISUALIZATION', 'offline_maps_dir', offline_maps_dir, 'string')
 
     click.echo('\n' + "Visualization parameters:")
     click.echo("  range_max: " + str(range_max))
@@ -696,7 +696,7 @@ def origin_time(config_file, local_loc_label, figure_out, grnd_truth):
     else:
         user_config = None
 
-    local_loc_label = config.set_param(user_config, 'DETECTION IO', 'local_event_label', local_loc_label, 'string')
+    local_loc_label = config.get_param(user_config, 'DETECTION IO', 'local_event_label', local_loc_label, 'string')
 
     click.echo('\n' + "Data summary:")
     click.echo("  local_detect_label: " + str(local_loc_label))
@@ -742,8 +742,8 @@ def yield_plot(config_file, local_yld_label, figure_out):
     else:
         user_config = None
 
-    local_yld_label = config.set_param(user_config, 'DETECTION IO', 'local_yld_label', local_yld_label, 'string')
-    figure_out = config.set_param(user_config, 'DETECTION IO', 'figure_out', figure_out, 'string')
+    local_yld_label = config.get_param(user_config, 'DETECTION IO', 'local_yld_label', local_yld_label, 'string')
+    figure_out = config.get_param(user_config, 'DETECTION IO', 'figure_out', figure_out, 'string')
 
     click.echo('\n' + "Data summary:")
     click.echo("  local_yld_label: " + str(local_yld_label))

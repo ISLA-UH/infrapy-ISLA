@@ -53,20 +53,20 @@ def run_fd(config_file, local_fk, local_dets, window_len, p_value, min_duration,
 
     # Data IO parameters
     # use local ingestion for initial testing
-    local_fk = config.set_param(user_config, 'DETECTION IO', 'local_fk', local_fk, 'string')
-    local_dets = config.set_param(user_config, 'DETECTION IO', 'local_dets', local_dets, 'string')
+    local_fk = config.get_param(user_config, 'DETECTION IO', 'local_fk', local_fk, 'string')
+    local_dets = config.get_param(user_config, 'DETECTION IO', 'local_dets', local_dets, 'string')
 
     click.echo('\n' + "Data parameters:")
     click.echo("  local_fk: " + local_fk)
     click.echo("  local_dets: " + local_dets)
 
     # Algorithm parameters
-    window_len = config.set_param(user_config, 'FD', 'window_len', window_len, 'float')
-    p_value = config.set_param(user_config, 'FD', 'p_value', p_value, 'float')
-    min_duration = config.set_param(user_config, 'FD', 'min_duration', min_duration, 'float')
-    back_az_width = config.set_param(user_config, 'FD', 'back_az_width', back_az_width, 'float')
-    fixed_thresh = config.set_param(user_config, 'FD', 'fixed_thresh', fixed_thresh, 'float')
-    return_thresh = config.set_param(user_config, 'FD', 'return_thresh', return_thresh, 'bool')
+    window_len = config.get_param(user_config, 'FD', 'window_len', window_len, 'float')
+    p_value = config.get_param(user_config, 'FD', 'p_value', p_value, 'float')
+    min_duration = config.get_param(user_config, 'FD', 'min_duration', min_duration, 'float')
+    back_az_width = config.get_param(user_config, 'FD', 'back_az_width', back_az_width, 'float')
+    fixed_thresh = config.get_param(user_config, 'FD', 'fixed_thresh', fixed_thresh, 'float')
+    return_thresh = config.get_param(user_config, 'FD', 'return_thresh', return_thresh, 'bool')
 
     click.echo('\n' + "Algorithm arameters:")
     click.echo("  window_len: " + str(window_len))

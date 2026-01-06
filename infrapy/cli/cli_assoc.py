@@ -75,11 +75,11 @@ def run_assoc(config_file, local_detect_label, local_event_label, starttime, end
         user_config = None
 
     # Data IO parameters
-    local_detect_label = config.set_param(user_config, 'DETECTION IO', 'local_detect_label',
+    local_detect_label = config.get_param(user_config, 'DETECTION IO', 'local_detect_label',
                                           local_detect_label, 'string')
-    local_event_label = config.set_param(user_config, 'DETECTION IO', 'local_event_label', local_event_label, 'string')
-    starttime = config.set_param(user_config, 'DETECTION IO', 'starttime', starttime, 'string')
-    endtime = config.set_param(user_config, 'DETECTION IO', 'endtime', endtime, 'string')
+    local_event_label = config.get_param(user_config, 'DETECTION IO', 'local_event_label', local_event_label, 'string')
+    starttime = config.get_param(user_config, 'DETECTION IO', 'starttime', starttime, 'string')
+    endtime = config.get_param(user_config, 'DETECTION IO', 'endtime', endtime, 'string')
 
     # Data IO parameters
     click.echo('\n' + "Data summary:")
@@ -95,16 +95,16 @@ def run_assoc(config_file, local_detect_label, local_event_label, starttime, end
         return 0
 
     # Algorithm parameters
-    back_az_width = config.set_param(user_config, 'ASSOC', 'back_az_width', back_az_width, 'float')
-    range_max = config.set_param(user_config, 'ASSOC', 'range_max', range_max, 'float')
-    resolution = config.set_param(user_config, 'ASSOC', 'resolution', resolution, 'int')
-    distance_matrix_max = config.set_param(user_config, 'ASSOC', 'distance_matrix_max', distance_matrix_max, 'float')
-    cluster_linkage = config.set_param(user_config, 'ASSOC', 'cluster_linkage', cluster_linkage, 'string')
-    cluster_threshold = config.set_param(user_config, 'ASSOC', 'cluster_threshold', cluster_threshold, 'float')
-    trimming_threshold = config.set_param(user_config, 'ASSOC', 'trimming_threshold', trimming_threshold, 'float')
-    event_population_min = config.set_param(user_config, 'ASSOC', 'event_population_min', event_population_min, 'float')
-    event_station_min = config.set_param(user_config, 'ASSOC', 'event_station_min', event_station_min, 'float')
-    cpu_cnt = config.set_param(user_config, 'ASSOC', 'cpu_cnt', cpu_cnt, 'int')
+    back_az_width = config.get_param(user_config, 'ASSOC', 'back_az_width', back_az_width, 'float')
+    range_max = config.get_param(user_config, 'ASSOC', 'range_max', range_max, 'float')
+    resolution = config.get_param(user_config, 'ASSOC', 'resolution', resolution, 'int')
+    distance_matrix_max = config.get_param(user_config, 'ASSOC', 'distance_matrix_max', distance_matrix_max, 'float')
+    cluster_linkage = config.get_param(user_config, 'ASSOC', 'cluster_linkage', cluster_linkage, 'string')
+    cluster_threshold = config.get_param(user_config, 'ASSOC', 'cluster_threshold', cluster_threshold, 'float')
+    trimming_threshold = config.get_param(user_config, 'ASSOC', 'trimming_threshold', trimming_threshold, 'float')
+    event_population_min = config.get_param(user_config, 'ASSOC', 'event_population_min', event_population_min, 'float')
+    event_station_min = config.get_param(user_config, 'ASSOC', 'event_station_min', event_station_min, 'float')
+    cpu_cnt = config.get_param(user_config, 'ASSOC', 'cpu_cnt', cpu_cnt, 'int')
 
     click.echo('\n' + "Parameter summary:")
     click.echo("  back_az_width: " + str(back_az_width))
