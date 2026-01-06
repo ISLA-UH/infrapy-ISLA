@@ -2,22 +2,10 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 import tensorflow as tf
-import pickle
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 
-def masked_mse(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
-    """Mask out the -999 values (noise) for now"""
-    mask = tf.cast(tf.not_equal(y_true, -999), tf.float32)
-    error = tf.square(y_true - y_pred) * mask
-    return tf.reduce_sum(error) / (tf.reduce_sum(mask) + 1e-7)
-
-def scale_label(data: np.ndarray, d_min: float, d_max: float) -> np.ndarray:
-    """Normalize labels unless it is special case (-999)"""
-    scaled = (data - d_min) / (d_max - d_min + 1e-7)
-    return np.where(data == -999, -999, scaled)
-
-def build_ims_net(input_shape=(3, 64, 64, 10))-> tf.keras.Model:
+def build_ims_net(input_shape=(6, 64, 64, 10))-> tf.keras.Model:
     """
     Build the improved multiscale network (Not to be confused with infrasound monitoring system) for ConvLTSM structure
 
@@ -46,8 +34,8 @@ def build_ims_net(input_shape=(3, 64, 64, 10))-> tf.keras.Model:
     # Combine branches
     merged = layers.Concatenate()([b1, b2, b3])
 
-    # --- Final ConvLSTM for Spatio-Temporal Integration ---
-    x = layers.ConvLSTM2D(32, (3, 3), padding='same', return_sequences=False)(merged)
+    # Further Final ConvLSTM Layer
+    x = layers.ConvLSTM2D(64, (3, 3), padding='same', return_sequences=False)(merged)
     x = layers.BatchNormalization()(x)
     x = layers.Flatten()(x)
     
@@ -56,54 +44,34 @@ def build_ims_net(input_shape=(3, 64, 64, 10))-> tf.keras.Model:
     x = layers.Dropout(0.3)(x)
 
     # Outputs
-    # 1. Classification 
     out_class = layers.Dense(1, activation='sigmoid', name='class_out')(x)
-    
-    # 2. Back Azimuth Regression (Unused)
-    out_azimuth = layers.Dense(1, name='az_out')(x)
-    
-    # 3. Trace Velocity Regression (Unused)
-    out_vel = layers.Dense(1, name='vel_out')(x)
 
-    ret_model = models.Model(inputs=inputs, outputs=[out_class, out_azimuth, out_vel])
+    ret_model = models.Model(inputs=inputs, outputs=[out_class])
     return ret_model
 
 """
 Code Starts Here
 """
-
+path = 'sandbox\\gaf_classification\\training\\numpy\\'
 layers = tf.keras.layers
 models = tf.keras.models
 
-X_data = np.load('sandbox\\gaf_classification\\training\\numpy\\X_train_cwt_5D.npy')  # Data is X
-Y_labels = np.load('sandbox\\gaf_classification\\training\\numpy\\Y_train_cwt_labels.npy')  # Labels are Y
+X_data = np.load('training\\numpy\\X_train_cwt_5D.npy')  # Data is X
+Y_labels = np.load('training\\numpy\\Y_train_cwt_labels.npy')  # Labels are Y
 
 X_data = X_data.transpose(0, 1, 3, 4, 2) # Reshape data for ConvLTSM so read it more efficiently
 
-azimuths = Y_labels[:, 1]
-velocities = Y_labels[:, 2]
-az_min, az_max = azimuths[azimuths != -999].min(), azimuths[azimuths != -999].max()
-vel_min, vel_max = velocities[velocities != -999].min(), velocities[velocities != -999].max()
-
-print(f"Azimuth Range: {az_min} to {az_max}")
-print(f"Velocity Range: {vel_min} to {vel_max}")
-
-# Apply scaling to azimuth and velocity
-Y_scaled = np.copy(Y_labels)
-Y_scaled[:, 1] = scale_label(Y_scaled[:, 1], az_min, az_max)
-Y_scaled[:, 2] = scale_label(Y_scaled[:, 2], vel_min, vel_max)
-
-training_set = X_data[:1970]  # First 985 samples for training
-test_set = X_data[1970:]      # Remaining samples for testing
+training_set = X_data[:1400]   # 1400 samples for training. Tradeoff between training and test/validation size
+test_set = X_data[1400:]      # Remaining samples for testing (Limited test & validation data available.)
 
 
-training_labels = Y_scaled[:1970]
-test_labels = Y_scaled[1970:]
+training_labels = Y_labels[:1400]
+test_labels = Y_labels[1400:]
 
 X_train = training_set
 Y_train = training_labels
 all_indices = np.arange(len(X_data))
-test_indices = all_indices[1970:]
+test_indices = all_indices[1400:]
 
 
 # Split test set into test and validation sets
@@ -114,16 +82,12 @@ print(f"Train: {X_train.shape[0]}, Val: {X_val.shape[0]}, Test: {X_test.shape[0]
 #  Build and compile the model
 model = build_ims_net()
 model.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.00002),
     loss={
         'class_out': 'binary_crossentropy',
-        'az_out': masked_mse,    
-        'vel_out': masked_mse
     },
     loss_weights={
-        'class_out': 1.0,        
-        'az_out': 0.0,  # Azimuth and velocity losses are not weighted for now
-        'vel_out': 0.0  # Azimuth and velocity losses are not weighted for now        
+        'class_out': 1.0,
     },
     metrics={'class_out': 'accuracy'}
 )
@@ -131,7 +95,7 @@ model.compile(
 callbacks = [
     tf.keras.callbacks.EarlyStopping(
         monitor='val_loss', 
-        patience=8, 
+        patience=5, 
         restore_best_weights=True
     )
 ]
@@ -141,27 +105,25 @@ reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
 )
 
 checkpoint = tf.keras.callbacks.ModelCheckpoint(
-    'best_model.h5', 
-    monitor='val_class_out_accuracy', 
-    save_best_only=True, 
+    'best_model.h5',
+    monitor='val_class_out_accuracy',
+    save_best_only=True,
     mode='max'
 )
-
+print(Y_train[:, 0].shape)
+print(type(Y_train[:, 0]))
 history = model.fit(
     X_train, 
-    {'class_out': Y_train[:,0], 'az_out': Y_train[:,1], 'vel_out': Y_train[:,2]},
-    validation_data=(X_val, {'class_out': Y_val[:,0], 'az_out': Y_val[:,1], 'vel_out': Y_val[:,2]}),
+    Y_train[:, 0],
+    validation_data=(X_val, Y_val[:, 0]),
     epochs=50,
     batch_size=16,
-    
-    callbacks=[reduce_lr, checkpoint]  # Add this line
+    callbacks=[reduce_lr, checkpoint] 
 )
 
 model.load_weights('best_model.h5') 
 results = model.evaluate(X_test, {
-    'class_out': Y_test[:,0], 
-    'az_out': Y_test[:,1], 
-    'vel_out': Y_test[:,2]
+    'class_out': Y_test[:, 0]
 })
 
 print(f"Final Test Accuracy: {results[1]}")
@@ -173,9 +135,6 @@ y_true_class = Y_test[:, 0]
 
 print(confusion_matrix(y_true_class, y_pred_class))
 print(classification_report(y_true_class, y_pred_class))
-
-plt.plot(history.history['class_out_accuracy'], label='Train Accuracy')
-plt.plot(history.history['val_class_out_accuracy'], label='Val Accuracy')
 plt.title('Classification Accuracy - 64pt GAF')
 plt.legend()
 plt.show()
@@ -191,8 +150,8 @@ try:
     # Call your plotting function
     plot_error_samples(
         indices=fp_indices, 
-        title="False Positives: Noise called Signal", 
-        data_x=X_test, 
+        title="False Positives: Noise called Signal",
+        data_x=X_test,
         meta_indices=test_idx, # This is the map
         entries=all_entries    # This is the file cabinet
     )

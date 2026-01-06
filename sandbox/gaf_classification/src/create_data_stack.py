@@ -105,7 +105,7 @@ def create_gaf(csd_data: np.array, summation: bool = True, size: int = 64) -> np
     if len(csd_data[0]) != 64:
     
         csd_data = resample(csd_data, 64, axis=1)"""
-    gaf = GramianAngularField(image_size=size, method='summation' if summation else 'difference')
+    gaf = GramianAngularField(image_size=size, sample_range=(0, 1), method='summation' if summation else 'difference')
     csd_gafs = gaf.fit_transform(csd_data)
     return csd_gafs
 
@@ -166,7 +166,7 @@ Code Starts Here
 """
 
 
-path = "sandbox/gaf_classification/"
+path = "./"
 cl = Client("IRIS")
 with open(path+'training/json/merged_detections.json', 'r') as f:
     detections = json.load(f)
@@ -178,9 +178,11 @@ np.random.shuffle(all_entries)  #Shuffles signal/noise so event dates are mixed 
 
 X_data = []
 Y_labels = []
-window = 6.4
-stack_size = 3
-frame_step = window / (stack_size+1)
+window = 12.8
+stack_size = 6
+overlap = .25
+frame_length = window / (stack_size-(stack_size-1)*overlap)
+frame_step = frame_length / (stack_size * (1 - overlap))
 
 for num, entry in enumerate(all_entries):
     center_time = obspy.UTCDateTime(entry['Time (UTC)']+'Z')
@@ -202,7 +204,7 @@ for num, entry in enumerate(all_entries):
     num_versions = 10  # Data is limited so we augment using MVIDA to add in jitter
     v = 0
     while v < num_versions:
-        if num > 196:
+        if num > 139:
             # Testing and Validation data should not be augmented.
             v = num_versions-1
             current_strm = strm.copy()
@@ -211,24 +213,20 @@ for num, entry in enumerate(all_entries):
         else:
             current_strm = apply_mvida_to_stream(strm, strength=0.02)
 
-        frame = window / stack_size
         gaf_sequence = []
         for i in range(stack_size):
             # Because we are using this data for ConvLTSM we split the window into multiple frames to see how it changes over time/space
             t_start = s_time + (i * frame_step)
-            t_end = t_start + (frame_step * 2)
+            t_end = t_start + frame_length
             strm_window = current_strm.copy()
             strm_window.trim(starttime=t_start, endtime=t_end, pad=True, fill_value=0.0)
             csd = extract_csd(str=strm_window, nfft=128, cent_index=0)
-            gaf_data = create_gaf(csd_data=csd, summation=True, size = 64)
+            gaf_data = create_gaf(csd_data=csd, summation=False, size=64)
             
             raw_cwt = []
             for tr in strm_window:
-                # Obspy CWT returns (32, len(tr.data))
                 cwt_mag = create_cwt(raw_data=tr.data, freq_range=(1,8), num_freq=64)
                 
-                # Resize Time-axis (Length) to 32 to match GAF Width
-                # From (32, 64) -> (32, 32)
                 cwt_resized = cv2.resize(np.abs(cwt_mag), (64, 64))
                 
                 # Normalize CWT per channel (0 to 1) so it matches GAF scale
@@ -239,13 +237,13 @@ for num, entry in enumerate(all_entries):
             cwt_gaf = np.concatenate((raw_cwt, gaf_data), axis=0)
             gaf_sequence.append(cwt_gaf)
         X_data.append(np.array(gaf_sequence))
-        Y_labels.append([entry['Class'], entry.get('Back Azimuth'), entry.get('Trace Vel. (m/s)')])
+        Y_labels.append([entry['Class']])
         v += 1
     print(f"Processed entry {num+1}/{len(all_entries)}. Dataset size: {len(X_data)}")
-
+"""
 with open('sandbox\\gaf_classification\\training\\numpy\\all_entries.pkl', 'wb') as f:
     pickle.dump(all_entries, f)
-
+"""
 X_train = np.array(X_data)
 Y_train = np.array(Y_labels)
 
