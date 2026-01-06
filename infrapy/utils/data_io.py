@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import os
-from threading import local 
-import warnings 
+from threading import local
+from typing import Tuple
+import warnings
 import fnmatch
 import json
 import csv
@@ -12,12 +13,15 @@ import numpy as np
 from obspy.clients.fdsn import Client
 from obspy import read as obspy_read
 from obspy import UTCDateTime, read_inventory
+from obspy.core.stream import Stream
 
 from ..propagation import likelihoods as lklhds
 from . import database
 
-blank_sac_dict = {'delta': None, 'npts': None, 'depmin': None, 'depmax': None, 'depmen': None, 'b': 0.0, 'e': None, 'stla': None, 'stlo': None, 
-                  'nzyear': None, 'nzjday': None, 'nzhour': None, 'nzmin': None, 'nzsec': None, 'nzmsec': None, 'kstnm': None, 'kcmpnm': None, 'knetwk': None}
+blank_sac_dict = {'delta': None, 'npts': None, 'depmin': None, 'depmax': None, 'depmen': None, 'b': 0.0, 'e': None,
+                  'stla': None, 'stlo': None, 'nzyear': None, 'nzjday': None, 'nzhour': None, 'nzmin': None,
+                  'nzsec': None, 'nzmsec': None, 'kstnm': None, 'kcmpnm': None, 'knetwk': None}
+
 
 def stream_label(st):
     label = os.path.commonprefix([tr.stats.network for tr in st])
@@ -27,11 +31,11 @@ def stream_label(st):
 
     return label
 
-############################
-##     Data Ingestion     ##
-##         Methods        ##
-############################
 
+############################
+#      Data Ingestion      #
+#          Methods         #
+############################
 def wvfrms_from_fdsn(fdsn_opt, network, station, location, channel, starttime, endtime):
     """
     connect to an FDSN server to pull data
@@ -63,10 +67,12 @@ def wvfrms_from_fdsn(fdsn_opt, network, station, location, channel, starttime, e
     """
 
     client = Client(fdsn_opt)
-    stream = client.get_waveforms(network, station, location, channel, UTCDateTime(starttime), UTCDateTime(endtime), attach_response = True)
+    stream = client.get_waveforms(network, station, location, channel, UTCDateTime(starttime), UTCDateTime(endtime),
+                                  attach_response=True)
     stream.remove_response()
 
-    inventory = client.get_stations(network=network, station=station, starttime=UTCDateTime(starttime), endtime=UTCDateTime(endtime))
+    inventory = client.get_stations(network=network, station=station, starttime=UTCDateTime(starttime),
+                                    endtime=UTCDateTime(endtime))
     latlon = []
     for network in inventory:
         for station in network:
@@ -75,7 +81,8 @@ def wvfrms_from_fdsn(fdsn_opt, network, station, location, channel, starttime, e
     return stream, latlon
 
 
-def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, location=None, channel=None, starttime=None, endtime=None, local_latlon=None) -> Stream, np.ndarray:
+def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, location=None, channel=None, starttime=None,
+               endtime=None, local_latlon=None) -> Tuple[Stream, np.ndarray]:
     """
     Define an ObsPy stream from a specified local, FDSN, or database source.
     1) if specifying local data, use obspy.read to set up the stream
@@ -115,7 +122,8 @@ def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, locatio
 
     # check that only one option is selected and issue warning if multiple data sources are specified
     if np.sum(np.array([val is not None for val in [local_opt, fdsn_opt, db_info]])) > 1:
-        msg = '\n' + "Multiple data sources specified. Unexpected behavior is possible." + '\n' + "Priority order is [local > FDSN > DB]"
+        msg = "\nMultiple data sources specified. Unexpected behavior is possible." \
+              "\nPriority order is [local > FDSN > DB]"
         warnings.warn(msg)
 
     # Check data option and populate obspy Stream
@@ -134,7 +142,8 @@ def set_stream(local_opt, fdsn_opt, db_info, network=None, station=None, locatio
     elif db_info is not None:
         print('\n' + "Loading data from database...")
         session, db_tables = database.prep_session(db_info)
-        stream, latlon = database.wvfrms_from_db(session, db_tables, station, channel, UTCDateTime(starttime), UTCDateTime(endtime))
+        stream, latlon = database.wvfrms_from_db(session, db_tables, station, channel, UTCDateTime(starttime),
+                                                 UTCDateTime(endtime))
 
     else:
         msg = "Warning: No waveform data source specified."
@@ -153,16 +162,15 @@ def set_det_list(local_detect_label, merge=True) -> list:
     local_detect_label: str
         String denoting detection file(s) to be loaded for analysis
     merge: bool
-        Control for merging files into a single list (for event ID) or creating nested lists (for multiple localization analyses)
+        Control for merging files into a single list (for event ID) or creating nested lists (for multiple
+        localization analyses)
 
     Returns
     -------
     det_list : list
-        List containing infrapy.propagation.likelihoods.InfrasoundDetection instances for analysis; if merge=False, returns list of lists of detections
-
+        List containing infrapy.propagation.likelihoods.InfrasoundDetection instances for analysis; if merge=False,
+        returns list of lists of detections
     """
-
-
     if "*" not in local_detect_label:
         if "," not in local_detect_label:
             print("Loading detections from file: " + local_detect_label)
@@ -170,7 +178,7 @@ def set_det_list(local_detect_label, merge=True) -> list:
                 local_detect_label = local_detect_label + ".dets.json"
             det_list = json_to_detection_list(local_detect_label)
         else:
-            for file in local_detect_label.replace(" ","").split(","):
+            for file in local_detect_label.replace(" ", "").split(","):
                 if ".dets.json" not in file:
                     file = file + ".dets.json"
 
@@ -191,7 +199,7 @@ def set_det_list(local_detect_label, merge=True) -> list:
             dir_files = os.listdir(os.path.dirname(local_detect_label))
         else:
             dir_files = os.listdir(".")
-            
+
         for file in dir_files:
             if fnmatch.fnmatch(file, os.path.basename(local_detect_label)):
                 file_list += [file]
@@ -199,7 +207,7 @@ def set_det_list(local_detect_label, merge=True) -> list:
         if len(file_list) == 0:
             msg = '\n' + "Detection file(s) specified not found"
             warnings.warn(msg)
-            det_list = None 
+            det_list = None
         elif len(file_list) == 1:
             print("Loading detections from file: " + file_path + local_detect_label)
             det_list = [json_to_detection_list(file_path + local_detect_label)]
@@ -221,12 +229,13 @@ def set_det_list(local_detect_label, merge=True) -> list:
 
 
 ##########################
-##     Data Writing     ##
-##        Methods       ##
+#      Data Writing      #
+#         Methods        #
 ##########################
 def write_stream_to_sac(stream, latlon):
     """
-    Write info from an obspy.core.stream.Stream instance into local sac files with populated header info.  Defines the output label from the network, station, and start/end times of the stream
+    Write info from an obspy.core.stream.Stream instance into local sac files with populated header info.
+    Defines the output label from the network, station, and start/end times of the stream
 
     Parameters
     ----------
@@ -241,7 +250,7 @@ def write_stream_to_sac(stream, latlon):
         print("Warning!  Non-unique labels.  Adding indexing...")
         labels = [label + "-" + str(n) for n, label in enumerate(labels)]
 
-    sac_info = [blank_sac_dict] * len(stream)   
+    sac_info = [blank_sac_dict] * len(stream)
     for m, tr in enumerate(stream):
         sac_info[m]['delta'] = tr.stats.delta
         sac_info[m]['npts'] = tr.stats.npts
@@ -263,15 +272,17 @@ def write_stream_to_sac(stream, latlon):
         sac_info[m]['knetwk'] = tr.stats.network
         sac_info[m]['kstnm'] = tr.stats.station
         sac_info[m]['kcmpnm'] = tr.stats.channel
-        
+
         tr.stats.sac = sac_info[m]
 
         label = labels[m] + tr.stats.starttime.strftime('_%Y.%m.%d_%H.%M.%S')
 
-        tr.write(label + ".sac", format='SAC') 
+        tr.write(label + ".sac", format='SAC')
 
 
-def fk_header(stream, latlon, freq_min, freq_max, back_az_min, back_az_max, back_az_step, trace_vel_min, trace_vel_max, trace_vel_step, method, signal_start, signal_end, noise_start, noise_end, window_len, sub_window_len, window_step):
+def fk_header(stream, latlon, freq_min, freq_max, back_az_min, back_az_max, back_az_step, trace_vel_min, trace_vel_max,
+              trace_vel_step, method, signal_start, signal_end, noise_start, noise_end, window_len, sub_window_len,
+              window_step):
     """
     Write fk (beamforming) analysis parameter info into a header for output of results
 
@@ -315,12 +326,12 @@ def fk_header(stream, latlon, freq_min, freq_max, back_az_min, back_az_max, back
     -------
     header : str
         Header for numpy.savetxt output of fk results
-
     """
     header = "InfraPy Beamforming (fk) Results" + '\n'
     header = header + '\n' + "Data summary:" + '\n'
     for tr in stream:
-        header = header + "    " + tr.stats.network + "." + tr.stats.station + "." + tr.stats.location + "." + tr.stats.channel + '\t' + str(tr.stats.starttime) + " - " + str(tr.stats.endtime) + '\n'
+        header = header + "    " + tr.stats.network + "." + tr.stats.station + "." + tr.stats.location + "." \
+                 + tr.stats.channel + '\t' + str(tr.stats.starttime) + " - " + str(tr.stats.endtime) + '\n'
 
     header = header + '\n' + "  channel_cnt: " + str(len(stream)) + '\n'
 
@@ -356,15 +367,15 @@ def fk_header(stream, latlon, freq_min, freq_max, back_az_min, back_az_max, back
 
     header = header + '\n' + "Time (rel t0) [s]      Back Az [deg]	           Tr. Velocity [m/s]       F-stat"
 
-    return header 
+    return header
 
 
 def define_detection(det_info, array_loc, channel_cnt, freq_band, note=None, method=None):
     """
-    Write detection info from fd analysis into a infrapy.propagation.likelihoods.InfrasoundDetection instance for output into a [...].dets.json file
+    Write detection info from fd analysis into a infrapy.propagation.likelihoods.InfrasoundDetection instance for
+    output into a [...].dets.json file
 
     # I expanded the InfrasoundDetection constructor to include everything here, so maybe this is now redundant?
-
 
     Parameters
     ----------
@@ -383,18 +394,16 @@ def define_detection(det_info, array_loc, channel_cnt, freq_band, note=None, met
     -------
     detection : infrapy.propagation.likelihoods.InfrasoundDetection
         Detection info in expected format
-
     """
-
-    return lklhds.InfrasoundDetection(lat_loc=float(array_loc[0]), 
-                                      lon_loc=float(array_loc[1]), 
-                                      time=det_info[0], 
-                                      azimuth=np.round(det_info[3], 2), 
-                                      f_stat=np.round(det_info[5], 4), 
+    return lklhds.InfrasoundDetection(lat_loc=float(array_loc[0]),
+                                      lon_loc=float(array_loc[1]),
+                                      time=det_info[0],
+                                      azimuth=np.round(det_info[3], 2),
+                                      f_stat=np.round(det_info[5], 4),
                                       array_d=int(channel_cnt),
                                       f_range=freq_band,
                                       start_end=(det_info[1], det_info[2]),
-                                      traceV=np.round(det_info[4],2),
+                                      traceV=np.round(det_info[4], 2),
                                       note=note,
                                       method=method
                                       )
@@ -438,16 +447,14 @@ def write_json(results, output_path):
         Path for output file
 
     """
-
     with open(output_path, 'w') as of:
         json.dump(results, of, indent=4, cls=Infrapy_Encoder)
-
 
 
 def export_beam_results_to_csv(filename, time, f_stats, back_az, trace_v):
     """
     Export the results of the beamforming operation to a csv file for external analysis/plotting
-    
+
     # t, f_stats, back_az, and trace_v are all lists, and they must be the same length
 
     Parameters
@@ -462,14 +469,13 @@ def export_beam_results_to_csv(filename, time, f_stats, back_az, trace_v):
         Back azimuth values
     trace_v: iterable
         Trace velocity values
-
     """
-
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(["Datetime", "Fstat", "TraceV", "BackAz"])
         for t, fs, tv, ba in zip(time, f_stats, back_az, trace_v):
             writer.writerow([t, fs, tv, ba])
+
 
 def export_waveform_to_csv(filename, time, waveform_data):
     """
@@ -512,7 +518,8 @@ def file2dets(file_name):
     det_list = []
     input = np.genfromtxt(file_name, dtype=None)
     for line in input:
-        det_list += [lklhds.InfrasoundDetection(line[0], line[1], np.datetime64(line[2].astype(str)), line[3], line[4], line[5])]
+        det_list += [lklhds.InfrasoundDetection(line[0], line[1], np.datetime64(line[2].astype(str)), line[3], line[4],
+                                                line[5])]
 
     return det_list
 
@@ -548,8 +555,7 @@ def detection_list_to_json(filename, detections, stream_info=None):
     stream_info: list
         Network, station, and channel info
     """
-
-    if type(detections[0]) == lklhds.InfrasoundDetection:
+    if detections[0] is lklhds.InfrasoundDetection:
         output = []
         for entry in detections:
             output.append(entry.generateDict())
@@ -579,7 +585,6 @@ def json_to_detection_list(filename):
     filename: str
         Path for file
     """
-
     detection_list = []
     with open(filename, 'r') as infile:
         newdata = json.load(infile)
@@ -606,6 +611,7 @@ def db2dets(file_name):
     """
     det_list = []
     for line in file_name:
-        det_list += [lklhds.InfrasoundDetection(line[0], line[1], np.datetime64(UTCDateTime(line[2])), line[3], line[4], line[5])]
+        det_list += [lklhds.InfrasoundDetection(line[0], line[1], np.datetime64(UTCDateTime(line[2])), line[3],
+                                                line[4], line[5])]
 
     return det_list
