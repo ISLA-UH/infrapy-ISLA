@@ -555,7 +555,7 @@ def detection_list_to_json(filename, detections, stream_info=None):
     stream_info: list
         Network, station, and channel info
     """
-    if detections[0] is lklhds.InfrasoundDetection:
+    if isinstance(detections[0], lklhds.InfrasoundDetection):
         output = []
         for entry in detections:
             output.append(entry.generateDict())
