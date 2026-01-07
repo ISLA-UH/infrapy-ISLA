@@ -34,14 +34,15 @@ def get_param(user_config: Optional[cnfg.ConfigParser], section: str, param: str
                 return None
         except Exception:
             pass
-    # use default values if no CLI and no user config
-    try:
-        if defaults[section][param] == "None":
+    else:
+        # use default values if no CLI and no user config
+        try:
+            if defaults[section][param] == "None":
+                return None
+            else:
+                cfg = defaults
+        except Exception:
             return None
-        else:
-            cfg = defaults
-    except Exception:
-        return None
 
     if format == 'float':
         return float(cfg[section][param])
