@@ -19,13 +19,12 @@ from infrapy.utils import data_io
 
 
 # User defined variables
-user_config = configparser.ConfigParser()
+USER_CONFIG = configparser.ConfigParser()
 root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
-user_config.read(os.path.join(root_path, 'config', 'example.ini'))
+USER_CONFIG.read(os.path.join(root_path, 'config', 'example.ini'))
 # use bool if only 2 values, otherwise keep as int
 wf_client = 0  # Flag to pull data from IRIS (0) or seedlink (1) NOTE: If 1 ensure WiFi is ISLA_CF_5g
 real_time = 0  # Flag to for static time frame (0) or real-time processing (1)
-LOCAL_SEEDLINK = "192.168.112.200"
 nrt_stime = obspy.UTCDateTime("2025-12-10T18:30:00.000000Z")
 end_time = obspy.UTCDateTime("2026-01-01T19:30:00.000000Z")
 sig_length = 600
@@ -105,9 +104,8 @@ if __name__ == "__main__":
     and save detections and raw data to specified directories. Please update them to match the intended directories.
     """
     # Generate Noise and Get Inventory
-
-    #Try to load inventory from XML file first
     inventory = None
+    # Try to load inventory from XML file first
     try:
         # Blueprints for adding xml file, needs to be updated with correct file path
         inv_file = os.path.join(root_path, 'config', 'I59US_station.xml')
@@ -209,7 +207,8 @@ if __name__ == "__main__":
                 pass
             # Adding event params
             t1 = obspy.UTCDateTime() - (sig_length*1.2) if (real_time) else nrt_stime + (i * (sig_length*.8))
-            t2 = obspy.UTCDateTime() - (sig_length*0.2) if (real_time) else nrt_stime + (i * (sig_length*.8)) + sig_length
+            t2 = obspy.UTCDateTime() - (sig_length*0.2) if (real_time) \
+                else nrt_stime + (i * (sig_length*.8)) + sig_length
             stop_time = t2
             # Get waveforms from IRIS or seedlink
             try:
@@ -409,12 +408,13 @@ if __name__ == "__main__":
             if real_time:
                 T = time.time() - stop_watch
                 print(
-                    f"Sleeping for {(sig_length*.85) - T} seconds until {obspy.UTCDateTime() + ((sig_length*.85) - T) - 36000} (HST)"
+                    f"Sleeping for {(sig_length*.85) - T} seconds until "
+                    f"{obspy.UTCDateTime() + ((sig_length*.85) - T) - 36000} (HST)"
                 )
                 time.sleep((sig_length*.85) - T)
         except Exception as e:
             # Print to output any errors and continue to next time window
-            print(f"{obspy.UTCDateTime()}Error in detection processing: {e}")
+            print(f"{obspy.UTCDateTime()}: Error in detection processing: {e}")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         i += 1
     # end while loop
