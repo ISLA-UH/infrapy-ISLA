@@ -7,6 +7,8 @@ from obspy.clients.seedlink import Client as Client_seedlink
 import numpy as np
 import time
 import json
+import logging
+import traceback
 # InfraPy imports
 from infrapy.utils import data_io
 from infrapy.detection import beamforming_new as fkd
@@ -15,16 +17,23 @@ from infrapy.utils import config as infraconfig
 
 # User defined variables
 user_config = configparser.ConfigParser()
-current_dir = os.getcwd()
-print(current_dir)
-dir_path = "\\sandbox\\automated_detection"
-user_config.read(f"{current_dir}{dir_path}\\config\\example.ini")
+root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
+user_config.read(os.path.join(root_path, 'config', 'example.ini'))
 wf_client = 0  # Flag to pull data from IRIS (0) or seedlink (1) NOTE: If 1 ensure WiFi is ISLA_CF_5g
 real_time = 0  # Flag to for static time frame (0) or real-time processing (1)
 LOCAL_SEEDLINK = "192.168.112.200"
-nrt_stime = obspy.UTCDateTime("2025-12-10T18:30:00.000000Z")
-nrt_etime = obspy.UTCDateTime("2026-01-01T19:30:00.000000Z")
-
+client = Client("IRIS")
+seed = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180)
+nrt_stime = obspy.UTCDateTime("2025-10-23T11:50:00.000000Z")
+nrt_etime = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
+sig_length = 600
+logging.basicConfig(
+    filename="error.log",
+    filemode="a",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.ERROR
+)
 
 if __name__ == "__main__":
     """
@@ -74,12 +83,13 @@ if __name__ == "__main__":
         "location": "",
         "channel": "BDF",
         "start_time": (
-            nrt_stime-480
+            obspy.UTCDateTime() - (sig_length*1.2) if (real_time) else nrt_stime - 480
         ),
         "end_time": (
-            nrt_stime
+            obspy.UTCDateTime() - (sig_length*0.2) if (real_time) else nrt_stime
         ),
     }
+
     name = EVENT_CONFIG["name"]
     network = EVENT_CONFIG["network"]
     station = EVENT_CONFIG["station"]
@@ -89,15 +99,16 @@ if __name__ == "__main__":
     t2 = EVENT_CONFIG["end_time"]
     #Try to load inventory from XML file first
     inventory = None
-    if 0:
+    try:
         # Blueprints for adding xml file, needs to be updated with correct file path
-        inv_file = dir_path+f"{network}_{station}_inventory.xml",
+        inv_file = os.path.join(root_path, 'config', 'I59US_station.xml')
         inventory = obspy.read_inventory(inv_file)
         print(f"Loaded inventory from {inv_file}")
-    else:
+    except Exception as e:
         # If no XML file load from IRIS
+        print(f"could not load from .xml file Exception: {e}")
+        logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         try:
-            client = Client("IRIS")
             inventory = client.get_stations(
                 network=network,
                 station=station,
@@ -108,15 +119,12 @@ if __name__ == "__main__":
                 level="response",
             )
         except Exception as e:
-            print(
-                f"Error {e} fetching data from FDSN client. Please check network/station codes and time range. "
-
-            )
+            print(f"Error {e} fetching data from FDSN client. Please check network/station codes and time range.")
+            logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             sys.exit(1)
     # Get Noise
     print("Fetching baseline noise data")
     if wf_client:
-        seed = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180)
         n_stream = seed.get_waveforms(
             network=network,
             location=location,
@@ -163,39 +171,42 @@ if __name__ == "__main__":
     n_x, n_t, n_t0, geom = fkd.stream_to_array_data(n_stream, latlon=latlon)
     slowness = fkd.build_slowness(back_az_vals, trc_vel_vals)
     delays = fkd.compute_delays(geom, slowness)
-    thresh = fkd.adjust_thresh_noise(
-        (n_x, n_t, n_t0, geom),
-        window_len,
-        sub_window_len,
-        480,
-        window_step,
-        freq_min,
-        freq_max,
-        method,
-        back_az_vals,
-        trc_vel_vals,
-        delays,
-        p_value,
-        TB_prod,
-    )
+    if (not fixed_thresh):
+        thresh = fkd.adjust_thresh_noise(
+            (n_x, n_t, n_t0, geom),
+            window_len,
+            sub_window_len,
+            (sig_length*.8),
+            window_step,
+            freq_min,
+            freq_max,
+            method,
+            back_az_vals,
+            trc_vel_vals,
+            delays,
+            p_value,
+            TB_prod,
+        )
+    else:
+        thresh = fixed_thresh
     prev_thresh = 0
     new_thresh = 0
     dets = 0
     i = 0
+    stop_time = t1
     # Currently using while loop for simplicity, ideally would be updated with a start/stop callback to interrupt
-
-    while True:
+    while stop_time < nrt_etime:
         try:
             stop_watch = time.time()
             if (not dets):
                 noise_start = t1
-                noise_end = t1 + 480
+                noise_end = t1 + (sig_length*.8)
             else:
                 pass
             # Adding event params
-            t1 = obspy.UTCDateTime() - 720 if (real_time) else nrt_stime + (i * 480)
-            t2 = obspy.UTCDateTime() - 120 if (real_time) else nrt_stime + (i * 480) + 600
-
+            t1 = obspy.UTCDateTime() - (sig_length*1.2) if (real_time) else nrt_stime + (i * (sig_length*.8))
+            t2 = obspy.UTCDateTime() - (sig_length*0.2) if (real_time) else nrt_stime + (i * (sig_length*.8)) + sig_length
+            stop_time = t2
             # Get waveforms from IRIS or seedlink
             try:
                 if wf_client:
@@ -228,6 +239,7 @@ if __name__ == "__main__":
                         print("Data Found on IRIS")
             except Exception as e:
                 print(f"Error fetching data. Exception: {e}")
+                logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
                 i += 1
                 continue
 
@@ -268,7 +280,6 @@ if __name__ == "__main__":
             # Run detection
             print("Running FD detection")
             # Compute noise _fstat for detection auto threshold ; IPBeamformingWidget.py lines 1402 -> 1449
-            TB_prod = (freq_max - freq_min) * window_len
             if fixed_thresh:
                 thresh = fixed_thresh
             else:
@@ -309,7 +320,7 @@ if __name__ == "__main__":
 
             # Save detections
             if len(det_list) > 0:
-                det_fpath = f"{current_dir}{dir_path}\\results\\" + t1.strftime("%Y/%m/%d/")
+                det_fpath = os.path.join(root_path, 'results', t1.strftime("%Y/%m/%d/"))
                 try:
                     if not os.path.isdir(det_fpath):
                         print("Making New Folder")
@@ -317,13 +328,14 @@ if __name__ == "__main__":
                     else:
                         pass
                 except Exception as e:
+                    logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
                     print(f"Error making folder, please investigate issues: {e}")
-                    det_fpath = f"{current_dir}{dir_path}\\results\\bin\\"
-                det_out = det_fpath + str_name + "_detections.json"
+                    det_fpath = os.path.join(root_path, 'results', 'bin')
+                det_out = os.path.join(det_fpath, f"{str_name}_detections.json")
                 dets = 1
                 prev_thresh = thresh
                 print(
-                    f"  Found {len(det_list)} detections, writing to {det_out}\nNew Threshold: {prev_thresh}"
+                    f"  Found {len(det_list)} detections, writing to {det_out} ; New Threshold: {prev_thresh}"
                 )
                 str_info = [
                     strm[0].stats.network,
@@ -386,7 +398,7 @@ if __name__ == "__main__":
                     (x, t, t0, geom),
                     window_len,
                     sub_window_len,
-                    480,
+                    (sig_length*.8),
                     window_step,
                     freq_min,
                     freq_max,
@@ -400,12 +412,13 @@ if __name__ == "__main__":
             if real_time:
                 T = time.time() - stop_watch
                 print(
-                    f"Sleeping for {510 - T} seconds until {obspy.UTCDateTime() + (510 - T) - 36000} (HST)"
+                    f"Sleeping for {(sig_length*.85) - T} seconds until {obspy.UTCDateTime() + ((sig_length*.85) - T) - 36000} (HST)"
                 )
-                time.sleep(510 - T)
+                time.sleep((sig_length*.85) - T)
             i += 1
         except Exception as e:
             # Print to output any errors and continue to next time window
             print(f"Error in detection processing: {e} at time: {obspy.UTCDateTime()}")
+            logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             i += 1
             continue
