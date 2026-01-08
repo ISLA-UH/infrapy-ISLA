@@ -25,10 +25,10 @@ LOCAL_SEEDLINK = "192.168.112.200"
 client = Client("IRIS")
 seed = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180)
 nrt_stime = obspy.UTCDateTime("2025-10-23T11:50:00.000000Z")
-nrt_etime = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
+end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
 sig_length = 600
 logging.basicConfig(
-    filename="error.log",
+    filename=os.path.join(root_path, 'results', 'bin', "error.log"),
     filemode="a",
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     i = 0
     stop_time = t1
     # Currently using while loop for simplicity, ideally would be updated with a start/stop callback to interrupt
-    while stop_time < nrt_etime:
+    while stop_time < end_time:
         try:
             stop_watch = time.time()
             if (not dets):
@@ -418,7 +418,7 @@ if __name__ == "__main__":
             i += 1
         except Exception as e:
             # Print to output any errors and continue to next time window
-            print(f"Error in detection processing: {e} at time: {obspy.UTCDateTime()}")
+            print(f"{obspy.UTCDateTime()}Error in detection processing: {e}")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             i += 1
             continue
