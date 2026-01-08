@@ -4,7 +4,7 @@ import configparser as cnfg
 
 from click.utils import echo
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 # Set up default configuation
 defaults = cnfg.ConfigParser()
@@ -12,7 +12,7 @@ defaults.read(str(Path(__file__).parent.parent / "resources" / "default.config")
 
 
 def get_param(user_config: Optional[cnfg.ConfigParser], section: str, param: str,
-              cli_val: Optional[str], format: str = 'float'):
+              cli_val: Optional[str], format: str = 'float') -> Union[float, int, bool, str, None]:
     """
     get a parameter in the user config
 
