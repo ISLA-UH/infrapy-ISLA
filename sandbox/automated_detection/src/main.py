@@ -9,6 +9,7 @@ import time
 import json
 import logging
 import traceback
+from urllib.error import URLError
 # InfraPy imports
 from infrapy.utils import data_io
 from infrapy.detection import beamforming_new as fkd
@@ -24,9 +25,9 @@ if wf_client:
     client = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180)
 else:
     client = Client("IRIS")
-
+num_elements = 4
 real_time = False  # Flag to for static time frame (False) or real-time processing (True)
-nrt_stime = obspy.UTCDateTime("2025-10-31T11:58:00.000000Z")
+nrt_stime = obspy.UTCDateTime("2025-11-21T14:24:00.000000Z")
 end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
 sig_len_secs = 600  # Seconds
 overlap_perc = 0.2  # Fractional overlap between time windows
@@ -37,6 +38,22 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.ERROR
 )
+
+# Define Event Parameters
+EVENT_CONFIG = {
+    "name": "auto_infrapy_test",
+    "network": "IM",
+    "station": "I59*",
+    "location": "",
+    "channel": "BDF",
+    "start_time": (
+        obspy.UTCDateTime() - ((2 * sig_len_secs) + 120) if (real_time) else nrt_stime -
+            (sig_len_secs * (1 - overlap_perc))
+    ),
+    "end_time": (
+        obspy.UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime
+    ),
+}
 
 if __name__ == "__main__":
     """
@@ -71,22 +88,6 @@ if __name__ == "__main__":
     return_thresh = infraconfig.get_param(user_config, "FD", "return_thresh", None, "bool")
     merge_dets = infraconfig.get_param(user_config, "FD", "merge_dets", None, "bool")
 
-    # Define Event Parameters
-    EVENT_CONFIG = {
-        "name": "auto_infrapy_test",
-        "network": "IM",
-        "station": "I59*",
-        "location": "",
-        "channel": "BDF",
-        "start_time": (
-            obspy.UTCDateTime() - ((2 * sig_len_secs) + 120) if (real_time) else nrt_stime -
-                (sig_len_secs * (1 - overlap_perc))
-        ),
-        "end_time": (
-            obspy.UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime
-        ),
-    }
-
     name = EVENT_CONFIG["name"]
     network = EVENT_CONFIG["network"]
     station = EVENT_CONFIG["station"]
@@ -106,7 +107,7 @@ if __name__ == "__main__":
         print(f"could not load from .xml file Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         try:
-            inventory = client.get_stations(
+            inventory = Client("IRIS").get_stations(
                 network=network,
                 station=station,
                 location=location,
@@ -210,10 +211,15 @@ if __name__ == "__main__":
                     endtime=t2,
                 )
                 print(f"Fetched {len(g_stream)} traces from {network}.{station}.")
-                if (not len(g_stream)):
-                    print("Error fetching waveforms. Moving onto next iteration")
+                if (len(g_stream) < num_elements):
+                    print(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {num_elements}.")
                     i += 1
                     continue
+            except URLError as e:
+                print(f"Network error fetching data (URLError): {e.reason}")
+                logging.error(f"URLError: {e.reason}")
+                i += 1
+                continue
             except Exception as e:
                 print(f"Error fetching data. Exception: {e}")
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
