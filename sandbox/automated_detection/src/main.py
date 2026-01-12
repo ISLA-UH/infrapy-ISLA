@@ -6,6 +6,7 @@ import time
 
 import numpy as np
 import obspy
+from obspy import UTCDateTime
 from obspy.clients.fdsn import Client
 from obspy.clients.seedlink import Client as Client_seedlink
 
@@ -19,9 +20,12 @@ from infrapy.utils import data_io
 
 # User defined variables
 USER_CONFIG = configparser.ConfigParser()
-root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
-USER_CONFIG.read(os.path.join(root_path, 'config', 'example.ini'))
-# use bool if only 2 values, otherwise keep as int
+root_path = os.path.join(os.getcwd())
+config_path = os.path.join(root_path, 'config', 'example.ini')
+if not os.path.exists(config_path):
+    print(f"Config file not found, check for file at {config_path}")
+    exit(1)
+USER_CONFIG.read(config_path)
 wf_client = 0  # Flag to pull data from IRIS (0) or seedlink (1) NOTE: If 1 ensure WiFi is ISLA_CF_5g
 if wf_client:
     LOCAL_SEEDLINK = "192.168.112.200"
@@ -80,10 +84,22 @@ if __name__ == "__main__":
     trace_vel_max: float = infraconfig.get_param(USER_CONFIG, "FK", "trace_vel_max", None, "float")    # type: ignore
     trace_vel_step: float = infraconfig.get_param(USER_CONFIG, "FK", "trace_vel_step", None, "float")  # type: ignore
     method: str = infraconfig.get_param(USER_CONFIG, "FK", "method", None, "string")                   # type: ignore
-    signal_start: str = infraconfig.get_param(USER_CONFIG, "FK", "signal_start", None, "string")       # type: ignore
-    signal_end: str = infraconfig.get_param(USER_CONFIG, "FK", "signal_end", None, "string")           # type: ignore
-    noise_start: str = infraconfig.get_param(USER_CONFIG, "FK", "noise_start", None, "string")         # type: ignore
-    noise_end: str = infraconfig.get_param(USER_CONFIG, "FK", "noise_end", None, "string")             # type: ignore
+    signal_start: UTCDateTime = UTCDateTime(0)
+    t = infraconfig.get_param(USER_CONFIG, "FK", "signal_start", None, "string")                       # type: ignore
+    if t is not None:
+        signal_start = obspy.UTCDateTime(t)
+    signal_end: UTCDateTime = UTCDateTime(0)
+    t = infraconfig.get_param(USER_CONFIG, "FK", "signal_end", None, "string")                         # type: ignore
+    if t is not None:
+        signal_end = obspy.UTCDateTime(t)
+    noise_start: UTCDateTime = UTCDateTime(0)
+    t = infraconfig.get_param(USER_CONFIG, "FK", "noise_start", None, "string")                        # type: ignore
+    if t is not None:
+        noise_start = obspy.UTCDateTime(t)
+    noise_end: UTCDateTime = UTCDateTime(0)
+    t = infraconfig.get_param(USER_CONFIG, "FK", "noise_end", None, "string")                          # type: ignore
+    if t is not None:
+        noise_end = obspy.UTCDateTime(t)
     window_len: float = infraconfig.get_param(USER_CONFIG, "FK", "window_len", None, "float")          # type: ignore
     sub_window_len: float = infraconfig.get_param(USER_CONFIG, "FK", "sub_window_len", None, "float")  # type: ignore
     window_step: float = infraconfig.get_param(USER_CONFIG, "FK", "window_step", None, "float")        # type: ignore
@@ -160,12 +176,11 @@ if __name__ == "__main__":
         latlon.append((coords["latitude"], coords["longitude"]))
         print(tr.stats.starttime, tr.stats.station)
     print(f"Fetched {len(n_stream)} traces from {NETWORK}.{STATION}.")
-
     # Calculate array geometry and dependencies
-    array_lat = [np.mean(lc[0] for lc in latlon)]
-    array_lon = [np.mean(lc[1] for lc in latlon)]
-    # centroid = np.mean([lat for lat, lon in latlon]), np.mean([lon for lat, lon in latlon]))
-    # array_lat, array_lon = centroid
+    # array_lat = [np.mean(lc[0] for lc in latlon)]
+    # array_lon = [np.mean(lc[1] for lc in latlon)]
+    centroid = np.mean([lat for lat, lon in latlon]), np.mean([lon for lat, lon in latlon])
+    array_lat, array_lon = centroid
     TB_prod = (freq_max - freq_min) * window_len
     back_az_vals = np.arange(back_az_min, back_az_max, back_az_step)
     trc_vel_vals = np.arange(trace_vel_min, trace_vel_max, trace_vel_step)
