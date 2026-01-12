@@ -227,181 +227,177 @@ if __name__ == "__main__":
                     print("Error fetching waveforms. Moving onto next iteration")
                     i += 1
                     continue
+                str_name = f"{EVENT_NAME}_{t1.strftime('%Y%m%d_%H%M%S')}"
+                print(f"Iteration {i}")
+
+                # Begin beamforming on stream
+                strm = g_stream.copy()
+                x, t, t0, _ = fkd.stream_to_array_data(strm, latlon=latlon)
+                M, N = x.shape
+                print(f"Running {method} beamforming from {t1} to {t2}")
+                beam_times, beam_peaks, beam_power = fkd.auto_run_bf(
+                    0,
+                    t2 - t1,
+                    freq_band=[freq_min, freq_max],
+                    window_len=window_len,
+                    sub_window_len=sub_window_len,
+                    window_step=window_step,
+                    method=method,
+                    back_az_vals=back_az_vals,
+                    trc_vel_vals=trc_vel_vals,
+                    array_data=(x, t, t0, geom),
+                    delays=delays,
+                )
+
+                # Determine threshold; if not fixed adjust threshold based on previous detections
+                if fixed_thresh:
+                    thresh = fixed_thresh
+                else:
+                    # If detections were found thresh will be the same as previous valid fstat thresh. If not recompute
+                    print("Adjusting threshold based on noise")
+                    if dets_found:
+                        thresh = prev_thresh
+                    else:
+                        thresh = new_thresh
+
+                # Run detection
+                print(f"Running FD detection from {t1} to {t2}\nNoise Window: {noise_start} to {noise_end}")
+                min_seq = int(max(2, min_duration / (window_step)))
+                det_results = fkd.run_fd(
+                    beam_times,
+                    beam_peaks,
+                    window_len,
+                    int(TB_prod),
+                    len(strm),
+                    p_value,
+                    min_seq,
+                    back_az_width,
+                    thresh,
+                    thresh_ceil,
+                    return_thresh,
+                    merge_dets,
+                )
+                det_list = []
+                for det_info in det_results[0]:
+                    det = data_io.define_detection(
+                        det_info,
+                        [array_lat, array_lon],
+                        len(strm),
+                        [freq_min, freq_max],
+                        note="Automated run",
+                        method=method,
+                    )
+                    det_list.append(det)
+                print("Detection Complete")
+
+                # Save detections
+                if len(det_list) > 0:
+                    det_fpath = os.path.join(root_path, 'results', t1.strftime("%Y/%m/%d/"))
+                    try:
+                        if not os.path.isdir(det_fpath):
+                            print("Making New Folder")
+                            os.makedirs(det_fpath, exist_ok=True)
+                    except Exception as e:
+                        logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+                        print(f"Error making folder, please investigate issues: {e}")
+                        det_fpath = os.path.join(root_path, 'results', 'bin')
+                    det_out = os.path.join(det_fpath, f"{str_name}_detections.json")
+                    dets_found = True
+                    prev_thresh = thresh
+                    print(
+                        f"Found {len(det_list)} detections, writing to {det_out} ; New Threshold: {prev_thresh}"
+                    )
+                    str_info = [
+                        strm[0].stats.network,
+                        f"{strm[0].stats.station}-{strm[-1].stats.station}",
+                        strm[0].stats.channel,
+                    ]
+                    data_io.detection_list_to_json(det_out, det_list, str_info)
+                    with open(det_out, "r") as f:
+                        dets_data = json.load(f)
+                    for det in dets_data:
+                        det["Name"] = str_name
+                        det["Latitude"] = array_lat
+                        det["Longitude"] = array_lon
+                        det["Signal"] = f"{t1} to {t2}"
+                        det["Noise"] = f"{noise_start} to {noise_end}"
+                        det["F-Stat Threshold"] = thresh
+
+                    with open(det_out, "w") as f:
+                        json.dump(dets_data, f, indent=4)
+
+                    # If there is a detection save off all raw data
+                    dt = np.array(
+                        [
+                            (tn - np.datetime64(strm[0].stats.starttime))
+                            .astype("m8[ms]")
+                            .astype(float)
+                            * 1.0e-3
+                            for tn in beam_times
+                        ]
+                    )
+                    raw_data = np.hstack((np.atleast_2d(dt).T, beam_peaks))
+                    rd_header = data_io.fk_header(
+                        strm,
+                        latlon,
+                        freq_min,
+                        freq_max,
+                        back_az_min,
+                        back_az_max,
+                        back_az_step,
+                        trace_vel_min,
+                        trace_vel_max,
+                        trace_vel_step,
+                        method,
+                        t1,
+                        t2,
+                        noise_start,
+                        noise_end,
+                        window_len,
+                        sub_window_len,
+                        window_step,
+                    )
+
+                    rd_out = os.path.join(det_fpath, f"{str_name}_raw_data.txt")
+                    np.savetxt(rd_out, raw_data, header=rd_header)
+                    print(f"  Wrote FK results to {rd_out}")
+                else:
+                    print("No detections found")
+                    dets_found = False
+                    if (not fixed_thresh):
+                        print("Recalculating threshold based on noise")
+                        new_thresh = fkd.adjust_thresh_noise(
+                            (x, t, t0, geom),
+                            window_len,
+                            sub_window_len,
+                            (sig_len_secs * (1 - overlap_perc)),
+                            window_step,
+                            freq_min,
+                            freq_max,
+                            method,
+                            back_az_vals,
+                            trc_vel_vals,
+                            delays,
+                            p_value,
+                            TB_prod,
+                        )
+                        print(f"New Threshold: {new_thresh}")
+                    else:
+                        new_thresh = fixed_thresh
+                if real_time:
+                    T = time.time() - stop_watch
+                    print(
+                        f"Sleeping for {(sig_len_secs * (1 - overlap_perc)) - T} seconds until "
+                        f"{obspy.UTCDateTime() + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
+                    )
+                    time.sleep((sig_len_secs * (1 - overlap_perc)) - T)
             except Exception as e:
                 print(f"Error fetching data. Exception: {e}")
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-                i += 1
-                continue
-            str_name = EVENT_NAME + "_" + t1.strftime("%Y%m%d_%H%M%S")
-            print(f"Iteration {i}")
-
-            # Begin beamforming on stream
-            strm = g_stream.copy()
-            x, t, t0, _ = fkd.stream_to_array_data(strm, latlon=latlon)
-            M, N = x.shape
-            print(f"Running {method} beamforming from {t1} to {t2}")
-            beam_times, beam_peaks, beam_power = fkd.auto_run_bf(
-                0,
-                t2 - t1,
-                freq_band=[freq_min, freq_max],
-                window_len=window_len,
-                sub_window_len=sub_window_len,
-                window_step=window_step,
-                method=method,
-                back_az_vals=back_az_vals,
-                trc_vel_vals=trc_vel_vals,
-                array_data=(x, t, t0, geom),
-                delays=delays,
-            )
-
-            # Determine threshold; if not fixed adjust threshold based on previous detections
-            if fixed_thresh:
-                thresh = fixed_thresh
-            else:
-                # If detections were found thresh will be the same as previous valid fstat threshold. If not recompute
-                print("Adjusting threshold based on noise")
-                if dets_found:
-                    thresh = prev_thresh
-                else:
-                    thresh = new_thresh
-            
-            # Run detection
-            print(f"Running FD detection from {t1} to {t2}\nNoise Window: {noise_start} to {noise_end}")
-            min_seq = int(max(2, min_duration / (window_step)))
-            det_results = fkd.run_fd(
-                beam_times,
-                beam_peaks,
-                window_len,
-                int(TB_prod),
-                len(strm),
-                p_value,
-                min_seq,
-                back_az_width,
-                thresh,
-                thresh_ceil,
-                return_thresh,
-                merge_dets,
-            )
-            det_list = []
-            for det_info in det_results[0]:
-                det = data_io.define_detection(
-                    det_info,
-                    [array_lat, array_lon],
-                    len(strm),
-                    [freq_min, freq_max],
-                    note="Automated run",
-                    method=method,
-                )
-                det_list.append(det)
-            print("Detection Complete")
-
-            # Save detections
-            if len(det_list) > 0:
-                det_fpath = os.path.join(root_path, 'results', t1.strftime("%Y/%m/%d/"))
-                try:
-                    if not os.path.isdir(det_fpath):
-                        print("Making New Folder")
-                        os.makedirs(det_fpath, exist_ok=True)
-                except Exception as e:
-                    logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-                    print(f"Error making folder, please investigate issues: {e}")
-                    det_fpath = os.path.join(root_path, 'results', 'bin')
-                det_out = os.path.join(det_fpath, f"{str_name}_detections.json")
-                dets_found = True
-                prev_thresh = thresh
-                print(
-                    f"Found {len(det_list)} detections, writing to {det_out} ; New Threshold: {prev_thresh}"
-                )
-                str_info = [
-                    strm[0].stats.network,
-                    f"{strm[0].stats.station}-{strm[-1].stats.station}",
-                    strm[0].stats.channel,
-                ]
-                data_io.detection_list_to_json(det_out, det_list, str_info)
-                with open(det_out, "r") as f:
-                    dets_data = json.load(f)
-                for det in dets_data:
-                    det["Name"] = str_name
-                    det["Latitude"] = array_lat
-                    det["Longitude"] = array_lon
-                    det["Signal"] = f"{t1} to {t2}"
-                    det["Noise"] = f"{noise_start} to {noise_end}"
-                    det["F-Stat Threshold"] = thresh
-
-                with open(det_out, "w") as f:
-                    json.dump(dets_data, f, indent=4)
-
-                # If there is a detection save off all raw data
-                dt = np.array(
-                    [
-                        (tn - np.datetime64(strm[0].stats.starttime))
-                        .astype("m8[ms]")
-                        .astype(float)
-                        * 1.0e-3
-                        for tn in beam_times
-                    ]
-                )
-                raw_data = np.hstack((np.atleast_2d(dt).T, beam_peaks))
-                rd_header = data_io.fk_header(
-                    strm,
-                    latlon,
-                    freq_min,
-                    freq_max,
-                    back_az_min,
-                    back_az_max,
-                    back_az_step,
-                    trace_vel_min,
-                    trace_vel_max,
-                    trace_vel_step,
-                    method,
-                    t1,
-                    t2,
-                    noise_start,
-                    noise_end,
-                    window_len,
-                    sub_window_len,
-                    window_step,
-                )
-
-                rd_out = os.path.join(det_fpath, f"{str_name}_raw_data.txt")
-                np.savetxt(rd_out, raw_data, header=rd_header)
-                print(f"  Wrote FK results to {rd_out}")
-            else:
-                print("No detections found")
-                dets_found = False
-                if (not fixed_thresh):
-                    print("Recalculating threshold based on noise")
-                    new_thresh = fkd.adjust_thresh_noise(
-                        (x, t, t0, geom),
-                        window_len,
-                        sub_window_len,
-                        (sig_len_secs * (1 - overlap_perc)),
-                        window_step,
-                        freq_min,
-                        freq_max,
-                        method,
-                        back_az_vals,
-                        trc_vel_vals,
-                        delays,
-                        p_value,
-                        TB_prod,
-                    )
-                    print(f"New Threshold: {new_thresh}")
-                else:
-                    new_thresh = fixed_thresh
-            if real_time:
-                T = time.time() - stop_watch
-                print(
-                    f"Sleeping for {(sig_len_secs * (1 - overlap_perc)) - T} seconds until "
-                    f"{obspy.UTCDateTime() + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
-                )
-                time.sleep((sig_len_secs * (1 - overlap_perc)) - T)
-            i += 1
         except Exception as e:
             # Print to output any errors and continue to next time window
             print(f"{obspy.UTCDateTime()}: Error in detection processing: {e}")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-            i += 1
-            continue
+        i += 1  # increment iteration
 logging.shutdown()
 sys.exit(0)
