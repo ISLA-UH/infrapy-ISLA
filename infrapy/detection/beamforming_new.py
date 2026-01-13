@@ -1170,7 +1170,7 @@ def detect_signals(times: np.ndarray, beam_peaks: np.ndarray, win_len: float, TB
                   return_thresh=return_thresh)
 
 
-def auto_run_bf(signal_start_idx: int, signal_end_idx: int, freq_band: np.ndarray, window_len: float,
+def auto_run_bf(signal_start_idx: int, signal_end_idx: int, freq_band: Tuple[float, float], window_len: float,
                 sub_window_len: float, window_step: float, method: str, back_az_vals: np.ndarray,
                 trc_vel_vals: np.ndarray, array_data: tuple, delays: np.ndarray
                 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1190,7 +1190,7 @@ def auto_run_bf(signal_start_idx: int, signal_end_idx: int, freq_band: np.ndarra
             Index of the start of the signal in the array data
         signal_end_idx: int
             Index of the end of the signal in the array data
-        freq_band: 1darray
+        freq_band: Tuple[float, float]
             Iterable with minimum and maximum frequencies for analysis
         window_length: float
             Analysis window length in seconds

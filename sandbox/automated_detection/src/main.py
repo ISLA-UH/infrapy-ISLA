@@ -34,8 +34,8 @@ else:
     client = Client("IRIS")
 
 real_time = False  # Flag to for static time frame (False) or real-time processing (True)
-nrt_stime = obspy.UTCDateTime("2025-10-31T11:58:00.000000Z")
-end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
+nrt_stime = UTCDateTime("2025-10-31T11:58:00.000000Z")
+end_time = UTCDateTime("2026-01-07T19:30:00.000000Z")
 sig_len_secs = 600  # Seconds
 overlap_perc = 0.2  # Fractional overlap between time windows
 logging.basicConfig(
@@ -53,21 +53,17 @@ EVENT_CONFIG = {
     "station": "I59*",
     "location": "",
     "channel": "BDF",
-    "start_time": (
-        obspy.UTCDateTime() - ((2 * sig_len_secs) + 120) if (real_time) else nrt_stime -
-            (sig_len_secs * (1 - overlap_perc))
-    ),
-    "end_time": (
-        obspy.UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime
-    ),
+    "start_time": UTCDateTime() - ((2 * sig_len_secs) + 120)
+    if (real_time) else nrt_stime - (sig_len_secs * (1 - overlap_perc)),
+    "end_time": UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime,
 }
 EVENT_NAME = EVENT_CONFIG["name"]
 NETWORK = EVENT_CONFIG["network"]
 STATION = EVENT_CONFIG["station"]
 LOCATION = EVENT_CONFIG["location"]
 CHANNEL = EVENT_CONFIG["channel"]
-t1 = EVENT_CONFIG["start_time"]
-t2 = EVENT_CONFIG["end_time"]
+t1: UTCDateTime = EVENT_CONFIG["start_time"]
+t2: UTCDateTime = EVENT_CONFIG["end_time"]
 
 
 if __name__ == "__main__":
@@ -87,19 +83,19 @@ if __name__ == "__main__":
     signal_start: UTCDateTime = UTCDateTime(0)
     t = infraconfig.get_param(USER_CONFIG, "FK", "signal_start", None, "string")                       # type: ignore
     if t is not None:
-        signal_start = obspy.UTCDateTime(t)
+        signal_start = UTCDateTime(t)
     signal_end: UTCDateTime = UTCDateTime(0)
     t = infraconfig.get_param(USER_CONFIG, "FK", "signal_end", None, "string")                         # type: ignore
     if t is not None:
-        signal_end = obspy.UTCDateTime(t)
+        signal_end = UTCDateTime(t)
     noise_start: UTCDateTime = UTCDateTime(0)
     t = infraconfig.get_param(USER_CONFIG, "FK", "noise_start", None, "string")                        # type: ignore
     if t is not None:
-        noise_start = obspy.UTCDateTime(t)
+        noise_start = UTCDateTime(t)
     noise_end: UTCDateTime = UTCDateTime(0)
     t = infraconfig.get_param(USER_CONFIG, "FK", "noise_end", None, "string")                          # type: ignore
     if t is not None:
-        noise_end = obspy.UTCDateTime(t)
+        noise_end = UTCDateTime(t)
     window_len: float = infraconfig.get_param(USER_CONFIG, "FK", "window_len", None, "float")          # type: ignore
     sub_window_len: float = infraconfig.get_param(USER_CONFIG, "FK", "sub_window_len", None, "float")  # type: ignore
     window_step: float = infraconfig.get_param(USER_CONFIG, "FK", "window_step", None, "float")        # type: ignore
@@ -221,9 +217,9 @@ if __name__ == "__main__":
             if (not dets_found):
                 noise_start = t1
                 noise_end = t1 + (sig_len_secs * (1 - overlap_perc))
-            t1 = obspy.UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime + \
+            t1 = UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime + \
                 (i * (sig_len_secs * (1 - overlap_perc)))
-            t2 = obspy.UTCDateTime() - 120 if (real_time) else nrt_stime + \
+            t2 = UTCDateTime() - 120 if (real_time) else nrt_stime + \
                 (i * (sig_len_secs * (1 - overlap_perc))) + sig_len_secs
             stop_time = t2
 
@@ -247,13 +243,13 @@ if __name__ == "__main__":
 
                 # Begin beamforming on stream
                 strm = g_stream.copy()
-                x, t, t0, _ = fkd.stream_to_array_data(strm, latlon=latlon)
+                x, t, t0, _ = fkd.stream_to_array_data(strm, latlon=np.array(latlon))
                 M, N = x.shape
                 print(f"Running {method} beamforming from {t1} to {t2}")
                 beam_times, beam_peaks, beam_power = fkd.auto_run_bf(
                     0,
                     t2 - t1,
-                    freq_band=[freq_min, freq_max],
+                    freq_band=(freq_min, freq_max),
                     window_len=window_len,
                     sub_window_len=sub_window_len,
                     window_step=window_step,
@@ -403,7 +399,7 @@ if __name__ == "__main__":
                     T = time.time() - stop_watch
                     print(
                         f"Sleeping for {(sig_len_secs * (1 - overlap_perc)) - T} seconds until "
-                        f"{obspy.UTCDateTime() + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
+                        f"{UTCDateTime() + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
                     )
                     time.sleep((sig_len_secs * (1 - overlap_perc)) - T)
             except Exception as e:
@@ -411,7 +407,7 @@ if __name__ == "__main__":
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         except Exception as e:
             # Print to output any errors and continue to next time window
-            print(f"{obspy.UTCDateTime()}: Error in detection processing: {e}")
+            print(f"{UTCDateTime()}: Error in detection processing: {e}")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         i += 1  # increment iteration
 logging.shutdown()
