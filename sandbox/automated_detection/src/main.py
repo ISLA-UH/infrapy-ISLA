@@ -279,7 +279,7 @@ if __name__ == "__main__":
     TB_prod = (freq_max - freq_min) * window_len
     back_az_vals = np.arange(back_az_min, back_az_max, back_az_step)
     trc_vel_vals = np.arange(trace_vel_min, trace_vel_max, trace_vel_step)
-    n_x, n_t, n_t0, geom = fkd.stream_to_array_data(n_stream, latlon=latlon)
+    n_x, n_t, n_t0, geom = fkd.stream_to_array_data(n_stream, latlon=np.ndarray(latlon))
     slowness = fkd.build_slowness(back_az_vals, trc_vel_vals)
     delays = fkd.compute_delays(geom, slowness)
 
@@ -311,8 +311,8 @@ if __name__ == "__main__":
     # Initialize loop for processing time windows
     print("Beginning automated detection processing")
     while True:
+        t_now = UTCDateTime()
         try:
-            t_now = UTCDateTime()
             stop_watch = time.time()
             if (not dets_found):
                 noise_start = t1
@@ -333,23 +333,14 @@ if __name__ == "__main__":
                     starttime=t1,
                     endtime=t2,
                 )
-                print(f"Fetched {len(g_stream)} traces from {network}.{station}.")
+                print(f"Fetched {len(g_stream)} traces from {NETWORK}.{STATION}.")
                 if (len(g_stream) < num_elements):
                     print(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {num_elements}.")
                     i += 1
                     continue
-            except URLError as e:
-                print(f"Network error fetching data (URLError): {e.reason}")
-                logging.error(f"URLError: {e.reason}")
-                i += 1
-                continue
-            except Exception as e:
-                print(f"Error fetching data. Exception: {e}")
-                logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-                i += 1
-                continue
-            str_name = name + "_" + t1.strftime("%Y%m%d_%H%M%S")
-            print(f"Iteration {i}")
+
+                str_name = f"{EVENT_NAME}_{t1.strftime('%Y%m%d_%H%M%S')}"
+                print(f"Iteration {i}")
 
                 # Begin beamforming on stream
                 strm = g_stream.copy()
@@ -512,6 +503,10 @@ if __name__ == "__main__":
                         f"{t_now + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
                     )
                     time.sleep((sig_len_secs * (1 - overlap_perc)) - T)
+            except URLError as e:
+                print(f"Network error fetching data (URLError): {e.reason}")
+                logging.error(f"URLError: {e.reason}")
+                continue
             except Exception as e:
                 print(f"Error fetching data. Exception: {e}")
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
