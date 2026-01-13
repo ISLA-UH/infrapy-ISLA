@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import time
+from typing import Optional
 
 import numpy as np
 import obspy
@@ -16,6 +17,103 @@ import traceback
 from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
+
+LOCAL_SEEDLINK = "192.168.112.200"
+
+
+class EventDetector:
+    """
+    This class handles event detection using InfraPy
+
+    Properties:
+
+        user_config: configparser.ConfigParser object containing user configuration parameters
+
+        root_path: str, root path for the project.  Defaults to current working directory if not given
+
+        config_path: str, path to the Infrapy configuration file.  Defaults to
+            "{root_path}/config/example.ini" if not given
+
+        wf_client: int, flag to pull data from IRIS (0) or seedlink (1).  Ensure proper network connection
+            if using seedlink.  Default 0.  More options may be added in the future.
+
+        real_time: bool, flag for static time frame (False) or real-time processing (True).  Defaults to False
+
+        nrt_stime: UTCDateTime, start time for non-real-time processing.  Required if real_time is False.
+
+        end_time: UTCDateTime, end time for processing.  Required if real_time is False.
+
+        sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.
+
+        overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap)
+
+        event_config: dictionary containing event parameters such as name, network, station, location,
+            channel, start_time, and end_time.
+
+        t1: UTCDateTime, start time for processing
+
+        t2: UTCDateTime, end time for processing
+    """
+    def __init__(self,
+                 root_path: Optional[str] = None,
+                 config_path: Optional[str] = None,
+                 wf_client: int = 0,
+                 real_time: bool = False,
+                 nrt_stime: Optional[UTCDateTime] = None,
+                 end_time: Optional[UTCDateTime] = None,
+                 sig_len_secs: int = 600,
+                 overlap_perc: float = 0.2,
+                 event_config: Optional[dict] = None):
+        """
+        intialize event detector
+
+        :param root_path: str, root path for the project.  Defaults to current working directory if not given
+        :param config_path: str, path to the Infrapy configuration file.  Defaults to
+            "{root_path}/config/example.ini" if not given
+        :param wf_client: int, flag to pull data from IRIS (0) or seedlink (1).  Ensure proper network connection
+            if using seedlink.  Default 0.  More options may be added in the future.
+        :param real_time: bool, flag for static time frame (False) or real-time processing (True).  Defaults to False
+        :param nrt_stime: UTCDateTime, start time for non-real-time processing.  Required if real_time is False.
+        :param end_time: UTCDateTime, end time for processing.  Required if real_time is False.
+        :param sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.
+        :param overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap)
+        :param event_config: dictionary containing event parameters such as name, network, station, location,
+            channel, start_time, and end_time.
+        """
+        self.user_config = configparser.ConfigParser()
+        self.root_path = root_path if root_path else os.path.join(os.getcwd())
+        self.config_path = config_path if config_path else os.path.join(self.root_path, 'config', 'example.ini')
+        if not os.path.exists(self.config_path):
+            print(f"Config file not found, check for file at {self.config_path}")
+            exit(1)
+        self.user_config.read(self.config_path)
+        self.wf_client = wf_client
+        self.real_time = real_time
+        if not self.real_time and nrt_stime is None:
+            print("nrt_stime must be provided if real_time is False")
+            exit(1)
+        self.nrt_stime = nrt_stime
+        if not self.real_time and end_time is None:
+            print("end_time must be provided if real_time is False")
+            exit(1)
+        self.end_time = end_time
+        self.sig_len_secs = sig_len_secs
+        self.overlap_perc = overlap_perc
+        self.event_config = event_config if event_config else \
+            {
+                "name": "auto_infrapy_test",
+                "network": "IM",
+                "station": "I59*",
+                "location": "",
+                "channel": "BDF",
+                "start_time": TIME_START - ((2 * self.sig_len_secs) + 120)
+                if self.real_time else self.nrt_stime - (self.sig_len_secs * (1 - self.overlap_perc)),
+                "end_time": TIME_START - (self.sig_len_secs + 120) if self.real_time else self.nrt_stime,
+            }
+        self.t1 = self.event_config["start_time"]
+        self.t2 = self.event_config["end_time"]
+        self.iris_client = Client("IRIS")
+        self.sl_client = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180) if self.wf_client else None
 
 
 # User defined variables
@@ -47,23 +145,23 @@ logging.basicConfig(
 )
 
 # Define Event Parameters
+TIME_START = UTCDateTime()
 EVENT_CONFIG = {
     "name": "auto_infrapy_test",
     "network": "IM",
     "station": "I59*",
     "location": "",
     "channel": "BDF",
-    "start_time": UTCDateTime() - ((2 * sig_len_secs) + 120)
-    if (real_time) else nrt_stime - (sig_len_secs * (1 - overlap_perc)),
-    "end_time": UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime,
+    "start_time": TIME_START - ((2 * sig_len_secs) + 120) if real_time else nrt_stime - (sig_len_secs * (1 - overlap_perc)),
+    "end_time": TIME_START - (sig_len_secs + 120) if real_time else nrt_stime,
 }
 EVENT_NAME = EVENT_CONFIG["name"]
 NETWORK = EVENT_CONFIG["network"]
 STATION = EVENT_CONFIG["station"]
 LOCATION = EVENT_CONFIG["location"]
 CHANNEL = EVENT_CONFIG["channel"]
-t1: UTCDateTime = EVENT_CONFIG["start_time"]
-t2: UTCDateTime = EVENT_CONFIG["end_time"]
+t1 = EVENT_CONFIG["start_time"]
+t2 = EVENT_CONFIG["end_time"]
 
 
 if __name__ == "__main__":
@@ -213,13 +311,14 @@ if __name__ == "__main__":
     print("Beginning automated detection processing")
     while True:
         try:
+            t_now = UTCDateTime()
             stop_watch = time.time()
             if (not dets_found):
                 noise_start = t1
                 noise_end = t1 + (sig_len_secs * (1 - overlap_perc))
-            t1 = UTCDateTime() - (sig_len_secs + 120) if (real_time) else nrt_stime + \
+            t1 = t_now - (sig_len_secs + 120) if (real_time) else nrt_stime + \
                 (i * (sig_len_secs * (1 - overlap_perc)))
-            t2 = UTCDateTime() - 120 if (real_time) else nrt_stime + \
+            t2 = t_now - 120 if (real_time) else nrt_stime + \
                 (i * (sig_len_secs * (1 - overlap_perc))) + sig_len_secs
             stop_time = t2
 
@@ -399,7 +498,7 @@ if __name__ == "__main__":
                     T = time.time() - stop_watch
                     print(
                         f"Sleeping for {(sig_len_secs * (1 - overlap_perc)) - T} seconds until "
-                        f"{UTCDateTime() + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
+                        f"{t_now + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
                     )
                     time.sleep((sig_len_secs * (1 - overlap_perc)) - T)
             except Exception as e:
@@ -407,7 +506,7 @@ if __name__ == "__main__":
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         except Exception as e:
             # Print to output any errors and continue to next time window
-            print(f"{UTCDateTime()}: Error in detection processing: {e}")
+            print(f"{t_now}: Error in detection processing: {e}")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         i += 1  # increment iteration
 logging.shutdown()
