@@ -30,7 +30,7 @@ class IPSettingsManager(QFrame):
         self.setStyleSheet("#settingsManager {border: 1px solid #777;} ")
 
         self.default_config_path = Path.joinpath(Path(__file__).parent.parent.parent,
-                                                 "/infrapy/resources/default.config")
+                                                 os.path.join(os.getcwd(), 'infrapy', 'resources', 'default.config'))
         if self.default_config_path.exists():
             self.current_config_path = self.default_config_path
         else:

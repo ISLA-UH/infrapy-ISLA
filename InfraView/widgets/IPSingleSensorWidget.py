@@ -100,7 +100,7 @@ class IPSingleSensorWidget(QWidget):
         self.signalSpecWidget.setPlotLabel('Signal')
 
         # DETECTION PLOT
-        self.detectionPlot = IPDetectionPlotItem(self, start_time=None)
+        self.detectionPlot = IPDetectionPlotItem(start_time=None)
 
         # link all the plot x-axes so that when they rescale together
         self.signalSpecWidget.setXLink(self.waveformPlot)

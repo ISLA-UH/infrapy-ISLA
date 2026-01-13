@@ -13,6 +13,7 @@ from obspy.clients.seedlink import Client as Client_seedlink
 
 import logging
 import traceback
+from urllib.error import URLError
 # InfraPy imports
 from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
@@ -130,10 +131,10 @@ if wf_client:
     client = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180)
 else:
     client = Client("IRIS")
-
+num_elements = 4
 real_time = False  # Flag to for static time frame (False) or real-time processing (True)
-nrt_stime = UTCDateTime("2025-10-31T11:58:00.000000Z")
-end_time = UTCDateTime("2026-01-07T19:30:00.000000Z")
+nrt_stime = obspy.UTCDateTime("2025-11-21T14:24:00.000000Z")
+end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
 sig_len_secs = 600  # Seconds
 overlap_perc = 0.2  # Fractional overlap between time windows
 logging.basicConfig(
@@ -228,7 +229,7 @@ if __name__ == "__main__":
         print(f"could not load from .xml file Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         try:
-            inventory = client.get_stations(
+            inventory = Client("IRIS").get_stations(
                 network=NETWORK,
                 station=STATION,
                 location=LOCATION,
@@ -332,13 +333,23 @@ if __name__ == "__main__":
                     starttime=t1,
                     endtime=t2,
                 )
-                print(f"Fetched {len(g_stream)} traces from {NETWORK}.{STATION}.")
-                if (not len(g_stream)):
-                    print("Error fetching waveforms. Moving onto next iteration")
+                print(f"Fetched {len(g_stream)} traces from {network}.{station}.")
+                if (len(g_stream) < num_elements):
+                    print(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {num_elements}.")
                     i += 1
                     continue
-                str_name = f"{EVENT_NAME}_{t1.strftime('%Y%m%d_%H%M%S')}"
-                print(f"Iteration {i}")
+            except URLError as e:
+                print(f"Network error fetching data (URLError): {e.reason}")
+                logging.error(f"URLError: {e.reason}")
+                i += 1
+                continue
+            except Exception as e:
+                print(f"Error fetching data. Exception: {e}")
+                logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+                i += 1
+                continue
+            str_name = name + "_" + t1.strftime("%Y%m%d_%H%M%S")
+            print(f"Iteration {i}")
 
                 # Begin beamforming on stream
                 strm = g_stream.copy()

@@ -20,7 +20,7 @@ def main():
     my_release = platform.release()
 
     qApp = QtWidgets.QApplication(sys.argv)
-    icon_file = str(Path(__file__).parent / 'resources' / 'graphics' / 'icons' / 'start_64')
+    icon_file = os.path.join(os.getcwd(), 'InfraView', 'resources', 'graphics', 'icons', 'start_64')
     qApp.setWindowIcon(QIcon(icon_file))
 
     aw = IPApplicationWindow(qApp, progname, progversion)

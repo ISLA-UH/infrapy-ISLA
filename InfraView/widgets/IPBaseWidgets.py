@@ -117,14 +117,14 @@ class IPSettingsGroupBox(QGroupBox):
     """
     class for settings group box
     """
-    def __init__(self, title: str = ""):
+    def __init__(self, title: str = "", parent=None):
         """
         initialize settings group box
 
         :param title: group box title
         :param parent: parent widget
         """
-        super().__init__()
+        super().__init__(parent)
         self.setTitle(title)
 
 
@@ -132,11 +132,13 @@ class IPSettingsWidget(QWidget):
     """
     class for settings widget
     """
-    def __init__(self):
+    def __init__(self, parent=None):
         """
         initialize settings widget
+
+        :param parent: parent widget
         """
-        super().__init__()
+        super().__init__(parent)
 
         self.setSizePolicy(QSizePolicy.Expanding,
                            QSizePolicy.Maximum)
