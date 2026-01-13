@@ -100,6 +100,7 @@ class EventDetector:
         self.end_time = end_time
         self.sig_len_secs = sig_len_secs
         self.overlap_perc = overlap_perc
+        self.signal_dur_sec = self.sig_len_secs * (1 - self.overlap_perc)
         self.event_config = event_config if event_config else \
             {
                 "name": "auto_infrapy_test",
@@ -108,7 +109,7 @@ class EventDetector:
                 "location": "",
                 "channel": "BDF",
                 "start_time": TIME_START - ((2 * self.sig_len_secs) + 120)
-                if self.real_time else self.nrt_stime - (self.sig_len_secs * (1 - self.overlap_perc)),
+                if self.real_time else self.nrt_stime - self.signal_dur_sec,
                 "end_time": TIME_START - (self.sig_len_secs + 120) if self.real_time else self.nrt_stime,
             }
         self.t1 = self.event_config["start_time"]
@@ -137,6 +138,7 @@ nrt_stime = obspy.UTCDateTime("2025-11-21T14:24:00.000000Z")
 end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
 sig_len_secs = 600  # Seconds
 overlap_perc = 0.2  # Fractional overlap between time windows
+signal_dur_sec = sig_len_secs * (1 - overlap_perc)
 logging.basicConfig(
     filename=os.path.join(root_path, 'results', 'bin', "error.log"),
     filemode="a",
@@ -153,7 +155,7 @@ EVENT_CONFIG = {
     "station": "I59*",
     "location": "",
     "channel": "BDF",
-    "start_time": TIME_START - ((2 * sig_len_secs) + 120) if real_time else nrt_stime - (sig_len_secs * (1 - overlap_perc)),
+    "start_time": TIME_START - ((2 * sig_len_secs) + 120) if real_time else nrt_stime - signal_dur_sec,
     "end_time": TIME_START - (sig_len_secs + 120) if real_time else nrt_stime,
 }
 EVENT_NAME = EVENT_CONFIG["name"]
@@ -289,7 +291,7 @@ if __name__ == "__main__":
             (n_x, n_t, n_t0, geom),
             window_len,
             sub_window_len,
-            (sig_len_secs * (1 - overlap_perc)),
+            signal_dur_sec,
             window_step,
             freq_min,
             freq_max,
@@ -316,11 +318,11 @@ if __name__ == "__main__":
             stop_watch = time.time()
             if (not dets_found):
                 noise_start = t1
-                noise_end = t1 + (sig_len_secs * (1 - overlap_perc))
+                noise_end = t1 + signal_dur_sec
             t1 = t_now - (sig_len_secs + 120) if (real_time) else nrt_stime + \
-                (i * (sig_len_secs * (1 - overlap_perc)))
+                (i * signal_dur_sec)
             t2 = t_now - 120 if (real_time) else nrt_stime + \
-                (i * (sig_len_secs * (1 - overlap_perc))) + sig_len_secs
+                (i * signal_dur_sec) + sig_len_secs
             stop_time = t2
 
             # Get waveforms from IRIS or seedlink
@@ -482,7 +484,7 @@ if __name__ == "__main__":
                             (x, t, t0, geom),
                             window_len,
                             sub_window_len,
-                            (sig_len_secs * (1 - overlap_perc)),
+                            signal_dur_sec,
                             window_step,
                             freq_min,
                             freq_max,
@@ -498,11 +500,12 @@ if __name__ == "__main__":
                         new_thresh = fixed_thresh
                 if real_time:
                     T = time.time() - stop_watch
+                    remaining_sleep = signal_dur_sec - T
                     print(
-                        f"Sleeping for {(sig_len_secs * (1 - overlap_perc)) - T} seconds until "
-                        f"{t_now + ((sig_len_secs * (1 - overlap_perc)) - T) - 36000} (HST)"
+                        f"Sleeping for {remaining_sleep} seconds until "
+                        f"{t_now + remaining_sleep - 36000} (HST)"
                     )
-                    time.sleep((sig_len_secs * (1 - overlap_perc)) - T)
+                    time.sleep(remaining_sleep)
             except URLError as e:
                 print(f"Network error fetching data (URLError): {e.reason}")
                 logging.error(f"URLError: {e.reason}")
