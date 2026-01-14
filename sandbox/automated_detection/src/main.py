@@ -276,7 +276,7 @@ if __name__ == "__main__":
     # Calculate array geometry and dependencies
     # array_lat = [np.mean(lc[0] for lc in latlon)]
     # array_lon = [np.mean(lc[1] for lc in latlon)]
-    centroid = np.mean([lat for lat, lon in latlon]), np.mean([lon for lat, lon in latlon])
+    centroid = np.mean([lat for lat, _ in latlon]), np.mean([lon for _, lon in latlon])
     array_lat, array_lon = centroid
     TB_prod = (freq_max - freq_min) * window_len
     back_az_vals = np.arange(back_az_min, back_az_max, back_az_step)
