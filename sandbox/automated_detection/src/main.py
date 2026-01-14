@@ -1,3 +1,33 @@
+"""
+Automatic Detection Function using InfraPy
+Create class EventDetector to handle configuration for automated detection runs.
+
+Author: Riley Johnson, ISLA  YYYY/MM/DD
+Modified: Tyler Yoshiyama, ISLA  YYYY/MM/DD
+
+Example config classes:
+
+Barebones config class for fixed time period:
+evd = EventDetector(
+    event_name="TEST",
+    network="NTW",
+    station="STA*",
+    location="",
+    channel="CHN",
+    nrt_stime=UTCDateTime(START_TIME),
+    end_time=UTCDateTime(END_TIME),
+)
+
+Barebones config class for real-time processing:
+evd = EventDetector(
+    event_name="TEST",
+    network="NTW",
+    station="STA*",
+    location="",
+    channel="CHN",
+    real_time=True,
+)
+"""
 import configparser
 import json
 import os
@@ -27,7 +57,7 @@ class EventDetector:
     Properties:
 
         event_name: str, name of the event
-    
+
         network: str, network code for data request
 
         station: str, station code for data request
@@ -110,11 +140,16 @@ class EventDetector:
         self.wf_client = wf_client
         if not self.wf_client:
             self.client = Client("IRIS")
-        elif seedlink_ip is None:
+        elif seedlink_ip is None or not seedlink_ip:
             print("Local seedlink IP address must be provided when using seedlink as data source")
             exit(1)
         else:
             self.client = Client_seedlink(seedlink_ip, port=18000, timeout=180)
+            try:
+                _ = self.client.get_info()
+            except Exception as e:
+                print(f"Error connecting to seedlink server at {seedlink_ip}: {e}")
+                exit(1)
         self.user_config = configparser.ConfigParser()
         self.root_path = root_path if root_path else os.path.join(os.getcwd())
         if config_path is None:
@@ -139,8 +174,8 @@ class EventDetector:
 
 # User defined variables
 root_path = os.path.join(os.getcwd())
-nrt_stime = obspy.UTCDateTime("2025-11-21T14:24:00.000000Z")
-end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
+nrt_stime = UTCDateTime("2025-11-21T14:24:00.000000Z")
+end_time = UTCDateTime("2026-01-07T19:30:00.000000Z")
 logging.basicConfig(
     filename=os.path.join(root_path, 'results', 'bin', "error.log"),
     filemode="a",
@@ -148,7 +183,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.ERROR
 )
-
 evd = EventDetector(
     event_name="auto_infrapy_test",
     network="IM",
