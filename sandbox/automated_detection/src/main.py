@@ -44,9 +44,11 @@ class EventDetector:
 
         end_time: UTCDateTime, end time for processing.  Required if real_time is False.
 
-        sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.
+        sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.  If less than ???
+            will be set to ??? seconds.
 
-        overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap)
+        overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap).  Any value
+            less than 0 or greater than 1.0 will be set to 0.2.
 
         event_config: dictionary containing event parameters such as name, network, station, location,
             channel, start_time, and end_time.
@@ -281,7 +283,7 @@ if __name__ == "__main__":
     TB_prod = (freq_max - freq_min) * window_len
     back_az_vals = np.arange(back_az_min, back_az_max, back_az_step)
     trc_vel_vals = np.arange(trace_vel_min, trace_vel_max, trace_vel_step)
-    n_x, n_t, n_t0, geom = fkd.stream_to_array_data(n_stream, latlon=np.ndarray(latlon))
+    n_x, n_t, n_t0, geom = fkd.stream_to_array_data(n_stream, latlon=latlon)
     slowness = fkd.build_slowness(back_az_vals, trc_vel_vals)
     delays = fkd.compute_delays(geom, slowness)
 
