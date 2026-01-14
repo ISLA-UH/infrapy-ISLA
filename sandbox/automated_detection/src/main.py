@@ -19,8 +19,6 @@ from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
 
-LOCAL_SEEDLINK = "192.168.112.200"
-
 
 class EventDetector:
     """
@@ -28,15 +26,27 @@ class EventDetector:
 
     Properties:
 
-        user_config: configparser.ConfigParser object containing user configuration parameters
+        event_name: str, name of the event
+    
+        network: str, network code for data request
 
-        root_path: str, root path for the project.  Defaults to current working directory if not given
+        station: str, station code for data request
 
-        config_path: str, path to the Infrapy configuration file.  Defaults to
-            "{root_path}/config/example.ini" if not given
+        location: str, location code for data request
+
+        channel: str, channel code for data request
+
+        num_elements: int, number of array elements expected.  Default 4.
 
         wf_client: int, flag to pull data from IRIS (0) or seedlink (1).  Ensure proper network connection
             if using seedlink.  Default 0.  More options may be added in the future.
+
+        seedlink_ip: str, IP address of local seedlink server if using seedlink as data source.  Default None
+            NOTE: default value will cause program to quit with error message if using seedlink as source.
+
+        user_config: configparser.ConfigParser object containing user configuration parameters
+
+        root_path: str, root path for the project.  Defaults to current working directory if not given
 
         real_time: bool, flag for static time frame (False) or real-time processing (True).  Defaults to False
 
@@ -50,47 +60,69 @@ class EventDetector:
         overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap).  Any value
             less than 0 or greater than 1.0 will be set to 0.2.
 
-        event_config: dictionary containing event parameters such as name, network, station, location,
-            channel, start_time, and end_time.
-
-        t1: UTCDateTime, start time for processing
-
-        t2: UTCDateTime, end time for processing
+        signal_step_sec: float, signal step in seconds after accounting for overlap.
     """
     def __init__(self,
+                 event_name: str,
+                 network: str,
+                 station: str,
+                 location: str,
+                 channel: str,
+                 num_elements: int = 4,
+                 wf_client: int = 0,
+                 seedlink_ip: Optional[str] = None,
                  root_path: Optional[str] = None,
                  config_path: Optional[str] = None,
-                 wf_client: int = 0,
                  real_time: bool = False,
                  nrt_stime: Optional[UTCDateTime] = None,
                  end_time: Optional[UTCDateTime] = None,
                  sig_len_secs: int = 600,
-                 overlap_perc: float = 0.2,
-                 event_config: Optional[dict] = None):
+                 overlap_perc: float = 0.2
+                 ):
         """
         intialize event detector
 
-        :param root_path: str, root path for the project.  Defaults to current working directory if not given
-        :param config_path: str, path to the Infrapy configuration file.  Defaults to
-            "{root_path}/config/example.ini" if not given
-        :param wf_client: int, flag to pull data from IRIS (0) or seedlink (1).  Ensure proper network connection
+        :param event_name: name of the event
+        :param network: network code for data request
+        :param station: station code for data request
+        :param location: location code for data request
+        :param channel: channel code for data request
+        :param num_elements: number of array elements expected.  Default 4.
+        :param wf_client: flag to pull data from IRIS (0) or seedlink (1).  Ensure proper network connection
             if using seedlink.  Default 0.  More options may be added in the future.
-        :param real_time: bool, flag for static time frame (False) or real-time processing (True).  Defaults to False
-        :param nrt_stime: UTCDateTime, start time for non-real-time processing.  Required if real_time is False.
-        :param end_time: UTCDateTime, end time for processing.  Required if real_time is False.
-        :param sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.
-        :param overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap)
-        :param event_config: dictionary containing event parameters such as name, network, station, location,
-            channel, start_time, and end_time.
+        :param seedlink_ip: IP address of local seedlink server if using seedlink as data source.  Default None
+            NOTE: default value will cause program to quit with error message if using seedlink as source
+        :param root_path: root path for the project.  Defaults to current working directory if not given
+        :param config_path: path to the Infrapy configuration file.  Defaults to
+            "{root_path}/config/example.ini" if not given
+        :param real_time: flag for static time frame (False) or real-time processing (True).  Defaults to False
+        :param nrt_stime: start time for non-real-time processing.  Required if real_time is False.
+        :param end_time: end time for processing.  Required if real_time is False.
+        :param sig_len_secs: length of signal window in seconds.  Defaults to 600 seconds.
+        :param overlap_perc: fractional overlap between time windows.  Defaults to 0.2 (20% overlap)
         """
+        self.event_name = event_name
+        self.network = network
+        self.station = station
+        self.location = location
+        self.channel = channel
+        self.num_elements = num_elements
+        self.wf_client = wf_client
+        if not self.wf_client:
+            self.client = Client("IRIS")
+        elif seedlink_ip is None:
+            print("Local seedlink IP address must be provided when using seedlink as data source")
+            exit(1)
+        else:
+            self.client = Client_seedlink(seedlink_ip, port=18000, timeout=180)
         self.user_config = configparser.ConfigParser()
         self.root_path = root_path if root_path else os.path.join(os.getcwd())
-        self.config_path = config_path if config_path else os.path.join(self.root_path, 'config', 'example.ini')
-        if not os.path.exists(self.config_path):
-            print(f"Config file not found, check for file at {self.config_path}")
+        if config_path is None:
+            config_path = os.path.join(self.root_path, 'config', 'example.ini')
+        if not os.path.exists(config_path):
+            print(f"Config file not found, check for file at {config_path}")
             exit(1)
-        self.user_config.read(self.config_path)
-        self.wf_client = wf_client
+        self.user_config.read(config_path)
         self.real_time = real_time
         if not self.real_time and nrt_stime is None:
             print("nrt_stime must be provided if real_time is False")
@@ -102,45 +134,13 @@ class EventDetector:
         self.end_time = end_time
         self.sig_len_secs = sig_len_secs
         self.overlap_perc = overlap_perc
-        self.signal_dur_sec = self.sig_len_secs * (1 - self.overlap_perc)
-        self.event_config = event_config if event_config else \
-            {
-                "name": "auto_infrapy_test",
-                "network": "IM",
-                "station": "I59*",
-                "location": "",
-                "channel": "BDF",
-                "start_time": TIME_START - ((2 * self.sig_len_secs) + 120)
-                if self.real_time else self.nrt_stime - self.signal_dur_sec,
-                "end_time": TIME_START - (self.sig_len_secs + 120) if self.real_time else self.nrt_stime,
-            }
-        self.t1 = self.event_config["start_time"]
-        self.t2 = self.event_config["end_time"]
-        self.iris_client = Client("IRIS")
-        self.sl_client = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180) if self.wf_client else None
+        self.signal_step_sec = self.sig_len_secs * (1 - self.overlap_perc)
 
 
 # User defined variables
-USER_CONFIG = configparser.ConfigParser()
 root_path = os.path.join(os.getcwd())
-config_path = os.path.join(root_path, 'config', 'example.ini')
-if not os.path.exists(config_path):
-    print(f"Config file not found, check for file at {config_path}")
-    exit(1)
-USER_CONFIG.read(config_path)
-wf_client = 0  # Flag to pull data from IRIS (0) or seedlink (1) NOTE: If 1 ensure WiFi is ISLA_CF_5g
-if wf_client:
-    LOCAL_SEEDLINK = "192.168.112.200"
-    client = Client_seedlink(LOCAL_SEEDLINK, port=18000, timeout=180)
-else:
-    client = Client("IRIS")
-num_elements = 4
-real_time = False  # Flag to for static time frame (False) or real-time processing (True)
 nrt_stime = obspy.UTCDateTime("2025-11-21T14:24:00.000000Z")
 end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
-sig_len_secs = 600  # length of data to analyze in Seconds
-overlap_perc = 0.2  # Fractional overlap between time windows
-signal_dur_sec = sig_len_secs * (1 - overlap_perc)  # effective signal duration with overlap factor
 logging.basicConfig(
     filename=os.path.join(root_path, 'results', 'bin', "error.log"),
     filemode="a",
@@ -149,24 +149,23 @@ logging.basicConfig(
     level=logging.ERROR
 )
 
-# Define Event Parameters
-TIME_START = UTCDateTime()
-EVENT_CONFIG = {
-    "name": "auto_infrapy_test",
-    "network": "IM",
-    "station": "I59*",
-    "location": "",
-    "channel": "BDF",
-    "start_time": TIME_START - ((2 * sig_len_secs) + 120) if real_time else nrt_stime - signal_dur_sec,
-    "end_time": TIME_START - (sig_len_secs + 120) if real_time else nrt_stime,
-}
-EVENT_NAME = EVENT_CONFIG["name"]
-NETWORK = EVENT_CONFIG["network"]
-STATION = EVENT_CONFIG["station"]
-LOCATION = EVENT_CONFIG["location"]
-CHANNEL = EVENT_CONFIG["channel"]
-t1 = EVENT_CONFIG["start_time"]
-t2 = EVENT_CONFIG["end_time"]
+evd = EventDetector(
+    event_name="auto_infrapy_test",
+    network="IM",
+    station="I59*",
+    location="",
+    channel="BDF",
+    root_path=root_path,
+    config_path=None,
+    num_elements=4,
+    wf_client=0,
+    real_time=False,
+    nrt_stime=nrt_stime,
+    end_time=end_time,
+    sig_len_secs=600,
+    overlap_perc=0.2,
+    seedlink_ip="192.168.112.200"
+)
 
 
 if __name__ == "__main__":
@@ -174,53 +173,61 @@ if __name__ == "__main__":
     Main entry point for automated infrasonic detection using InfraPy
     """
     # Beamforming Parameters
-    freq_min: float = infraconfig.get_param(USER_CONFIG, "FK", "freq_min", None, "float")              # type: ignore
-    freq_max: float = infraconfig.get_param(USER_CONFIG, "FK", "freq_max", None, "float")              # type: ignore
-    back_az_min: float = infraconfig.get_param(USER_CONFIG, "FK", "back_az_min", None, "float")        # type: ignore
-    back_az_max: float = infraconfig.get_param(USER_CONFIG, "FK", "back_az_max", None, "float")        # type: ignore
-    back_az_step: float = infraconfig.get_param(USER_CONFIG, "FK", "back_az_step", None, "float")      # type: ignore
-    trace_vel_min: float = infraconfig.get_param(USER_CONFIG, "FK", "trace_vel_min", None, "float")    # type: ignore
-    trace_vel_max: float = infraconfig.get_param(USER_CONFIG, "FK", "trace_vel_max", None, "float")    # type: ignore
-    trace_vel_step: float = infraconfig.get_param(USER_CONFIG, "FK", "trace_vel_step", None, "float")  # type: ignore
-    method: str = infraconfig.get_param(USER_CONFIG, "FK", "method", None, "string")                   # type: ignore
+    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")          # type: ignore
+    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")          # type: ignore
+    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")    # type: ignore
+    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")    # type: ignore
+    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")  # type: ignore
+    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None,         # type: ignore
+                                                 "float")
+    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None,         # type: ignore
+                                                 "float")
+    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None,       # type: ignore
+                                                  "float")
+    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")               # type: ignore
     signal_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(USER_CONFIG, "FK", "signal_start", None, "string")                       # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")                   # type: ignore
     if t is not None:
         signal_start = UTCDateTime(t)
     signal_end: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(USER_CONFIG, "FK", "signal_end", None, "string")                         # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "signal_end", None, "string")                     # type: ignore
     if t is not None:
         signal_end = UTCDateTime(t)
     noise_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(USER_CONFIG, "FK", "noise_start", None, "string")                        # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")                    # type: ignore
     if t is not None:
         noise_start = UTCDateTime(t)
     noise_end: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(USER_CONFIG, "FK", "noise_end", None, "string")                          # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "noise_end", None, "string")                      # type: ignore
     if t is not None:
         noise_end = UTCDateTime(t)
-    window_len: float = infraconfig.get_param(USER_CONFIG, "FK", "window_len", None, "float")          # type: ignore
-    sub_window_len: float = infraconfig.get_param(USER_CONFIG, "FK", "sub_window_len", None, "float")  # type: ignore
-    window_step: float = infraconfig.get_param(USER_CONFIG, "FK", "window_step", None, "float")        # type: ignore
-    cpu_cnt: int = infraconfig.get_param(USER_CONFIG, "FK", "cpu_cnt", None, "int")                    # type: ignore
+    window_len: float = infraconfig.get_param(evd.user_config, "FK", "window_len", None, "float")      # type: ignore
+    sub_window_len: float = infraconfig.get_param(evd.user_config, "FK", "sub_window_len", None,       # type: ignore
+                                                  "float")
+    window_step: float = infraconfig.get_param(evd.user_config, "FK", "window_step", None, "float")    # type: ignore
+    cpu_cnt: int = infraconfig.get_param(evd.user_config, "FK", "cpu_cnt", None, "int")                # type: ignore
 
     # Detection parameters
-    fd_window_len: float = infraconfig.get_param(USER_CONFIG, "FD", "window_len", None, "float")       # type: ignore
-    p_value: float = infraconfig.get_param(USER_CONFIG, "FD", "p_value", None, "float")                # type: ignore
-    min_duration: float = infraconfig.get_param(USER_CONFIG, "FD", "min_duration", None, "float")      # type: ignore
-    back_az_width: float = infraconfig.get_param(USER_CONFIG, "FD", "back_az_width", None, "float")    # type: ignore
-    fixed_thresh: float = infraconfig.get_param(USER_CONFIG, "FD", "fixed_thresh", None, "float")      # type: ignore
-    thresh_ceil: float = infraconfig.get_param(USER_CONFIG, "FD", "thresh_ceil", None, "float")        # type: ignore
-    return_thresh: bool = infraconfig.get_param(USER_CONFIG, "FD", "return_thresh", None, "bool")      # type: ignore
+    fd_window_len: float = infraconfig.get_param(evd.user_config, "FD", "window_len", None, "float")   # type: ignore
+    p_value: float = infraconfig.get_param(evd.user_config, "FD", "p_value", None, "float")            # type: ignore
+    min_duration: float = infraconfig.get_param(evd.user_config, "FD", "min_duration", None, "float")  # type: ignore
+    back_az_width: float = infraconfig.get_param(evd.user_config, "FD", "back_az_width", None,         # type: ignore
+                                                 "float")
+    fixed_thresh: float = infraconfig.get_param(evd.user_config, "FD", "fixed_thresh", None, "float")  # type: ignore
+    thresh_ceil: float = infraconfig.get_param(evd.user_config, "FD", "thresh_ceil", None, "float")    # type: ignore
+    return_thresh: bool = infraconfig.get_param(evd.user_config, "FD", "return_thresh", None, "bool")  # type: ignore
     # NOTE: Merge detections currently needs to be improved. Should investigate how they associate nearby detections
     # (time window, etc).
-    merge_dets: bool = infraconfig.get_param(USER_CONFIG, "FD", "merge_dets", None, "bool")            # type: ignore
+    merge_dets: bool = infraconfig.get_param(evd.user_config, "FD", "merge_dets", None, "bool")        # type: ignore
 
     """
     This section runs an automated infrasonic detection using InfraPy's beamforming and detection modules.
     It will pull data from either IRIS or a local seedlink server, process it in overlapping time windows,
     and save detections and raw data to specified directories. Please update them to match the intended directories.
     """
+    # set initial time window
+    t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + 120) if evd.real_time else evd.nrt_stime - evd.signal_step_sec
+    t2 = UTCDateTime() - (evd.sig_len_secs + 120) if evd.real_time else evd.nrt_stime
     # Generate Noise and Get Inventory
     inventory = None
     # Try to load inventory from XML file first
@@ -234,10 +241,10 @@ if __name__ == "__main__":
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         try:
             inventory = Client("IRIS").get_stations(
-                network=NETWORK,
-                station=STATION,
-                location=LOCATION,
-                channel=CHANNEL,
+                network=evd.network,
+                station=evd.station,
+                location=evd.location,
+                channel=evd.channel,
                 starttime=t1,
                 endtime=t2,
                 level="response",
@@ -252,11 +259,11 @@ if __name__ == "__main__":
     # Get Baseline Noise Data
     print("Fetching baseline noise data")
     try:
-        n_stream = client.get_waveforms(
-            network=NETWORK,
-            location=LOCATION,
-            station=STATION,
-            channel=CHANNEL,
+        n_stream = evd.client.get_waveforms(
+            network=evd.network,
+            location=evd.location,
+            station=evd.station,
+            channel=evd.channel,
             starttime=t1,
             endtime=t2,
         )
@@ -270,14 +277,12 @@ if __name__ == "__main__":
     latlon = []
     for tr in n_stream:
         coords = inventory.get_coordinates(
-            f"{NETWORK}.{tr.stats.station}.{LOCATION}.{CHANNEL}", t1
+            f"{evd.network}.{tr.stats.station}.{evd.location}.{evd.channel}", t1
         )
         latlon.append((coords["latitude"], coords["longitude"]))
         print(tr.stats.starttime, tr.stats.station)
-    print(f"Fetched {len(n_stream)} traces from {NETWORK}.{STATION}.")
-    # Calculate array geometry and dependencies
-    # array_lat = [np.mean(lc[0] for lc in latlon)]
-    # array_lon = [np.mean(lc[1] for lc in latlon)]
+    print(f"Fetched {len(n_stream)} traces from {evd.network}.{evd.station}.")
+
     centroid = np.mean([lat for lat, _ in latlon]), np.mean([lon for _, lon in latlon])
     array_lat, array_lon = centroid
     TB_prod = (freq_max - freq_min) * window_len
@@ -293,7 +298,7 @@ if __name__ == "__main__":
             (n_x, n_t, n_t0, geom),
             window_len,
             sub_window_len,
-            signal_dur_sec,
+            evd.signal_step_sec,
             window_step,
             freq_min,
             freq_max,
@@ -320,30 +325,28 @@ if __name__ == "__main__":
             stop_watch = time.time()
             if (not dets_found):
                 noise_start = t1
-                noise_end = t1 + signal_dur_sec
-            t1 = t_now - (sig_len_secs + 120) if (real_time) else nrt_stime + \
-                (i * signal_dur_sec)
-            t2 = t_now - 120 if (real_time) else nrt_stime + \
-                (i * signal_dur_sec) + sig_len_secs
+                noise_end = t1 + evd.signal_step_sec
+            t1 = t_now - (evd.sig_len_secs + 120) if (evd.real_time) else nrt_stime + (i * evd.signal_step_sec)
+            t2 = t_now - 120 if (evd.real_time) else nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
             stop_time = t2
 
             # Get waveforms from IRIS or seedlink
             try:
-                g_stream = client.get_waveforms(
-                    network=NETWORK,
-                    location=LOCATION,
-                    station=STATION,
-                    channel=CHANNEL,
+                g_stream = evd.client.get_waveforms(
+                    network=evd.network,
+                    location=evd.location,
+                    station=evd.station,
+                    channel=evd.channel,
                     starttime=t1,
                     endtime=t2,
                 )
-                print(f"Fetched {len(g_stream)} traces from {NETWORK}.{STATION}.")
-                if (len(g_stream) < num_elements):
-                    print(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {num_elements}.")
+                print(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")
+                if (len(g_stream) < evd.num_elements):
+                    print(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {evd.num_elements}.")
                     i += 1
                     continue
 
-                str_name = f"{EVENT_NAME}_{t1.strftime('%Y%m%d_%H%M%S')}"
+                str_name = f"{evd.event_name}_{t1.strftime('%Y%m%d_%H%M%S')}"
                 print(f"Iteration {i}")
 
                 # Begin beamforming on stream
@@ -486,7 +489,7 @@ if __name__ == "__main__":
                             (x, t, t0, geom),
                             window_len,
                             sub_window_len,
-                            signal_dur_sec,
+                            evd.signal_step_sec,
                             window_step,
                             freq_min,
                             freq_max,
@@ -500,9 +503,9 @@ if __name__ == "__main__":
                         print(f"New Threshold: {new_thresh}")
                     else:
                         new_thresh = fixed_thresh
-                if real_time:
+                if evd.real_time:
                     T = time.time() - stop_watch
-                    remaining_sleep = signal_dur_sec - T
+                    remaining_sleep = evd.signal_step_sec - T
                     print(
                         f"Sleeping for {remaining_sleep} seconds until "
                         f"{t_now + remaining_sleep - 36000} (HST)"
