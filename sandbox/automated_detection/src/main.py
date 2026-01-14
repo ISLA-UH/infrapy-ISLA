@@ -138,9 +138,9 @@ num_elements = 4
 real_time = False  # Flag to for static time frame (False) or real-time processing (True)
 nrt_stime = obspy.UTCDateTime("2025-11-21T14:24:00.000000Z")
 end_time = obspy.UTCDateTime("2026-01-07T19:30:00.000000Z")
-sig_len_secs = 600  # Seconds
+sig_len_secs = 600  # length of data to analyze in Seconds
 overlap_perc = 0.2  # Fractional overlap between time windows
-signal_dur_sec = sig_len_secs * (1 - overlap_perc)
+signal_dur_sec = sig_len_secs * (1 - overlap_perc)  # effective signal duration with overlap factor
 logging.basicConfig(
     filename=os.path.join(root_path, 'results', 'bin', "error.log"),
     filemode="a",
