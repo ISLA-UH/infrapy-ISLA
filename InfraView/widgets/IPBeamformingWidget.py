@@ -1401,11 +1401,11 @@ class IPBeamformingWidget(QWidget):
             for w in w_array:
                 IPUtils.errorPopup(str(w.message), "Warning")
 
-        if len(dets) == 0:
+        if len(dets[0]) == 0:
             IPUtils.errorPopup("No Detections Found", "Results")
             return
 
-        self.detectionWidget.new_detections(dets,
+        self.detectionWidget.new_detections(dets[0],
                                             center[0],
                                             center[1],
                                             elev=center[2],
