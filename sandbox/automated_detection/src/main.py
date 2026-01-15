@@ -80,9 +80,12 @@ class EventDetector:
 
         real_time: bool, flag for static time frame (False) or real-time processing (True).  Defaults to False
 
+        rt_buffer_s: int, buffer time in seconds to account for data source latency during real-time processing.
+            Defaults to 120 seconds.  Not required if not using real-time processing.
+
         nrt_stime: UTCDateTime, start time for non-real-time processing.  Required if real_time is False.
 
-        end_time: UTCDateTime, end time for processing.  Required if real_time is False.
+        end_time: UTCDateTime, end time for non-real-time processing.  Required if real_time is False.
 
         sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.  If less than ???
             will be set to ??? seconds.
@@ -104,6 +107,7 @@ class EventDetector:
                  root_path: Optional[str] = None,
                  config_path: Optional[str] = None,
                  real_time: bool = False,
+                 rt_buffer_s: int = 120,
                  nrt_stime: Optional[UTCDateTime] = None,
                  end_time: Optional[UTCDateTime] = None,
                  sig_len_secs: int = 600,
@@ -159,6 +163,7 @@ class EventDetector:
             exit(1)
         self.user_config.read(config_path)
         self.real_time = real_time
+        self.rt_buffer_s = rt_buffer_s
         if not self.real_time and nrt_stime is None:
             print("nrt_stime must be provided if real_time is False")
             exit(1)
@@ -193,7 +198,8 @@ evd = EventDetector(
     config_path=None,
     num_elements=4,
     wf_client=0,
-    real_time=False,
+    real_time=True,
+    rt_buffer_s=300,
     nrt_stime=nrt_stime,
     end_time=end_time,
     sig_len_secs=600,
@@ -260,8 +266,9 @@ if __name__ == "__main__":
     and save detections and raw data to specified directories. Please update them to match the intended directories.
     """
     # set initial time window
-    t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + 120) if evd.real_time else evd.nrt_stime - evd.signal_step_sec
-    t2 = UTCDateTime() - (evd.sig_len_secs + 120) if evd.real_time else evd.nrt_stime
+    t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
+        if evd.real_time else evd.nrt_stime - evd.signal_step_sec
+    t2 = UTCDateTime() - (evd.sig_len_secs + evd.rt_buffer_s) if evd.real_time else evd.nrt_stime
     # Generate Noise and Get Inventory
     inventory = None
     # Try to load inventory from XML file first
@@ -360,8 +367,10 @@ if __name__ == "__main__":
             if (not dets_found):
                 noise_start = t1
                 noise_end = t1 + evd.signal_step_sec
-            t1 = t_now - (evd.sig_len_secs + 120) if (evd.real_time) else nrt_stime + (i * evd.signal_step_sec)
-            t2 = t_now - 120 if (evd.real_time) else nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
+            t1 = t_now - (evd.sig_len_secs + evd.rt_buffer_s) if (evd.real_time) \
+                else nrt_stime + (i * evd.signal_step_sec)
+            t2 = t_now - evd.rt_buffer_s if (evd.real_time) \
+                else nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
             stop_time = t2
 
             # Get waveforms from IRIS or seedlink
