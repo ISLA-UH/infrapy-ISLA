@@ -198,7 +198,7 @@ evd = EventDetector(
     config_path=None,
     num_elements=4,
     wf_client=0,
-    real_time=True,
+    real_time=False,
     rt_buffer_s=300,
     nrt_stime=nrt_stime,
     end_time=end_time,
@@ -356,7 +356,6 @@ if __name__ == "__main__":
     new_thresh = 0
     dets_found = False
     i = 0
-    stop_time = t1
 
     # Initialize loop for processing time windows
     print("Beginning automated detection processing")
@@ -371,7 +370,9 @@ if __name__ == "__main__":
                 else nrt_stime + (i * evd.signal_step_sec)
             t2 = t_now - evd.rt_buffer_s if (evd.real_time) \
                 else nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
-            stop_time = t2
+            if not evd.real_time and t2 > evd.end_time:
+                print("End of non-real-time processing reached.  Exiting.")
+                exit(0)
 
             # Get waveforms from IRIS or seedlink
             try:
@@ -557,10 +558,15 @@ if __name__ == "__main__":
             except URLError as e:
                 print(f"Network error fetching data (URLError): {e.reason}")
                 logging.error(f"URLError: {e.reason}")
-                continue
+                if evd.real_time:
+                    print(f"Retrying after {evd.signal_step_sec} seconds...")
+                    time.sleep(evd.signal_step_sec)
             except Exception as e:
                 print(f"Error fetching data. Exception: {e}")
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+                if evd.real_time:
+                    print(f"Retrying after {evd.signal_step_sec} seconds...")
+                    time.sleep(evd.signal_step_sec)
         except Exception as e:
             # Print to output any errors and continue to next time window
             print(f"{t_now}: Error in detection processing: {e}")
