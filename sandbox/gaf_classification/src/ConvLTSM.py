@@ -1,11 +1,10 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 import tensorflow as tf
+import os
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
-
-def build_ims_net(input_shape=(6, 64, 64, 10))-> tf.keras.Model:
+from tensorflow.keras import layers, models
+def build_ims_net(input_shape=(6, 64, 64, 10)) -> tf.keras.Model:
     """
     Build the improved multiscale network (Not to be confused with infrasound monitoring system) for ConvLTSM structure
 
@@ -41,7 +40,7 @@ def build_ims_net(input_shape=(6, 64, 64, 10))-> tf.keras.Model:
     
     #  Dense Layer
     x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.3)(x)
+    x = layers.Dropout(0.5)(x)
 
     # Outputs
     out_class = layers.Dense(1, activation='sigmoid', name='class_out')(x)
@@ -53,36 +52,44 @@ def build_ims_net(input_shape=(6, 64, 64, 10))-> tf.keras.Model:
 Code Starts Here
 """
 path = 'sandbox\\gaf_classification\\training\\numpy\\'
-layers = tf.keras.layers
-models = tf.keras.models
 
-X_data = np.load('training\\numpy\\X_train_cwt_5D.npy')  # Data is X
-Y_labels = np.load('training\\numpy\\Y_train_cwt_labels.npy')  # Labels are Y
+X_data = np.load(os.path.join(path, 'X_train_cwt_5D.npy'))  # Data is X
+Y_nonint = np.load(os.path.join(path, 'Y_train_cwt_labels.npy'))  # Labels are Y
 
+Y_labels = np.array([])
+for label in Y_nonint:
+    if label == 'sonicboom':
+        label = 0
+    else:
+        label = 1
+    Y_labels = np.append(Y_labels, label)
 X_data = X_data.transpose(0, 1, 3, 4, 2) # Reshape data for ConvLTSM so read it more efficiently
 
-training_set = X_data[:1400]   # 1400 samples for training. Tradeoff between training and test/validation size
-test_set = X_data[1400:]      # Remaining samples for testing (Limited test & validation data available.)
+training_set = X_data[:2250]   # 2250 samples for training. Tradeoff between training and test/validation size
+test_set = X_data[2250:]      # Remaining samples for testing (Limited test & validation data available.)
 
 
-training_labels = Y_labels[:1400]
-test_labels = Y_labels[1400:]
-
+training_labels = Y_labels[:2250]
+test_labels = Y_labels[2250:]
 X_train = training_set
 Y_train = training_labels
 all_indices = np.arange(len(X_data))
-test_indices = all_indices[1400:]
+test_indices = all_indices[2250:]
 
 
 # Split test set into test and validation sets
-X_val, X_test, Y_val, Y_test, val_idx, test_idx = train_test_split(test_set, test_labels, test_indices, test_size=0.5, random_state=42)
-
+#X_val, X_test, Y_val, Y_test, val_idx, test_idx = train_test_split(test_set, test_labels, test_indices, test_size=0.5, random_state=42)
+X_val = test_set[:300]
+Y_val = test_labels[:300]
+X_test = test_set[300:]
+Y_test = test_labels[300:]
+test_idx = test_indices[300:]
 print(f"Train: {X_train.shape[0]}, Val: {X_val.shape[0]}, Test: {X_test.shape[0]}")
 
 #  Build and compile the model
 model = build_ims_net()
 model.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.00002),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.000005),
     loss={
         'class_out': 'binary_crossentropy',
     },
@@ -94,14 +101,14 @@ model.compile(
 #  If overfitting occurs, stop early
 callbacks = [
     tf.keras.callbacks.EarlyStopping(
-        monitor='val_loss', 
+        monitor='val_loss',
         patience=5, 
         restore_best_weights=True
     )
 ]
 
 reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
-    monitor='val_loss', factor=0.5, patience=5, min_lr=0.00001
+    monitor='val_loss', factor=0.5, patience=5, min_lr=0.000001
 )
 
 checkpoint = tf.keras.callbacks.ModelCheckpoint(
@@ -110,28 +117,28 @@ checkpoint = tf.keras.callbacks.ModelCheckpoint(
     save_best_only=True,
     mode='max'
 )
-print(Y_train[:, 0].shape)
-print(type(Y_train[:, 0]))
+print(Y_train.shape)
+print(type(Y_train))
 history = model.fit(
     X_train, 
-    Y_train[:, 0],
-    validation_data=(X_val, Y_val[:, 0]),
-    epochs=50,
+    Y_train,
+    validation_data=(X_val, Y_val),
+    epochs=10,
     batch_size=16,
     callbacks=[reduce_lr, checkpoint] 
 )
 
 model.load_weights('best_model.h5') 
 results = model.evaluate(X_test, {
-    'class_out': Y_test[:, 0]
+    'class_out': Y_test
 })
 
 print(f"Final Test Accuracy: {results[1]}")
 
 # Get predictions
 preds = model.predict(X_test)
-y_pred_class = (preds[0] > 0.5).astype(int)
-y_true_class = Y_test[:, 0]
+y_pred_class = (preds > 0.5).astype(int)
+y_true_class = Y_test
 
 print(confusion_matrix(y_true_class, y_pred_class))
 print(classification_report(y_true_class, y_pred_class))
