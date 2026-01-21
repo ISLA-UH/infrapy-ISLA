@@ -11,40 +11,10 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from scipy.ndimage import zoom
 
-def create_sstcwt(raw_data: np.array, fs, freq_range: tuple, num_freq: int) -> np.ndarray:
-        """Converts a signal into its Synchrosqueeze Continuous Wavelet Transform representation.
-
-    Parameters
-    ----------
-    raw_data : np.array
-        2D array raw signal values. Can be time series or frequency series.
-    fs : float
-        Sampling frequency of the raw data.
-    freq_range : tuple
-        Frequency range for the CWT.
-    num_freq : int
-        Number of frequency bins for the CWT (Must match GAF image size).
-    Returns:
-    ----------
-    cwt_data : 2darray
-        2d np.array of corresponding continuous wavelet transform representation of the signal.
-
-    """
-    wavelet = 'morlet'
-    Tx, _, ssq_freqs, _ = ssqueezepy.ssq_cwt(raw_data, wavelet=wavelet, fs=fs)
-    sst_mag = np.abs(Tx)
-    idx = np.where((ssq_freqs >= freq_range[0]) & (ssq_freqs <= freq_range[1]))[0]
-    if len(idx) > 0:
-        sst_mag = sst_mag[idx, :]
-    h_factor = num_freq / sst_mag.shape[0]
-    w_factor = num_freq / sst_mag.shape[1]
-    sstcwt_data = zoom(sst_mag, (h_factor, w_factor))
-    return sstcwt_data
-
 def wavelet_denoise(signal: np.ndarray, wavelet: str = 'db4', level: int = None, 
                     threshold_mode: str = 'soft') -> np.ndarray:
     """
-    Apply wavelet denoising to a signal. Much faster than CEEMDAN.
+    Apply wavelet denoising to a signal.
     
     Parameters
     ----------
@@ -62,29 +32,20 @@ def wavelet_denoise(signal: np.ndarray, wavelet: str = 'db4', level: int = None,
     denoised : np.ndarray
         Denoised signal
     """
-    # Determine decomposition level if not specified
+    # Level not given default to highest level (anything past 6 may remove too much signal)
     if level is None:
         level = pywt.dwt_max_level(len(signal), wavelet)
-        level = min(level, 6)  # Cap at 6 levels
-    
-    # Wavelet decomposition
+        level = min(level, 6)
+    # Decomp signal and create threshold coeffs
     coeffs = pywt.wavedec(signal, wavelet, level=level)
-    
-    # Estimate noise from finest detail coefficients (MAD estimator)
     sigma = np.median(np.abs(coeffs[-1])) / 0.6745
-    
-    # Universal threshold
     threshold = sigma * np.sqrt(2 * np.log(len(signal)))
-    
-    # Apply threshold to detail coefficients (keep approximation unchanged)
-    denoised_coeffs = [coeffs[0]]  # Keep approximation
+    denoised_coeffs = [coeffs[0]]
+
+    # Apply wavelet denoising
     for detail in coeffs[1:]:
         denoised_coeffs.append(pywt.threshold(detail, threshold, mode=threshold_mode))
-    
-    # Reconstruct
     denoised = pywt.waverec(denoised_coeffs, wavelet)
-    
-    # Handle length mismatch due to padding
     return denoised[:len(signal)]
 
 def extract_csd(str: obspy.Stream, nfft: int, cent_index: int) -> np.ndarray:
@@ -173,6 +134,38 @@ def create_cwt(raw_data: np.array, freq_range: tuple, num_freq: int) -> np.ndarr
     cwt_data = cwt(raw_data, 1/len(raw_data), 8, freq_range[0], freq_range[1], nf=num_freq)
     return cwt_data
 
+
+def create_sstcwt(raw_data: np.array, fs, freq_range: tuple, num_freq: int) -> np.ndarray:
+    """Converts a signal into its Synchrosqueeze Continuous Wavelet Transform representation.
+
+    Parameters
+    ----------
+    raw_data : np.array
+        2D array raw signal values. Can be time series or frequency series.
+    fs : float
+        Sampling frequency of the raw data.
+    freq_range : tuple
+        Frequency range for the CWT.
+    num_freq : int
+        Number of frequency bins for the CWT (Must match GAF image size).
+    Returns:
+    ----------
+    cwt_data : 2darray
+        2d np.array of corresponding continuous wavelet transform representation of the signal.
+
+    """
+    wavelet = 'morlet'
+    Tx, _, ssq_freqs, _ = ssqueezepy.ssq_cwt(raw_data, wavelet=wavelet, fs=fs)
+    sst_mag = np.abs(Tx)
+    idx = np.where((ssq_freqs >= freq_range[0]) & (ssq_freqs <= freq_range[1]))[0]
+    if len(idx) > 0:
+        sst_mag = sst_mag[idx, :]
+    h_factor = num_freq / sst_mag.shape[0]
+    w_factor = num_freq / sst_mag.shape[1]
+    sstcwt_data = zoom(sst_mag, (h_factor, w_factor))
+    return sstcwt_data
+
+
 def plot_gaf_stack(gaf_stack: np.ndarray) -> None:
     """
     Plots the 10-channel GAF stack to visually inspectin GAF is as expected.
@@ -180,7 +173,7 @@ def plot_gaf_stack(gaf_stack: np.ndarray) -> None:
     ----------
     gaf_stack : np.ndarray
         np array with shapes of (10, hieght, width)
-        0-3 Raw Signal GAFs
+        0-3 ssCWT Signal GAFs
         4-6 CSD Phase GAFs
         7-9 CSD Magnitude GAFs
     Returns:
@@ -188,9 +181,9 @@ def plot_gaf_stack(gaf_stack: np.ndarray) -> None:
     None -> Just plots the GAF stack
     """
     titles = [
-        "Raw S1", "Raw S2", "Raw S3", "Raw S4", # 0-3
-        "CSD Phase (1-2)", "CSD Phase (1-3)", "CSD Phase (1-4)", # 4-6
-        "CSD Mag (1-2)", "CSD Mag (1-3)", "CSD Mag (1-4)" # 7-9
+        "ssCWT S1", "ssCWT S2", "ssCWT S3", "ssCWT S4",
+        "CSD Phase (1-2)", "CSD Phase (1-3)", "CSD Phase (1-4)",
+        "CSD Mag (1-2)", "CSD Mag (1-3)", "CSD Mag (1-4)"
     ]
     fig, axes = plt.subplots(2, 5, figsize=(20, 8))
     axes = axes.flatten()
@@ -202,12 +195,6 @@ def plot_gaf_stack(gaf_stack: np.ndarray) -> None:
         axes[i].axis('off')    
     plt.tight_layout()
     plt.show()
-
-
-
-"""
-Code Starts Here
-"""
 
 def single_stack(strm, center_time, window: float, stack_size: int, overlap: float) -> np.ndarray:
     s_time = center_time - window/2
@@ -225,7 +212,7 @@ def single_stack(strm, center_time, window: float, stack_size: int, overlap: flo
             tr.data = tr.data / global_max
     gaf_sequence = []
     for i in range(stack_size):
-        # Because we are using this data for ConvLTSM we split the window into multiple frames to see how it changes over time/space
+        # BC we are using this data for ConvLTSM we split the window into multiple frames to see how it changes over time/space
         t_start = s_time + (i * frame_step)
         t_end = t_start + frame_length
         strm_window = strm.copy()
