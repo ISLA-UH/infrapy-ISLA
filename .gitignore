@@ -21,3 +21,12 @@ docs/build/
 *.png
 *.npy
 *.h5
+*.xml
+*.log
+*.json
+*.ini
+*.vscode
+*.conda
+*.venv
+.gitignore
+sandbox/automated_detection/src/classify_event.py
