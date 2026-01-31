@@ -175,19 +175,22 @@ class EventDetector:
         self.sig_len_secs = sig_len_secs
         self.overlap_perc = overlap_perc
         self.signal_step_sec = self.sig_len_secs * (1 - self.overlap_perc)
+        if not self.real_time:
+            dur = self.end_time - self.nrt_stime - sig_len_secs
+            if dur <= 0:
+                print("WARNING: Selected time segment is shorter than signal length.  Results may not be reliable.")
+            else:
+                remainder = dur % self.signal_step_sec
+                if remainder != 0:
+                    print("NOTE: Selected time segment will have incomplete last window that will not be processed."
+                          f"Extra Time = {remainder} seconds.")
 
 
 # User defined variables
 root_path = os.path.join(os.getcwd())
-nrt_stime = UTCDateTime("2025-11-21T14:24:00.000000Z")
-end_time = UTCDateTime("2026-01-07T19:30:00.000000Z")
-logging.basicConfig(
-    filename=os.path.join(root_path, 'results', 'bin', "error.log"),
-    filemode="a",
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.ERROR
-)
+nrt_stime = UTCDateTime("2026-01-29T19:30:00.000000Z")
+end_time = UTCDateTime("2026-01-29T19:31:00.000000Z")
+
 evd = EventDetector(
     event_name="auto_infrapy_test",
     network="IM",
@@ -205,6 +208,20 @@ evd = EventDetector(
     sig_len_secs=600,
     overlap_perc=0.2,
     seedlink_ip="192.168.112.200"
+)
+
+# add datetime to logs running on fixed time segments
+if not evd.real_time:
+    error_log_name = f"error_{nrt_stime.strftime('%Y%m%d_%H%M%S')}.log"
+else:
+    error_log_name = "error.log"
+
+logging.basicConfig(
+    filename=os.path.join(root_path, 'results', 'bin', error_log_name),
+    filemode="a",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.ERROR
 )
 
 
