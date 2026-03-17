@@ -1,120 +1,71 @@
 import numpy as np
+import sys
+sys.path.append('c:/Users/ISLA-ENG-01/Documents/Projects/infrapy-ISLA/sandbox/gaf_classification/src')
+from ResNET import SEBlock
 from scipy import signal
-from pyts.image import GramianAngularField
+from pyts.image import GramianAngularField, MarkovTransitionField
 import matplotlib.pyplot as plt
 import obspy
 from obspy.signal.tf_misfit import cwt
 import cv2
 import pywt
+from scipy.fftpack import hilbert
 import ssqueezepy
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from scipy.ndimage import zoom
+from obspy.geodetics.base import gps2dist_azimuth
+import random
+from scipy.signal import welch
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications.efficientnet import preprocess_input
+from EfficientNetB0 import build_efficientnet_b0, unfreeze_and_finetune, EfficientNetPreprocessing
 
-def wavelet_denoise(signal: np.ndarray, wavelet: str = 'db4', level: int = None, 
-                    threshold_mode: str = 'soft') -> np.ndarray:
+
+def inv_align(st: obspy.Stream, inventory: obspy.Inventory, back_azimuth_deg: float, velocity_ms: float) -> obspy.Stream:
     """
-    Apply wavelet denoising to a signal.
-    
-    Parameters
+    Aligns traces based on array geometry using m/s velocity.
+    Parameters:
     ----------
-    signal : np.ndarray
-        Input signal
-    wavelet : str
-        Wavelet type ('db4', 'sym4', 'coif3')
-    level : int
-        Decomposition level. If None, automatically determined.
-    threshold_mode : str
-        soft
-    
-    Returns
-    -------
-    denoised : np.ndarray
-        Denoised signal
-    """
-    # Level not given default to highest level (anything past 6 may remove too much signal)
-    if level is None:
-        level = pywt.dwt_max_level(len(signal), wavelet)
-        level = min(level, 6)
-    # Decomp signal and create threshold coeffs
-    coeffs = pywt.wavedec(signal, wavelet, level=level)
-    sigma = np.median(np.abs(coeffs[-1])) / 0.6745
-    threshold = sigma * np.sqrt(2 * np.log(len(signal)))
-    denoised_coeffs = [coeffs[0]]
-
-    # Apply wavelet denoising
-    for detail in coeffs[1:]:
-        denoised_coeffs.append(pywt.threshold(detail, threshold, mode=threshold_mode))
-    denoised = pywt.waverec(denoised_coeffs, wavelet)
-    return denoised[:len(signal)]
-
-def extract_csd(str: obspy.Stream, nfft: int, cent_index: int) -> np.ndarray:
-    
-    """Convert a signal into a Cross Spectral Density matrix, a two dimensional matrix representation of the signal in frequency domain.
-    Parameters
-    ----------
-    str : obspy.Stream
-        1D array signal values. Can be time series or frequency series.
-    freq_range : tuple
-        Frequency range to extract CSD from (min_freq, max_freq)
-    nfft : int
-        Number of FFT points.
-    preprocess : bool
-        Whether to preprocess the signal with a bandpass filter before computing CSD.
-    cent_index : int
-        Index of the center frequency in the CSD matrix to extract around.
+    st : obspy.Stream
+        Input stream with traces to be aligned.
+    inventory : obspy.Inventory
+        Station metadata for coordinate lookup.
+    back_azimuth_deg : float
+        Back-azimuth in degrees (0° = North, 90° = East).
+    velocity_ms : float
+        Wave velocity in m/s for time shift calculation.
     Returns:
     ----------
-    csd_matrix : 2darray
-        2d np.array of corresponding cross spectral density matrix
+    obspy.Stream
+        New stream with geometrically aligned traces.
     """
-    ref_sensor = str[cent_index]
-    csd_list = []
-    pxy = []
-    for tr in str:
-        if tr == ref_sensor:
-            continue
-        else:
-            _, pxy_temp = signal.csd(ref_sensor.data, tr.data, fs=ref_sensor.stats.sampling_rate, nperseg=len(ref_sensor.data), nfft=nfft)
-            pxy.append(pxy_temp)
-    for i in pxy:
-        phase = np.angle(i)
-        csd_list.append(phase)
-    for i in pxy:
-        mag = np.abs(i)
-        csd_list.append(mag)
-
-    csd_matrix = np.array(csd_list)
-    return csd_matrix
-
-def create_gaf(csd_data: np.array, summation: bool = True, size: int = 64) -> np.ndarray:
-    """Convert a signal into a Gramian Angular Field, a two dimenions matrix representation of the signal.
-
-    Parameters
-    ----------
-    raw_data : np.array
-        2D array raw signal values. Can be time series or frequency series.
-    csd_data : np.array
-        2D array of cross spectral density matrix.
-    summation : bool, optional
-        Used to dermine if the GAF is based on summation (True) or difference (False) of angles.
-    Returns:
-    ----------
-    gaf : 2darray
-        2d np.array of corresponding gramian angular field
-
-    """
-    """
-    if len(raw_data[0]) != 64:
-        raw_data = resample(raw_data, 64, axis=1)
-    if len(csd_data[0]) != 64:
+    st_out = st.copy()
+    ref_tr = st_out[0]
     
-        csd_data = resample(csd_data, 64, axis=1)"""
-    gaf = GramianAngularField(image_size=size, sample_range=(0, 1), method='summation' if summation else 'difference')
-    csd_gafs = gaf.fit_transform(csd_data)
-    return csd_gafs
+    # Get Reference Coordinates
+    ref_coords = inventory.get_coordinates(ref_tr.id)
+    ref_lat = ref_coords['latitude']
+    ref_lon = ref_coords['longitude']
+    
+    print(f"--- Geometric Alignment (BAZ: {back_azimuth_deg}°, Vel: {velocity_ms} m/s) ---")
+    # Calculate time shifts for each trace based on distance and back-azimuth
+    for tr in st_out:
+        coords = inventory.get_coordinates(tr.id)
+        dist_m, az_to_sensor, _ = gps2dist_azimuth(ref_lat, ref_lon, 
+                                                   coords['latitude'], 
+                                                   coords['longitude'])
+        
+        angle_diff = np.radians(az_to_sensor - back_azimuth_deg)
+        dist_towards_source = dist_m * np.cos(angle_diff)
+        time_shift = dist_towards_source / velocity_ms
+        tr.stats.starttime += time_shift  
+        #print(f"   {tr.id[-4:]}: Dist {dist_m:.1f}m -> Shift {time_shift:.3f}s")
 
-def create_cwt(raw_data: np.array, freq_range: tuple, num_freq: int) -> np.ndarray:
+    return st_out
+
+
+def create_cwt(raw_data: np.array, fs: float,freq_range: tuple, num_freq: int) -> np.ndarray:
     """Converts a signal into its Continuous Wavelet Transform representation.
 
     Parameters
@@ -131,7 +82,10 @@ def create_cwt(raw_data: np.array, freq_range: tuple, num_freq: int) -> np.ndarr
         2d np.array of corresponding continuous wavelet transform representation of the signal.
 
     """
-    cwt_data = cwt(raw_data, 1/len(raw_data), 8, freq_range[0], freq_range[1], nf=num_freq)
+    cwt_data = cwt(raw_data, 1/fs, 8, freq_range[0], freq_range[1], nf=num_freq)
+    h_factor = num_freq / cwt_data.shape[0]
+    w_factor = num_freq / cwt_data.shape[1]
+    cwt_data = zoom(cwt_data, (h_factor, w_factor))
     return cwt_data
 
 
@@ -166,81 +120,252 @@ def create_sstcwt(raw_data: np.array, fs, freq_range: tuple, num_freq: int) -> n
     return sstcwt_data
 
 
-def plot_gaf_stack(gaf_stack: np.ndarray) -> None:
+def stack_weighted_traces(aligned_strm, noise_window_sec=60):
     """
-    Plots the 10-channel GAF stack to visually inspectin GAF is as expected.
+    Turns 4 aligned sensors into 1 high-quality Virtual Trace.
+    Uses 'Inverse Variance Weighting' to suppress noisy channels
     Parameters
     ----------
-    gaf_stack : np.ndarray
-        np array with shapes of (10, hieght, width)
-        0-3 ssCWT Signal GAFs
-        4-6 CSD Phase GAFs
-        7-9 CSD Magnitude GAFs
-    Returns:
-    ----------
-    None -> Just plots the GAF stack
+    aligned_strm : obspy.Stream
+        Input stream where traces are already phase-aligned and trimmed
+        to the same length.
+    noise_window_sec : float
+        Time in seconds from the start of trace for noise estimation
+    Returns
+    -------
+    v_trace : obspy.Trace
+        A virtual trace created by weighted stack of traces for improved SNR
     """
-    titles = [
-        "ssCWT S1", "ssCWT S2", "ssCWT S3", "ssCWT S4",
-        "CSD Phase (1-2)", "CSD Phase (1-3)", "CSD Phase (1-4)",
-        "CSD Mag (1-2)", "CSD Mag (1-3)", "CSD Mag (1-4)"
-    ]
-    fig, axes = plt.subplots(2, 5, figsize=(20, 8))
-    axes = axes.flatten()
+    data_matrix = np.stack([tr.data for tr in aligned_strm])
+    fs = aligned_strm[0].stats.sampling_rate
+    try:
+        noise_samples = int(noise_window_sec * fs)
+        noise_section = data_matrix[:, :noise_samples]
+        variances = np.var(noise_section, axis=1)
+        variances[variances == 0] = 1e-9
+        raw_weights = 1.0 / variances
+        weights = raw_weights / np.sum(raw_weights)
+    except Exception:
+        # If noise estimation fails, fallback to equal weights
+        weights = [.25, .25, .25, .25]
+    virtual_data = np.sum(data_matrix * weights[:, np.newaxis], axis=0)
+    v_trace = obspy.Trace(data=virtual_data, header=aligned_strm[0].stats.copy())
+    v_trace.stats.station = "I59V"
+    return obspy.Stream(traces=v_trace)
 
-    for i in range(10):
-        cmap = 'rainbow'
-        axes[i].imshow(gaf_stack[i], cmap=cmap, origin='lower')
-        axes[i].set_title(titles[i])
-        axes[i].axis('off')    
-    plt.tight_layout()
-    plt.show()
+def apply_mvida_to_stream(aligned_strm):
+    """
+    Takes an ALIGNED ObsPy Stream (4 traces) and applies MVIDA
+    to generate a 'Virtual' Stream (1 Trace)
+    Parameters
+    ----------
+    aligned_strm : obspy.Stream
+        Input stream where traces are already phase-aligned and trimmed
+        to the same length      
+    Returns
+    -------
+    virtual_strm : obspy.Stream
+        A new Stream containing 1 virtual trace derived from the input
+    """
+    data_matrix = np.stack([tr.data for tr in aligned_strm])
+    num_sensors, n_samples = data_matrix.shape
+    virtual_strm = obspy.Stream()
+    k = random.randint(2, num_sensors - 1)
+    indices = random.sample(range(num_sensors), k)
+    alphas = np.random.uniform(0.5, 2.5, size=k)
+    weighted_sum = np.zeros(n_samples)
+    for j, idx in enumerate(indices):
+        weighted_sum += alphas[j] * data_matrix[idx]
+    virtual_data = weighted_sum / np.sum(alphas)
+    v_trace = obspy.Trace(data=virtual_data, header=aligned_strm[0].stats.copy())
+    v_trace.stats.station = "VIR"
+    virtual_strm.append(v_trace)
+    return virtual_strm
 
-def single_stack(strm, center_time, window: float, stack_size: int, overlap: float) -> np.ndarray:
-    s_time = center_time - window/2
-    frame_length = window / (stack_size-(stack_size-1)*overlap)
-    frame_step = frame_length / (stack_size * (1 - overlap))
+def single_stack(strm, inventory, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity) -> np.ndarray:
+    """
+    Takes a detection stream and generates a single CWT stack for classification.
+    Parameters
+    ----------
+    strm : obspy.Stream
+        Input stream containing traces for a single detection, already trimmed to the same time window.
+    inventory : obspy.Inventory
+        Station metadata for coordinate lookup and response removal.
+    center_time : obspy.UTCDateTime
+        Center time of the detection window.
+    window : float
+        Total window length in seconds for the stack.
+    stack_size : int
+        Number of frames in the stack (e.g., 6).
+    overlap : float
+        Fractional overlap between frames (e.g., 0.5 for 50% overlap).
+    back_azimuth : float
+        Back-azimuth in degrees for geometric alignment.
+    trace_velocity : float
+        Wave velocity in m/s for geometric alignment.
+    Returns
+    -------
+    data_stack : np.ndarray
+        A 3D numpy array of shape (num_freq, num_freq, stack_size) representing the CWT stack for classification.
+    """
+    fft_size = int(20*window)
     # Preprocess Stream
+    for tr in strm:
+        tr.attach_response(inventory)
+        tr.remove_sensitivity()
     strm.detrend()
     strm.taper(max_percentage=0.05, type="hann")
     strm.filter("bandpass", freqmin=1.0, freqmax=8.0, corners=4, zerophase=True)
-    for tr in strm:
-        tr.data = wavelet_denoise(tr.data, wavelet='db4', level=4, threshold_mode='soft')
-    global_max = max([abs(tr.data).max() for tr in strm])
-    if global_max > 0:
-        for tr in strm:
-            tr.data = tr.data / global_max
-    gaf_sequence = []
+    t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
+    strm = t_strm.copy()
+    final_start = center_time - (window / 2)
+    final_end = center_time + (window / 2)
+    strm.trim(starttime=final_start, endtime=final_end, pad=False)
+    single_strm = stack_weighted_traces(strm)
+    current_strm = obspy.Stream(traces=single_strm)
+
+    frame_length = window / (stack_size-(stack_size-1)*overlap)
+    frame_step = frame_length / (stack_size * (1 - overlap))
     for i in range(stack_size):
-        # BC we are using this data for ConvLTSM we split the window into multiple frames to see how it changes over time/space
-        t_start = s_time + (i * frame_step)
+        # Split data stack into multiple frames to capture temporal evolution
+        t_start = final_start + (i * frame_step)
         t_end = t_start + frame_length
-        strm_window = strm.copy()
+        strm_window = current_strm.copy()
         strm_window.trim(starttime=t_start, endtime=t_end, pad=True, fill_value=0.0)
-        csd = extract_csd(str=strm_window, nfft=128, cent_index=0)
-        gaf_data = create_gaf(csd_data=csd, summation=False, size=64)
+        if len(strm_window[0].data) > fft_size:
+            data = strm_window[0].data
+            strm_window[0].data = data[:fft_size]
+        elif len(strm_window[0].data) < fft_size:
+            data = strm_window[0].data
+            pad_width = fft_size - len(data)
+            strm_window[0].data = np.pad(data, (0, pad_width), 'constant')
+        # Create CWT representation for the current frame
         raw_cwt = []
         for tr in strm_window:
-            cwt_mag = create_sstcwt(raw_data=tr.data, fs=20, freq_range=(1,8), num_freq=64)        
-            """cwt_resized = cv2.resize(np.abs(cwt_mag), (64, 64))
-            # Normalize CWT per channel (0 to 1) so it matches GAF scale"""
-            cwt_max = cwt_mag.max()
-            if cwt_max > 0:
-                cwt_mag = cwt_mag / cwt_max  
-            raw_cwt.append(cwt_mag)
-        cwt_gaf = np.concatenate((raw_cwt, gaf_data), axis=0)
-        gaf_sequence.append(cwt_gaf)
-    data_stack = np.array(gaf_sequence)
-    print(f"Created stack with shape: {data_stack.shape}")
+            cwt_complex = create_cwt(raw_data=tr.data, fs=20, freq_range=(1, 8.0), num_freq=fft_size)
+            cwt_mag = np.abs(cwt_complex)
+            cwt_log = np.log1p(cwt_mag)
+            cwt_norm = (cwt_log - cwt_log.min()) / (cwt_log.max() - cwt_log.min() + 1e-10)
+            raw_cwt.append(cwt_norm)
+    data_stack = np.array(raw_cwt).transpose(1, 2, 0)
+    
+    # Validate the data stack
+    if np.isnan(data_stack).any():
+        print("WARNING: NaN values detected in single_stack!")
+        data_stack = np.nan_to_num(data_stack, nan=0.0)
+    if np.isinf(data_stack).any():
+        print("WARNING: Inf values detected in single_stack!")
+        data_stack = np.nan_to_num(data_stack, posinf=1.0, neginf=-1.0)
     return data_stack
 
-def predict_entry(single_stack, model_path):
-    model = load_model(model_path)
-    preds = model.predict(single_stack)
-    # Handle output shape robustly
-    if isinstance(preds, list):
-        preds = preds[0]
-    y_pred_class = (preds.flatten()[0] > 0.5).astype(int)
-    class_labels = {0: "Sonic Boom", 1: "Surf"}
-    class_name = class_labels[y_pred_class]
+def mvida_stack(strm, inventory, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity) -> np.ndarray:
+    """
+    Takes a detection stream and generates a single CWT stack for classification.
+    Parameters
+    ----------
+    strm : obspy.Stream
+        Input stream containing traces for a single detection, already trimmed to the same time window.
+    inventory : obspy.Inventory
+        Station metadata for coordinate lookup and response removal.
+    center_time : obspy.UTCDateTime
+        Center time of the detection window.
+    window : float
+        Total window length in seconds for the stack.
+    stack_size : int
+        Number of frames in the stack (e.g., 6).
+    overlap : float
+        Fractional overlap between frames (e.g., 0.5 for 50% overlap).
+    back_azimuth : float
+        Back-azimuth in degrees for geometric alignment.
+    trace_velocity : float
+        Wave velocity in m/s for geometric alignment.
+    Returns
+    -------
+    data_stack : np.ndarray
+        A 3D numpy array of shape (num_freq, num_freq, stack_size) representing the CWT stack for classification.
+    """
+    fft_size = int(20*window)
+    # Preprocess Stream
+    for tr in strm:
+        tr.attach_response(inventory)
+        tr.remove_sensitivity()
+    strm.detrend()
+    strm.taper(max_percentage=0.05, type="hann")
+    strm.filter("bandpass", freqmin=1.0, freqmax=8.0, corners=4, zerophase=True)
+    t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
+    strm = t_strm.copy()
+    final_start = center_time - (window / 2)
+    final_end = center_time + (window / 2)
+    strm.trim(starttime=final_start, endtime=final_end, pad=False)
+    single_strm = apply_mvida_to_stream(strm)
+    current_strm = obspy.Stream(traces=single_strm)
+
+    frame_length = window / (stack_size-(stack_size-1)*overlap)
+    frame_step = frame_length / (stack_size * (1 - overlap))
+    for i in range(stack_size):
+        # Split data stack into multiple frames to capture temporal evolution
+        t_start = final_start + (i * frame_step)
+        t_end = t_start + frame_length
+        strm_window = current_strm.copy()
+        strm_window.trim(starttime=t_start, endtime=t_end, pad=True, fill_value=0.0)
+        if len(strm_window[0].data) > fft_size:
+            data = strm_window[0].data
+            strm_window[0].data = data[:fft_size]
+        elif len(strm_window[0].data) < fft_size:
+            data = strm_window[0].data
+            pad_width = fft_size - len(data)
+            strm_window[0].data = np.pad(data, (0, pad_width), 'constant')
+        # Create CWT representation for the current frame
+        raw_cwt = []
+        for tr in strm_window:
+            cwt_complex = create_cwt(raw_data=tr.data, fs=20, freq_range=(1, 8.0), num_freq=fft_size)
+            cwt_mag = np.abs(cwt_complex)
+            cwt_log = np.log1p(cwt_mag)
+            cwt_norm = (cwt_log - cwt_log.min()) / (cwt_log.max() - cwt_log.min() + 1e-10)
+            raw_cwt.append(cwt_norm)
+    data_stack = np.array(raw_cwt).transpose(1, 2, 0)
+    
+    # Validate the data stack
+    if np.isnan(data_stack).any():
+        print("WARNING: NaN values detected in mvida_stack!")
+        data_stack = np.nan_to_num(data_stack, nan=0.0)
+    if np.isinf(data_stack).any():
+        print("WARNING: Inf values detected in mvida_stack!")
+        data_stack = np.nan_to_num(data_stack, posinf=1.0, neginf=-1.0)
+    return data_stack
+
+def predict_entry(single_stack, model_path, model=None):
+    """
+    Predict class from a single CWT stack.
+    
+    Parameters
+    ----------
+    single_stack : np.ndarray
+        CWT image stack with shape (1, H, W, 1)
+    model_path : str
+        Path to the saved model file
+    model : keras.Model, optional
+        Pre-loaded model to avoid repeated loading (recommended for multiple predictions)
+    
+    Returns
+    -------
+    class_name : str
+        Predicted class name ("Sonic Boom" or "Surf")
+    """
+    if model is None:
+        model = load_model(model_path)
+    
+    # Ensure batch dimension exists: (H, W, 1)  (1, H, W, 1)
+    if single_stack.ndim == 3:
+        single_stack = np.expand_dims(single_stack, axis=0)
+    pred = model.predict(single_stack, verbose=0)
+    prob = float(pred[0, 0]) if pred.ndim > 1 else float(pred[0])
+    # Classify event based on sigmoid prob output
+    if prob > 0.4:
+        class_name = "Surf"
+        confidence = prob
+    else:
+        class_name = "Sonic Boom"
+        confidence = 1.0 - prob
+    print(f"Predicted Class: {class_name} with confidence {confidence:.4f} (raw prob: {prob:.4f})")
     return class_name
