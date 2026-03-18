@@ -623,7 +623,7 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         self.latest_end_time = None
         for trace in sts:
             _ = 0.0
-            if trace.stats['_format'] == 'SAC':
+            if trace.stats.get('_format') == 'SAC':
                 _ = trace.stats.get('sac').get('b')
 
             if self.earliest_start_time is None:
@@ -643,7 +643,7 @@ class IPPlotLayoutWidget(pg.GraphicsLayoutWidget):
         for trace in sts:
             # if the trace is from a SAC file, find out if there is a b value
             _ = 0.0
-            if trace.stats['_format'] == 'SAC':
+            if trace.stats.get('_format') == 'SAC':
                 _ = trace.stats.get('sac').get('b')
 
             offsets.append(UTCDateTime(trace.stats.starttime) -

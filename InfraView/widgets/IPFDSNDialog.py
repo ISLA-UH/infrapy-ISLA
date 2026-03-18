@@ -1,5 +1,6 @@
 import obspy
 from obspy.clients.fdsn import Client
+from obspy.clients.seedlink import Client as SeedlinkClient
 from obspy.core import UTCDateTime
 from obspy.clients.fdsn.header import URL_MAPPINGS
 from obspy.core.stream import Stream
@@ -11,7 +12,7 @@ import numpy as np
 from PyQt5.QtWidgets import (QDialog, QDialogButtonBox, QWidget, QAbstractItemView, QLineEdit, QFormLayout,
                              QComboBox, QLabel, QVBoxLayout, QHBoxLayout,
                              QGroupBox, QPushButton, QDateEdit, QTimeEdit,
-                             QSizePolicy, QSpinBox, QListWidget)
+                             QSizePolicy, QSpinBox, QListWidget, QFileDialog)
 
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QDate, Qt, QDateTime, QTime
 
@@ -136,6 +137,14 @@ class IPFDSNWidget(QWidget):
         optionsContainer = QWidget()
         optionsContainer.setLayout(formLayout)
 
+        # --- Source selector (FDSN vs SeedLink) ---
+        self.source_combo = QComboBox()
+        self.source_combo.addItems(['FDSN', 'SeedLink'])
+        self.source_combo.setCurrentText('FDSN')
+        self.source_combo.currentTextChanged.connect(self.source_changed)
+        label_source = QLabel(self.tr('Source:'))
+        formLayout.addRow(label_source, self.source_combo)
+
         # in order to allow for custom fdsn servers, we have to make our own fdsn dictionary that we can append to
         self.fdsn_dictionary = URL_MAPPINGS
         # self.fdsn_dictionary.update({'BEER':'https://fdsnws.ilikebeer.com'})
@@ -144,7 +153,7 @@ class IPFDSNWidget(QWidget):
         self.cb = QComboBox()
         self.cb.setMinimumWidth(150)
         self.cb.currentTextChanged.connect(self.service_changed)
-        label_service_name = QLabel(self.tr('Service:'))
+        self.label_service_name = QLabel(self.tr('Service:'))
 
         self.cb.addItems(self.fdsn_dictionary.keys())
         self.cb.setCurrentText('IRIS')
@@ -159,6 +168,34 @@ class IPFDSNWidget(QWidget):
         service_layout = QHBoxLayout()
         service_layout.addWidget(self.cb)
         service_layout.addWidget(self.new_service_button)
+
+        # --- SeedLink-specific fields ---
+        self.label_seedlink_ip = QLabel(self.tr('SeedLink IP:'))
+        self.seedlink_ip_edit = QLineEdit()
+        self.seedlink_ip_edit.setMinimumWidth(170)
+        self.seedlink_ip_edit.setPlaceholderText('e.g. 192.168.1.100')
+        self.seedlink_ip_edit.setToolTip('IP address or hostname of the SeedLink server')
+
+        self.label_seedlink_port = QLabel(self.tr('SeedLink Port:'))
+        self.seedlink_port_spin = QSpinBox()
+        self.seedlink_port_spin.setMinimumWidth(170)
+        self.seedlink_port_spin.setMinimum(1)
+        self.seedlink_port_spin.setMaximum(65535)
+        self.seedlink_port_spin.setValue(18000)
+        self.seedlink_port_spin.setToolTip('Port number for the SeedLink server (default: 18000)')
+
+        self.label_stationxml = QLabel(self.tr('Station XML:'))
+        self.stationxml_path_edit = QLineEdit()
+        self.stationxml_path_edit.setMinimumWidth(170)
+        self.stationxml_path_edit.setReadOnly(True)
+        self.stationxml_path_edit.setPlaceholderText('(optional) Load StationXML for inventory')
+        self.stationxml_browse_button = QPushButton('Browse...')
+        self.stationxml_browse_button.setToolTip('Load a StationXML file for station metadata (optional). '
+                                                 'If not provided, inventory will be fetched from IRIS.')
+        self.stationxml_browse_button.clicked.connect(self.browseStationXML)
+        stationxml_layout = QHBoxLayout()
+        stationxml_layout.addWidget(self.stationxml_path_edit)
+        stationxml_layout.addWidget(self.stationxml_browse_button)
 
         validator = IPUtils.CapsValidator(self)
 
@@ -223,7 +260,12 @@ class IPFDSNWidget(QWidget):
         self.browserButton = QPushButton('Station Browser')
         self.browserButton.clicked.connect(self.onClicked_browserButton)
 
-        formLayout.addRow(label_service_name, service_layout)
+        formLayout.addRow(self.label_service_name, service_layout)
+
+        # SeedLink fields (hidden by default)
+        formLayout.addRow(self.label_seedlink_ip, self.seedlink_ip_edit)
+        formLayout.addRow(self.label_seedlink_port, self.seedlink_port_spin)
+        formLayout.addRow(self.label_stationxml, stationxml_layout)
 
         horizontalLineWidget = QWidget()
         horizontalLineWidget.setFixedHeight(2)
@@ -258,6 +300,44 @@ class IPFDSNWidget(QWidget):
 
         self.stationDialog.stationBrowser.channel_edit.textChanged.connect(self.channel_Box.setText)
         self.channel_Box.textChanged.connect(self.stationDialog.stationBrowser.channel_edit.textChanged)
+
+        # Initialize field visibility to FDSN mode
+        self.source_changed('FDSN')
+
+    def source_changed(self, source):
+        """
+        Toggle visibility of FDSN vs SeedLink fields based on the selected source.
+
+        :param source: 'FDSN' or 'SeedLink'
+        """
+        is_fdsn = (source == 'FDSN')
+        is_seedlink = (source == 'SeedLink')
+
+        # FDSN-specific widgets
+        self.label_service_name.setVisible(is_fdsn)
+        self.cb.setVisible(is_fdsn)
+        self.new_service_button.setVisible(is_fdsn)
+        self.browserButton.setVisible(is_fdsn)
+        self.stationListWidget.setVisible(is_fdsn)
+
+        # SeedLink-specific widgets
+        self.label_seedlink_ip.setVisible(is_seedlink)
+        self.seedlink_ip_edit.setVisible(is_seedlink)
+        self.label_seedlink_port.setVisible(is_seedlink)
+        self.seedlink_port_spin.setVisible(is_seedlink)
+        self.label_stationxml.setVisible(is_seedlink)
+        self.stationxml_path_edit.setVisible(is_seedlink)
+        self.stationxml_browse_button.setVisible(is_seedlink)
+
+    def browseStationXML(self):
+        """
+        Open a file dialog to select a StationXML file for SeedLink inventory.
+        """
+        fname, _ = QFileDialog.getOpenFileName(
+            self, 'Select StationXML File', '', 'StationXML Files (*.xml);;All Files (*)'
+        )
+        if fname:
+            self.stationxml_path_edit.setText(fname)
 
     def add_service(self):
         """
@@ -419,17 +499,12 @@ class IPFDSNWidget(QWidget):
         """
         function to handle download waveforms
         """
-        # get the inputs...inputs
-        service = self.cb.currentText()
-        if (service == 'choose...'):
-            IPUtils.errorPopup('Please select a service to search')
-            return
-
-        client = Client(self.fdsn_dictionary[service])
+        source = self.source_combo.currentText()
 
         # Clear old streams because we don't need them anymore
         self.clearWaveforms()
 
+        # Collect shared fields
         network = self.networkNameBox.text().upper().replace(' ', '')
         self.networkNameBox.setText(network)
         station = self.stationNameBox.text().upper().replace(' ', '')
@@ -450,10 +525,25 @@ class IPFDSNWidget(QWidget):
             IPUtils.errorPopup('You are missing some important info...\nNetwork, Station, Location, and Channel are '
                                'all required data.')
             return
-        # self.parent.setStatus('downloading Waveforms...')
+
+        if source == 'SeedLink':
+            self._downloadFromSeedLink(network, station, location, channel, startTime, endTime)
+        else:
+            self._downloadFromFDSN(network, station, location, channel, startTime, endTime)
+
+    def _downloadFromFDSN(self, network, station, location, channel, startTime, endTime):
+        """
+        Download waveforms and inventory from an FDSN service.
+        """
+        service = self.cb.currentText()
+        if (service == 'choose...'):
+            IPUtils.errorPopup('Please select a service to search')
+            return
+
+        client = Client(self.fdsn_dictionary[service])
+
         try:
             self.stream = client.get_waveforms(network, station, location, channel, startTime, endTime)
-
         except Exception:
             IPUtils.errorPopup('Failure loading waveform. \nDouble check that the values you entered are valid and '
                                'the time and date are appropriate.')
@@ -463,9 +553,6 @@ class IPFDSNWidget(QWidget):
             trace.data = trace.data - np.mean(trace.data)
         self.stream.merge(fill_value=0)
 
-        # self.parent.setStatus('downloading Inventory...')
-        # self.parent.consoleBox.append( 'Downloaded waveforms from '+service )
-
         # Now get the corresponding stations
         try:
             self.inventory = client.get_stations(network=network, station=station, channel=channel,
@@ -474,6 +561,56 @@ class IPFDSNWidget(QWidget):
             IPUtils.errorPopup('Failure loading Inventory.  \nDouble check that the values you entered are valid and '
                                'the time and date are appropriate.')
             return
+
+    def _downloadFromSeedLink(self, network, station, location, channel, startTime, endTime):
+        """
+        Download waveforms from a SeedLink server and load inventory from
+        a StationXML file or fall back to IRIS.
+        """
+        ip = self.seedlink_ip_edit.text().strip()
+        port = self.seedlink_port_spin.value()
+
+        if not ip:
+            IPUtils.errorPopup('Please enter a SeedLink server IP address.')
+            return
+
+        try:
+            sl_client = SeedlinkClient(ip, port=port, timeout=180)
+        except Exception as e:
+            IPUtils.errorPopup(f'Failed to connect to SeedLink server at {ip}:{port}\n{e}')
+            return
+
+        try:
+            self.stream = sl_client.get_waveforms(network, station, location, channel, startTime, endTime)
+        except Exception as e:
+            IPUtils.errorPopup(f'Failure loading waveforms from SeedLink.\n{e}')
+            return
+
+        if self.stream is None or len(self.stream) == 0:
+            IPUtils.errorPopup('No waveforms returned from SeedLink server.')
+            return
+
+        for trace in self.stream:
+            trace.data = trace.data - np.mean(trace.data)
+        self.stream.merge(fill_value=0)
+
+        # Load inventory: prefer StationXML file if provided, otherwise fall back to IRIS
+        xml_path = self.stationxml_path_edit.text().strip()
+        if xml_path:
+            try:
+                self.inventory = obspy.read_inventory(xml_path)
+            except Exception as e:
+                IPUtils.errorPopup(f'Failed to read StationXML file:\n{xml_path}\n{e}')
+                return
+        else:
+            try:
+                self.inventory = Client('IRIS').get_stations(
+                    network=network, station=station, channel=channel,
+                    starttime=startTime, endtime=endTime, level='channel'
+                )
+            except Exception as e:
+                IPUtils.errorPopup(f'No StationXML file provided and failed to fetch inventory from IRIS.\n{e}')
+                return
 
     def getStreams(self) -> Stream:
         """
