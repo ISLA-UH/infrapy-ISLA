@@ -178,16 +178,24 @@ class EventDetector:
 
 
 # User defined variables
-root_path = os.path.join(os.getcwd())
+root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
 nrt_stime = UTCDateTime("2025-11-21T14:24:00.000000Z")
 end_time = UTCDateTime("2026-01-07T19:30:00.000000Z")
-logging.basicConfig(
-    filename=os.path.join(root_path, 'results', 'bin', "error.log"),
-    filemode="a",
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.ERROR
-)
+try:
+    os.makedirs(os.path.join(root_path, 'results'), exist_ok=True)
+    os.makedirs(os.path.join(root_path, 'results', 'bin'), exist_ok=True)
+    error_file = os.path.join(root_path, 'results', 'bin', "error.log")
+    if not os.path.exists(error_file):
+        open(error_file, 'w').close()
+    logging.basicConfig(
+        filename=error_file,
+        filemode="a",
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.ERROR
+    )
+except Exception as e:
+    print(f"Error setting up directories: {e}")
 evd = EventDetector(
     event_name="auto_infrapy_test",
     network="IM",
