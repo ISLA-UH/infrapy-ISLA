@@ -485,7 +485,7 @@ if __name__ == "__main__":
                     dets_found = True
                     prev_thresh = thresh
                     print(
-                        f"Found {len(det_list)} detections, writing to {det_out} ; New Threshold: {prev_thresh}"
+                        f"Found {len(det_list)} detections, writing to {det_out}; New Threshold: {prev_thresh}"
                     )
                     str_info = [
                         strm[0].stats.network,
