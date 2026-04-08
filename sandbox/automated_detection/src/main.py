@@ -50,6 +50,39 @@ from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
 
 
+def create_log(root_path: str, day_key: str) -> str:
+    """
+        Creates a log file for each day of processings for infromation and error logging.
+        Parameters:
+        ----------
+        root_path : str
+            Root path for the project.
+        day_key : str
+            Key for the day of processing.
+        Returns:
+        ----------
+        str
+            Path to the created log file.
+    """
+    day_path = os.path.join(root_path, 'results', day_key[:4], day_key[4:6], day_key[6:])
+    os.makedirs(day_path, exist_ok=True)
+    log_file = os.path.join(day_path, f"data_log_{day_key}.log")
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    for handler in logger.handlers[:]:
+        handler.close()
+        logger.removeHandler(handler)
+    fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    fh = logging.FileHandler(log_file, mode="a")
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(fmt)
+    logger.addHandler(sh)
+    return day_path
+
 class EventDetector:
     """
     This class handles event detection using InfraPy
@@ -177,42 +210,39 @@ class EventDetector:
         self.signal_step_sec = self.sig_len_secs * (1 - self.overlap_perc)
 
 
-# User defined variables
+# Load run configuration
 root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
-nrt_stime = UTCDateTime("2025-11-21T14:24:00.000000Z")
-end_time = UTCDateTime("2026-01-07T19:30:00.000000Z")
-try:
-    os.makedirs(os.path.join(root_path, 'results'), exist_ok=True)
-    os.makedirs(os.path.join(root_path, 'results', 'bin'), exist_ok=True)
-    error_file = os.path.join(root_path, 'results', 'bin', "error.log")
-    if not os.path.exists(error_file):
-        open(error_file, 'w').close()
-    logging.basicConfig(
-        filename=error_file,
-        filemode="a",
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        level=logging.ERROR
-    )
-except Exception as e:
-    print(f"Error setting up directories: {e}")
+_cfg_path = os.path.join(root_path, 'config', 'example.ini')
+if not os.path.exists(_cfg_path):
+    print(f"Config not found at {_cfg_path}")
+    exit(1)
+_run_cfg = configparser.ConfigParser()
+_run_cfg.read(_cfg_path)
+
+_nrt_stime_str = infraconfig.get_param(_run_cfg, "RUN", "nrt_stime", None, "string")
+_end_time_str = infraconfig.get_param(_run_cfg, "RUN", "end_time", None, "string")
+nrt_stime = UTCDateTime(_nrt_stime_str) if _nrt_stime_str else None
+end_time = UTCDateTime(_end_time_str) if _end_time_str else None
+
+os.makedirs(os.path.join(root_path, 'results'), exist_ok=True)
+
 evd = EventDetector(
-    event_name="auto_infrapy_test",
-    network="IM",
-    station="I59*",
-    location="",
-    channel="BDF",
+    event_name=infraconfig.get_param(_run_cfg, "RUN", "event_name", None, "string"),
+    network=infraconfig.get_param(_run_cfg, "RUN", "network", None, "string"),
+    station=infraconfig.get_param(_run_cfg, "RUN", "station", None, "string"),
+    location=infraconfig.get_param(_run_cfg, "RUN", "location", "", "string") or "",
+    channel=infraconfig.get_param(_run_cfg, "RUN", "channel", None, "string"),
     root_path=root_path,
-    config_path=None,
-    num_elements=4,
-    wf_client=0,
-    real_time=False,
-    rt_buffer_s=300,
+    config_path=_cfg_path,
+    num_elements=infraconfig.get_param(_run_cfg, "RUN", "num_elements", 4, "int"),
+    wf_client=infraconfig.get_param(_run_cfg, "RUN", "wf_client", 0, "int"),
+    real_time=infraconfig.get_param(_run_cfg, "RUN", "real_time", False, "bool"),
+    rt_buffer_s=infraconfig.get_param(_run_cfg, "RUN", "rt_buffer_s", 120, "int"),
     nrt_stime=nrt_stime,
     end_time=end_time,
-    sig_len_secs=600,
-    overlap_perc=0.2,
-    seedlink_ip="192.168.112.200"
+    sig_len_secs=infraconfig.get_param(_run_cfg, "RUN", "sig_len_secs", 600, "int"),
+    overlap_perc=infraconfig.get_param(_run_cfg, "RUN", "overlap_perc", 0.2, "float"),
+    seedlink_ip=infraconfig.get_param(_run_cfg, "RUN", "seedlink_ip", None, "string"),
 )
 
 
@@ -277,16 +307,18 @@ if __name__ == "__main__":
     t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
         if evd.real_time else evd.nrt_stime - evd.signal_step_sec
     t2 = UTCDateTime() - (evd.sig_len_secs + evd.rt_buffer_s) if evd.real_time else evd.nrt_stime
+    current_day = t1.strftime("%Y%m%d")
+    det_fpath = create_log(root_path, current_day)
     # Generate Noise and Get Inventory
     inventory = None
     # Try to load inventory from XML file first
     try:
         inv_file = os.path.join(root_path, 'config', 'I59US_station.xml')
         inventory = obspy.read_inventory(inv_file)
-        print(f"Loaded inventory from {inv_file}")
+        logging.info(f"Loaded inventory from {inv_file}")
     except Exception as e:
         # If no XML file load from IRIS
-        print(f"could not load from .xml file Exception: {e}")
+        logging.warning(f"could not load from .xml file Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         try:
             inventory = Client("IRIS").get_stations(
@@ -300,13 +332,13 @@ if __name__ == "__main__":
             )
         except Exception as e:
             # no inventory means we need to exit
-            print(f"Error {e} fetching data from FDSN client. Please check network/station codes and time range.")
+            logging.error(f"Error {e} fetching data from FDSN client. Please check network/station codes and time range.")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             logging.shutdown()
             sys.exit(1)
 
     # Get Baseline Noise Data
-    print("Fetching baseline noise data")
+    logging.info("Fetching baseline noise data")
     try:
         n_stream = evd.client.get_waveforms(
             network=evd.network,
@@ -317,7 +349,7 @@ if __name__ == "__main__":
             endtime=t2,
         )
     except Exception as e:
-        print(f"Error fetching base waveforms. Exception: {e}")
+        logging.error(f"Error fetching base waveforms. Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         logging.shutdown()
         sys.exit(1)
@@ -329,8 +361,8 @@ if __name__ == "__main__":
             f"{evd.network}.{tr.stats.station}.{evd.location}.{evd.channel}", t1
         )
         latlon.append((coords["latitude"], coords["longitude"]))
-        print(tr.stats.starttime, tr.stats.station)
-    print(f"Fetched {len(n_stream)} traces from {evd.network}.{evd.station}.")
+        logging.info(f"{tr.stats.starttime} {tr.stats.station}")
+    logging.info(f"Fetched {len(n_stream)} traces from {evd.network}.{evd.station}.")
 
     centroid = np.mean([lat for lat, _ in latlon]), np.mean([lon for _, lon in latlon])
     array_lat, array_lon = centroid
@@ -366,7 +398,7 @@ if __name__ == "__main__":
     i = 0
 
     # Initialize loop for processing time windows
-    print("Beginning automated detection processing")
+    logging.info("Beginning automated detection processing")
     while True:
         t_now = UTCDateTime()
         try:
@@ -378,8 +410,12 @@ if __name__ == "__main__":
                 else nrt_stime + (i * evd.signal_step_sec)
             t2 = t_now - evd.rt_buffer_s if (evd.real_time) \
                 else nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
+            new_day = t1.strftime("%Y%m%d")
+            if new_day != current_day:
+                current_day = new_day
+                det_fpath = create_log(root_path, current_day)
             if not evd.real_time and t2 > evd.end_time:
-                print("End of non-real-time processing reached.  Exiting.")
+                logging.info("End of non-real-time processing reached.  Exiting.")
                 exit(0)
 
             # Get waveforms from IRIS or seedlink
@@ -392,20 +428,20 @@ if __name__ == "__main__":
                     starttime=t1,
                     endtime=t2,
                 )
-                print(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")
+                logging.info(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")
                 if (len(g_stream) < evd.num_elements):
-                    print(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {evd.num_elements}.")
+                    logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {evd.num_elements}.")
                     i += 1
                     continue
 
                 str_name = f"{evd.event_name}_{t1.strftime('%Y%m%d_%H%M%S')}"
-                print(f"Iteration {i}")
+                logging.info(f"Iteration {i}")
 
                 # Begin beamforming on stream
                 strm = g_stream.copy()
                 x, t, t0, _ = fkd.stream_to_array_data(strm, latlon=np.array(latlon))
                 M, N = x.shape
-                print(f"Running {method} beamforming from {t1} to {t2}")
+                logging.info(f"Running {method} beamforming from {t1} to {t2}")
                 beam_times, beam_peaks, beam_power = fkd.auto_run_bf(
                     0,
                     t2 - t1,
@@ -425,14 +461,14 @@ if __name__ == "__main__":
                     thresh = fixed_thresh
                 else:
                     # If detections were found thresh will be the same as previous valid fstat thresh. If not recompute
-                    print("Adjusting threshold based on noise")
+                    logging.info("Adjusting threshold based on noise")
                     if dets_found:
                         thresh = prev_thresh
                     else:
                         thresh = new_thresh
 
                 # Run detection
-                print(f"Running FD detection from {t1} to {t2}\nNoise Window: {noise_start} to {noise_end}")
+                logging.info(f"Running FD detection from {t1} to {t2}\nNoise Window: {noise_start} to {noise_end}")
                 min_seq = int(max(2, min_duration / (window_step)))
                 det_results = fkd.run_fd(
                     beam_times,
@@ -459,23 +495,14 @@ if __name__ == "__main__":
                         method=method,
                     )
                     det_list.append(det)
-                print("Detection Complete")
+                logging.info("Detection Complete")
 
                 # Save detections
                 if len(det_list) > 0:
-                    det_fpath = os.path.join(root_path, 'results', t1.strftime("%Y/%m/%d/"))
-                    try:
-                        if not os.path.isdir(det_fpath):
-                            print("Making New Folder")
-                            os.makedirs(det_fpath, exist_ok=True)
-                    except Exception as e:
-                        logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-                        print(f"Error making folder, please investigate issues: {e}")
-                        det_fpath = os.path.join(root_path, 'results', 'bin')
                     det_out = os.path.join(det_fpath, f"{str_name}_detections.json")
                     dets_found = True
                     prev_thresh = thresh
-                    print(
+                    logging.info(
                         f"Found {len(det_list)} detections, writing to {det_out} ; New Threshold: {prev_thresh}"
                     )
                     str_info = [
@@ -531,12 +558,12 @@ if __name__ == "__main__":
 
                     rd_out = os.path.join(det_fpath, f"{str_name}_raw_data.txt")
                     np.savetxt(rd_out, raw_data, header=rd_header)
-                    print(f"  Wrote FK results to {rd_out}")
+                    logging.info(f"  Wrote FK results to {rd_out}")
                 else:
-                    print("No detections found")
+                    logging.info("No detections found")
                     dets_found = False
                     if (not fixed_thresh):
-                        print("Recalculating threshold based on noise")
+                        logging.info("Recalculating threshold based on noise")
                         new_thresh = fkd.adjust_thresh_noise(
                             (x, t, t0, geom),
                             window_len,
@@ -552,32 +579,31 @@ if __name__ == "__main__":
                             p_value,
                             TB_prod,
                         )
-                        print(f"New Threshold: {new_thresh}")
+                        logging.info(f"New Threshold: {new_thresh}")
                     else:
                         new_thresh = fixed_thresh
                 if evd.real_time:
                     T = time.time() - stop_watch
                     remaining_sleep = evd.signal_step_sec - T
-                    print(
+                    logging.info(
                         f"Sleeping for {remaining_sleep} seconds until "
                         f"{t_now + remaining_sleep - 36000} (HST)"
                     )
                     time.sleep(remaining_sleep)
             except URLError as e:
-                print(f"Network error fetching data (URLError): {e.reason}")
-                logging.error(f"URLError: {e.reason}")
+                logging.error(f"Network error fetching data (URLError): {e.reason}")
                 if evd.real_time:
-                    print(f"Retrying after {evd.signal_step_sec} seconds...")
+                    logging.info(f"Retrying after {evd.signal_step_sec} seconds...")
                     time.sleep(evd.signal_step_sec)
             except Exception as e:
-                print(f"Error fetching data. Exception: {e}")
+                logging.error(f"Error fetching data. Exception: {e}")
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
                 if evd.real_time:
-                    print(f"Retrying after {evd.signal_step_sec} seconds...")
+                    logging.info(f"Retrying after {evd.signal_step_sec} seconds...")
                     time.sleep(evd.signal_step_sec)
         except Exception as e:
             # Print to output any errors and continue to next time window
-            print(f"{t_now}: Error in detection processing: {e}")
+            logging.error(f"{t_now}: Error in detection processing: {e}")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         i += 1  # increment iteration
 logging.shutdown()
