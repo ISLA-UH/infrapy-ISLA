@@ -208,6 +208,15 @@ class EventDetector:
         self.sig_len_secs = sig_len_secs
         self.overlap_perc = overlap_perc
         self.signal_step_sec = self.sig_len_secs * (1 - self.overlap_perc)
+        if not self.real_time:
+            dur = self.end_time - self.nrt_stime - sig_len_secs
+            if dur <= 0:
+                print("WARNING: Selected time segment is shorter than signal length.  Results may not be reliable.")
+            else:
+                remainder = dur % self.signal_step_sec
+                if remainder != 0:
+                    print("NOTE: Selected time segment will have incomplete last window that will not be processed."
+                          f"Extra Time = {remainder} seconds.")
 
 
 # Load run configuration
@@ -219,10 +228,9 @@ if not os.path.exists(cfg_path):
 run_cfg = configparser.ConfigParser()
 run_cfg.read(cfg_path)
 
-_nrt_stime_str = infraconfig.get_param(run_cfg, "RUN", "nrt_stime", None, "string")
-_end_time_str = infraconfig.get_param(run_cfg, "RUN", "end_time", None, "string")
-nrt_stime = UTCDateTime(_nrt_stime_str) if _nrt_stime_str else None
-end_time = UTCDateTime(_end_time_str) if _end_time_str else None
+
+nrt_stime = UTCDateTime(infraconfig.get_param(run_cfg, "RUN", "nrt_stime", None, "string"))
+end_time = UTCDateTime(infraconfig.get_param(run_cfg, "RUN", "end_time", None, "string"))
 
 os.makedirs(os.path.join(root_path, 'results'), exist_ok=True)
 

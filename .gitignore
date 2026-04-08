@@ -29,4 +29,3 @@ docs/build/
 *.conda
 *.venv
 .gitignore
-sandbox/automated_detection/src/classify_event.py
