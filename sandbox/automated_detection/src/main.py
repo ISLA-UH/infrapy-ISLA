@@ -212,37 +212,37 @@ class EventDetector:
 
 # Load run configuration
 root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
-_cfg_path = os.path.join(root_path, 'config', 'example.ini')
-if not os.path.exists(_cfg_path):
-    print(f"Config not found at {_cfg_path}")
+cfg_path = os.path.join(root_path, 'config', 'example.ini')
+if not os.path.exists(cfg_path):
+    print(f"Config not found at {cfg_path}")
     exit(1)
-_run_cfg = configparser.ConfigParser()
-_run_cfg.read(_cfg_path)
+run_cfg = configparser.ConfigParser()
+run_cfg.read(cfg_path)
 
-_nrt_stime_str = infraconfig.get_param(_run_cfg, "RUN", "nrt_stime", None, "string")
-_end_time_str = infraconfig.get_param(_run_cfg, "RUN", "end_time", None, "string")
+_nrt_stime_str = infraconfig.get_param(run_cfg, "RUN", "nrt_stime", None, "string")
+_end_time_str = infraconfig.get_param(run_cfg, "RUN", "end_time", None, "string")
 nrt_stime = UTCDateTime(_nrt_stime_str) if _nrt_stime_str else None
 end_time = UTCDateTime(_end_time_str) if _end_time_str else None
 
 os.makedirs(os.path.join(root_path, 'results'), exist_ok=True)
 
 evd = EventDetector(
-    event_name=infraconfig.get_param(_run_cfg, "RUN", "event_name", None, "string"),
-    network=infraconfig.get_param(_run_cfg, "RUN", "network", None, "string"),
-    station=infraconfig.get_param(_run_cfg, "RUN", "station", None, "string"),
-    location=infraconfig.get_param(_run_cfg, "RUN", "location", "", "string") or "",
-    channel=infraconfig.get_param(_run_cfg, "RUN", "channel", None, "string"),
+    event_name=infraconfig.get_param(run_cfg, "RUN", "event_name", None, "string"),
+    network=infraconfig.get_param(run_cfg, "RUN", "network", None, "string"),
+    station=infraconfig.get_param(run_cfg, "RUN", "station", None, "string"),
+    location=infraconfig.get_param(run_cfg, "RUN", "location", "", "string") or "",
+    channel=infraconfig.get_param(run_cfg, "RUN", "channel", None, "string"),
     root_path=root_path,
-    config_path=_cfg_path,
-    num_elements=infraconfig.get_param(_run_cfg, "RUN", "num_elements", 4, "int"),
-    wf_client=infraconfig.get_param(_run_cfg, "RUN", "wf_client", 0, "int"),
-    real_time=infraconfig.get_param(_run_cfg, "RUN", "real_time", False, "bool"),
-    rt_buffer_s=infraconfig.get_param(_run_cfg, "RUN", "rt_buffer_s", 120, "int"),
+    config_path=cfg_path,
+    num_elements=infraconfig.get_param(run_cfg, "RUN", "num_elements", 4, "int"),
+    wf_client=infraconfig.get_param(run_cfg, "RUN", "wf_client", 0, "int"),
+    real_time=infraconfig.get_param(run_cfg, "RUN", "real_time", False, "bool"),
+    rt_buffer_s=infraconfig.get_param(run_cfg, "RUN", "rt_buffer_s", 120, "int"),
     nrt_stime=nrt_stime,
     end_time=end_time,
-    sig_len_secs=infraconfig.get_param(_run_cfg, "RUN", "sig_len_secs", 600, "int"),
-    overlap_perc=infraconfig.get_param(_run_cfg, "RUN", "overlap_perc", 0.2, "float"),
-    seedlink_ip=infraconfig.get_param(_run_cfg, "RUN", "seedlink_ip", None, "string"),
+    sig_len_secs=infraconfig.get_param(run_cfg, "RUN", "sig_len_secs", 600, "int"),
+    overlap_perc=infraconfig.get_param(run_cfg, "RUN", "overlap_perc", 0.2, "float"),
+    seedlink_ip=infraconfig.get_param(run_cfg, "RUN", "seedlink_ip", None, "string"),
 )
 
 
