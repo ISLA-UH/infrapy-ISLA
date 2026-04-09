@@ -477,7 +477,7 @@ from scipy.signal import spectrogram
 def create_log_mel_spectrogram(raw_data, fs, target_size=256, n_mels=128, fmin=0.5, fmax=None):
     """
     Creates a log-Mel spectrogram from a raw time-domain waveform.
-    Optimized for infrasound classification where transients appear as
+    Optimized for infrasound identification where transients appear as
     broadband impulses and surf appears as narrowband repetitive energy.
 
     Parameters
@@ -931,7 +931,7 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, stack_size=1
         print(entry)
 
 if __name__ == "__main__":
-    path = os.getcwd() + '/sandbox/classification/'
+    path = os.getcwd() + '/sandbox/identification/'
     rel_path = os.path.join(path, 'training', 'numpy')
     cl = Client("IRIS")
     with open(path+'training/json/merged_detections.json', 'r') as f:
