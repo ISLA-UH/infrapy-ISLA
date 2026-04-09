@@ -34,6 +34,9 @@ import os
 import sys
 import time
 from typing import Optional
+import logging
+import traceback
+from urllib.error import URLError
 
 import numpy as np
 import obspy
@@ -41,14 +44,10 @@ from obspy import UTCDateTime
 from obspy.clients.fdsn import Client
 from obspy.clients.seedlink import Client as Client_seedlink
 
-import logging
-import traceback
-from urllib.error import URLError
 # InfraPy imports
 from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
-
 
 
 class EventDetector:
@@ -97,8 +96,6 @@ class EventDetector:
         signal_step_sec: float, signal step in seconds after accounting for overlap.
     """
 
-
-    
     def __init__(self,
                  event_name: str,
                  network: str,
@@ -226,10 +223,11 @@ class EventDetector:
         return day_path
 
     @staticmethod
-    def load_config(cfg_path: str) -> "EventDetector":
+    def load_config(rt_path: str, cfg_path: str) -> "EventDetector":
         """
         Loads the configuration file for the event detector.
 
+        :param rt_path: Root path for the project
         :param cfg_path: Path to the configuration file
         :return: EventDetector object
 
@@ -247,7 +245,7 @@ class EventDetector:
                 station=infraconfig.get_param(run_cfg, "RUN", "station", None, "string"),
                 location=infraconfig.get_param(run_cfg, "RUN", "location", None, "string") or "",
                 channel=infraconfig.get_param(run_cfg, "RUN", "channel", None, "string"),
-                root_path=root_path,
+                root_path=rt_path,
                 config_path=cfg_path,
                 num_elements=infraconfig.get_param(run_cfg, "RUN", "num_elements", None, "int"),
                 wf_client=infraconfig.get_param(run_cfg, "RUN", "wf_client", None, "int"),
@@ -279,12 +277,7 @@ if __name__ == "__main__":
     else:
         cfg_path = os.path.join(root_path, 'config', 'example.ini')
     # Setup Event Detector and paths
-    evd = EventDetector.load_config(cfg_path)
-
-    if not evd.results_dir:
-        results_path = os.path.join(root_path, 'results')
-    else:
-        results_path = evd.results_dir
+    evd = EventDetector.load_config(root_path, cfg_path)
 
     # Beamforming Parameters
     freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")
@@ -337,7 +330,7 @@ if __name__ == "__main__":
         if evd.real_time else evd.nrt_stime - evd.signal_step_sec
     t2 = UTCDateTime() - (evd.sig_len_secs + evd.rt_buffer_s) if evd.real_time else evd.nrt_stime
     current_day = t1.strftime("%Y%m%d")
-    det_fpath = evd.create_log(os.path.join(results_path), current_day)
+    det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
     # Generate Noise and Get Inventory
     inventory = None
     # Try to load inventory from XML file first
@@ -442,7 +435,7 @@ if __name__ == "__main__":
             new_day = t1.strftime("%Y%m%d")
             if new_day != current_day:
                 current_day = new_day
-                det_fpath = evd.create_log(os.path.join(root_path, results_path), current_day)
+                det_fpath = evd.create_log(os.path.join(root_path, evd.results_dir), current_day)
             if not evd.real_time and t2 > evd.end_time:
                 logging.info("End of non-real-time processing reached.  Exiting.")
                 exit(0)
@@ -462,7 +455,6 @@ if __name__ == "__main__":
                     logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {evd.num_elements}.")
                     i += 1
                     continue
-
                 str_name = f"{evd.event_name}_{t1.strftime('%Y%m%d_%H%M%S')}"
                 logging.info(f"Iteration {i}")
 
@@ -549,7 +541,6 @@ if __name__ == "__main__":
                         det["Signal"] = f"{t1} to {t2}"
                         det["Noise"] = f"{noise_start} to {noise_end}"
                         det["F-Stat Threshold"] = thresh
-
                     with open(det_out, "w") as f:
                         json.dump(dets_data, f, indent=4)
 
