@@ -1,6 +1,6 @@
+import cv2
 import numpy as np
 import sys
-sys.path.append('..\\..\\identification\\src')
 import obspy
 from obspy.signal.tf_misfit import cwt
 import ssqueezepy
@@ -11,7 +11,7 @@ from obspy.geodetics.base import gps2dist_azimuth
 import random
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
-from EfficientNetB0 import build_efficientnet_b0, unfreeze_and_finetune, EfficientNetPreprocessing
+from EfficientNetB0 import build_efficientnetb0, finetune_backbone, EfficientNetPreprocessing
 
 
 def inv_align(st: obspy.Stream, inventory: obspy.Inventory, back_azimuth_deg: float, velocity_ms: float) -> obspy.Stream:
@@ -174,7 +174,7 @@ def apply_mvida_to_stream(aligned_strm):
     virtual_strm.append(v_trace)
     return virtual_strm
 
-def single_stack(strm, inventory, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity) -> np.ndarray:
+def single_stack(strm, inventory, freq_range, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity, size) -> np.ndarray:
     """
     Takes a detection stream and generates a single CWT stack for classification.
     Parameters
@@ -206,13 +206,13 @@ def single_stack(strm, inventory, center_time, window: float, stack_size: int, o
         tr.attach_response(inventory)
         tr.remove_sensitivity()
     strm.detrend()
-    strm.taper(max_percentage=0.05, type="hann")
-    strm.filter("bandpass", freqmin=1.0, freqmax=8.0, corners=4, zerophase=True)
+    strm.taper(max_percentage=0.05, type="blackmanharris")
+    strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
     t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
     strm = t_strm.copy()
     final_start = center_time - (window / 2)
     final_end = center_time + (window / 2)
-    strm.trim(starttime=final_start, endtime=final_end, pad=False)
+    strm.trim(starttime=final_start, endtime=final_end, pad=True)
     single_strm = stack_weighted_traces(strm)
     current_strm = obspy.Stream(traces=single_strm)
 
@@ -234,13 +234,17 @@ def single_stack(strm, inventory, center_time, window: float, stack_size: int, o
         # Create CWT representation for the current frame
         raw_cwt = []
         for tr in strm_window:
-            cwt_complex = create_cwt(raw_data=tr.data, fs=20, freq_range=(1, 8.0), num_freq=fft_size)
+            cwt_complex = create_cwt(raw_data=tr.data, fs=20, freq_range=freq_range, num_freq=fft_size)
             cwt_mag = np.abs(cwt_complex)
             cwt_log = np.log1p(cwt_mag)
             cwt_norm = (cwt_log - cwt_log.min()) / (cwt_log.max() - cwt_log.min() + 1e-10)
             raw_cwt.append(cwt_norm)
     data_stack = np.array(raw_cwt).transpose(1, 2, 0)
-    
+
+    data_stack = cv2.resize(data_stack, (size, size), interpolation=cv2.INTER_AREA)
+    if data_stack.ndim == 2:
+        data_stack = np.expand_dims(data_stack, axis=-1)
+
     # Validate the data stack
     if np.isnan(data_stack).any():
         print("WARNING: NaN values detected in single_stack!")
@@ -250,7 +254,7 @@ def single_stack(strm, inventory, center_time, window: float, stack_size: int, o
         data_stack = np.nan_to_num(data_stack, posinf=1.0, neginf=-1.0)
     return data_stack
 
-def mvida_stack(strm, inventory, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity) -> np.ndarray:
+def mvida_stack(strm, inventory, freq_range, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity) -> np.ndarray:
     """
     Takes a detection stream and generates a single CWT stack for classification.
     Parameters
@@ -282,8 +286,8 @@ def mvida_stack(strm, inventory, center_time, window: float, stack_size: int, ov
         tr.attach_response(inventory)
         tr.remove_sensitivity()
     strm.detrend()
-    strm.taper(max_percentage=0.05, type="hann")
-    strm.filter("bandpass", freqmin=1.0, freqmax=8.0, corners=4, zerophase=True)
+    strm.taper(max_percentage=0.05, type="blackmanharris")
+    strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
     t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
     strm = t_strm.copy()
     final_start = center_time - (window / 2)
@@ -310,7 +314,7 @@ def mvida_stack(strm, inventory, center_time, window: float, stack_size: int, ov
         # Create CWT representation for the current frame
         raw_cwt = []
         for tr in strm_window:
-            cwt_complex = create_cwt(raw_data=tr.data, fs=20, freq_range=(1, 8.0), num_freq=fft_size)
+            cwt_complex = create_cwt(raw_data=tr.data, fs=20, freq_range=freq_range, num_freq=fft_size)
             cwt_mag = np.abs(cwt_complex)
             cwt_log = np.log1p(cwt_mag)
             cwt_norm = (cwt_log - cwt_log.min()) / (cwt_log.max() - cwt_log.min() + 1e-10)
@@ -326,38 +330,49 @@ def mvida_stack(strm, inventory, center_time, window: float, stack_size: int, ov
         data_stack = np.nan_to_num(data_stack, posinf=1.0, neginf=-1.0)
     return data_stack
 
-def predict_entry(single_stack, model_path, model=None):
+def predict_entry(single_stack, model_path, model=None, class_names=None):
     """
     Predict class from a single CWT stack.
-    
+
     Parameters
     ----------
     single_stack : np.ndarray
-        CWT image stack with shape (1, H, W, 1)
+        CWT image stack with shape (1, H, W, 1) or (H, W, 1)
     model_path : str
         Path to the saved model file
     model : keras.Model, optional
         Pre-loaded model to avoid repeated loading (recommended for multiple predictions)
-    
+    class_names : list[str], optional
+        Optional list of class names matching the model output order.
+
     Returns
     -------
     class_name : str
-        Predicted class name ("Sonic Boom" or "Surf")
+        Predicted class name
     """
     if model is None:
         model = load_model(model_path)
-    
-    # Ensure batch dimension exists: (H, W, 1)  (1, H, W, 1)
+
     if single_stack.ndim == 3:
         single_stack = np.expand_dims(single_stack, axis=0)
+
     pred = model.predict(single_stack, verbose=0)
-    prob = float(pred[0, 0]) if pred.ndim > 1 else float(pred[0])
-    # Classify event based on sigmoid prob output
-    if prob > 0.4:
-        class_name = "Surf"
-        confidence = prob
+
+    if pred.ndim == 1 or pred.shape[-1] == 1:
+        prob = float(pred[0] if pred.ndim == 1 else pred[0, 0])
+        class_idx = 1 if prob > 0.5 else 0
+        default_names = ["Sonic Boom", "Surf"]
+        class_names = class_names or default_names
+        confidence = prob if class_idx == 1 else 1.0 - prob
     else:
-        class_name = "Sonic Boom"
-        confidence = 1.0 - prob
-    print(f"Predicted Class: {class_name} with confidence {confidence:.4f} (raw prob: {prob:.4f})")
+        class_idx = int(np.argmax(pred[0]))
+        confidence = float(pred[0, class_idx])
+        if class_names is None:
+            if pred.shape[-1] == 3:
+                class_names = ["surf", "transient", "thunder"]
+            else:
+                class_names = [f"class_{i}" for i in range(pred.shape[-1])]
+
+    class_name = class_names[class_idx]
+    print(f"Predicted Class: {class_name} with confidence {confidence:.4f} (raw scores: {pred[0]})")
     return class_name
