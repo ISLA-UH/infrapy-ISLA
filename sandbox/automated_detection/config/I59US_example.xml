@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<FDSNStationXML xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.2">
+  <Source>Source</Source>
+  <Module>ObsPy 1.4.2</Module>
+  <ModuleURI>https://www.obspy.org</ModuleURI>
+  <Created>2026-01-07T01:14:46.659471Z</Created>
+  <Network code="IM" startDate="1965-01-01T00:00:00.000000Z">
+    <Description>International Miscellaneous Stations (IMS)</Description>
+    <Station code="I59H1" startDate="2010-02-10T00:00:00.000000Z">
+      <Description>I59H1</Description>
+      <Latitude unit="DEGREES">19.591532</Latitude>
+      <Longitude unit="DEGREES">-155.8936</Longitude>
+      <Elevation unit="METERS">1033.5</Elevation>
+      <Site>
+        <Name>Hawaii Infrasonic Array, Site I59H1, USA</Name>
+      </Site>
+      <TotalNumberChannels>1</TotalNumberChannels>
+      <Channel code="BDF" startDate="2025-09-25T04:30:00.000000Z" locationCode="">
+        <Comment id="1" subject="CALIB">
+          <Value>4.5751e-05</Value>
+          <BeginEffectiveTime>2025-09-25T04:30:00.000000Z</BeginEffectiveTime>
+        </Comment>
+        <Latitude unit="DEGREES">19.591532</Latitude>
+        <Longitude unit="DEGREES">-155.8936</Longitude>
+        <Elevation unit="METERS">1033.5</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <SampleRate>20.0</SampleRate>
+        <CalibrationUnits>
+          <Name>V</Name>
+          <Description>Volts</Description>
+        </CalibrationUnits>
+        <Sensor>
+          <Description>Nanometrics Centaur CTR4-6A/S</Description>
+        </Sensor>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>21857.6</Value>
+            <Frequency>1.0</Frequency>
+            <InputUnits>
+              <Name>Pa</Name>
+              <Description>None</Description>
+            </InputUnits>
+            <OutputUnits>
+              <Name>counts</Name>
+              <Description>None</Description>
+            </OutputUnits>
+          </InstrumentSensitivity>
+        </Response>
+      </Channel>
+    </Station>
+    <Station code="I59H2" startDate="2010-02-10T00:00:00.000000Z">
+      <Description>I59H2</Description>
+      <Latitude unit="DEGREES">19.600961</Latitude>
+      <Longitude unit="DEGREES">-155.89527</Longitude>
+      <Elevation unit="METERS">1040.9</Elevation>
+      <Site>
+        <Name>Hawaii Infrasonic Array, Site I59H2, USA</Name>
+      </Site>
+      <TotalNumberChannels>1</TotalNumberChannels>
+      <Channel code="BDF" startDate="2025-09-24T23:50:55.000000Z" locationCode="">
+        <Comment id="1" subject="CALIB">
+          <Value>4.602e-05</Value>
+          <BeginEffectiveTime>2025-09-24T23:50:55.000000Z</BeginEffectiveTime>
+        </Comment>
+        <Latitude unit="DEGREES">19.600961</Latitude>
+        <Longitude unit="DEGREES">-155.89527</Longitude>
+        <Elevation unit="METERS">1040.9</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <SampleRate>20.0</SampleRate>
+        <CalibrationUnits>
+          <Name>V</Name>
+          <Description>Volts</Description>
+        </CalibrationUnits>
+        <Sensor>
+          <Description>Nanometrics Centaur CTR4-6A/S</Description>
+        </Sensor>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>21729.7</Value>
+            <Frequency>1.0</Frequency>
+            <InputUnits>
+              <Name>Pa</Name>
+              <Description>None</Description>
+            </InputUnits>
+            <OutputUnits>
+              <Name>counts</Name>
+              <Description>None</Description>
+            </OutputUnits>
+          </InstrumentSensitivity>
+        </Response>
+      </Channel>
+    </Station>
+    <Station code="I59H3" startDate="2010-02-10T00:00:00.000000Z">
+      <Description>I59H3</Description>
+      <Latitude unit="DEGREES">19.59106</Latitude>
+      <Longitude unit="DEGREES">-155.88175</Longitude>
+      <Elevation unit="METERS">1130.1</Elevation>
+      <Site>
+        <Name>Hawaii Infrasonic Array, Site I59H3, USA</Name>
+      </Site>
+      <TotalNumberChannels>1</TotalNumberChannels>
+      <Channel code="BDF" startDate="2025-09-26T00:29:00.000000Z" locationCode="">
+        <Comment id="1" subject="CALIB">
+          <Value>4.5644e-05</Value>
+          <BeginEffectiveTime>2025-09-26T00:29:00.000000Z</BeginEffectiveTime>
+        </Comment>
+        <Latitude unit="DEGREES">19.59106</Latitude>
+        <Longitude unit="DEGREES">-155.88175</Longitude>
+        <Elevation unit="METERS">1130.1</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <SampleRate>20.0</SampleRate>
+        <CalibrationUnits>
+          <Name>V</Name>
+          <Description>Volts</Description>
+        </CalibrationUnits>
+        <Sensor>
+          <Description>Nanometrics Centaur CTR4-6A/S</Description>
+        </Sensor>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>21908.5</Value>
+            <Frequency>1.0</Frequency>
+            <InputUnits>
+              <Name>Pa</Name>
+              <Description>None</Description>
+            </InputUnits>
+            <OutputUnits>
+              <Name>counts</Name>
+              <Description>None</Description>
+            </OutputUnits>
+          </InstrumentSensitivity>
+        </Response>
+      </Channel>
+    </Station>
+    <Station code="I59H4" startDate="2010-02-10T00:00:00.000000Z">
+      <Description>I59H4</Description>
+      <Latitude unit="DEGREES">19.585536</Latitude>
+      <Longitude unit="DEGREES">-155.8988</Longitude>
+      <Elevation unit="METERS">962.0</Elevation>
+      <Site>
+        <Name>Hawaii Infrasonic Array, Site I59H4, USA</Name>
+      </Site>
+      <TotalNumberChannels>1</TotalNumberChannels>
+      <Channel code="BDF" startDate="2025-09-25T18:53:15.000000Z" locationCode="">
+        <Comment id="1" subject="CALIB">
+          <Value>4.5892e-05</Value>
+          <BeginEffectiveTime>2025-09-25T18:53:15.000000Z</BeginEffectiveTime>
+        </Comment>
+        <Latitude unit="DEGREES">19.585536</Latitude>
+        <Longitude unit="DEGREES">-155.8988</Longitude>
+        <Elevation unit="METERS">962.0</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <SampleRate>20.0</SampleRate>
+        <CalibrationUnits>
+          <Name>V</Name>
+          <Description>Volts</Description>
+        </CalibrationUnits>
+        <Sensor>
+          <Description>Nanometrics Centaur CTR4-6A/S</Description>
+        </Sensor>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>21790.0</Value>
+            <Frequency>1.0</Frequency>
+            <InputUnits>
+              <Name>Pa</Name>
+              <Description>None</Description>
+            </InputUnits>
+            <OutputUnits>
+              <Name>counts</Name>
+              <Description>None</Description>
+            </OutputUnits>
+          </InstrumentSensitivity>
+        </Response>
+      </Channel>
+    </Station>
+  </Network>
+</FDSNStationXML>

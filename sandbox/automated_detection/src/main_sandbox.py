@@ -34,6 +34,9 @@ import os
 import sys
 import time
 from typing import Optional
+import logging
+import traceback
+from urllib.error import URLError
 
 import numpy as np
 import obspy
@@ -41,51 +44,10 @@ from obspy import UTCDateTime
 from obspy.clients.fdsn import Client
 from obspy.clients.seedlink import Client as Client_seedlink
 
-import logging
-import traceback
-from urllib.error import URLError
 # InfraPy imports
 from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
-from classify_event import mvida_stack, single_stack, predict_entry
-from tensorflow.keras.models import load_model
-
-global classification_model
-
-
-def create_log(root_path: str, day_key: str) -> str:
-    """
-        Creates a log file for each day of processings for infromation and error logging.
-        Parameters:
-        ----------
-        root_path : str
-            Root path for the project.
-        day_key : str
-            Key for the day of processing.
-        Returns:
-        ----------
-        str
-            Path to the created log file.
-    """
-    day_path = os.path.join(root_path, 'results', day_key[:4], day_key[4:6], day_key[6:])
-    os.makedirs(day_path, exist_ok=True)
-    log_file = os.path.join(day_path, f"data_log_{day_key}.log")
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    for handler in logger.handlers[:]:
-        handler.close()
-        logger.removeHandler(handler)
-    fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    fh = logging.FileHandler(log_file, mode="a")
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(fmt)
-    logger.addHandler(fh)
-    sh = logging.StreamHandler()
-    sh.setLevel(logging.INFO)
-    sh.setFormatter(fmt)
-    logger.addHandler(sh)
-    return day_path
 
 
 class EventDetector:
@@ -118,9 +80,12 @@ class EventDetector:
 
         real_time: bool, flag for static time frame (False) or real-time processing (True).  Defaults to False
 
+        rt_buffer_s: int, buffer time in seconds to account for data source latency during real-time processing.
+            Defaults to 120 seconds.  Not required if not using real-time processing.
+
         nrt_stime: UTCDateTime, start time for non-real-time processing.  Required if real_time is False.
 
-        end_time: UTCDateTime, end time for processing.  Required if real_time is False.
+        end_time: UTCDateTime, end time for non-real-time processing.  Required if real_time is False.
 
         sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.  If less than ???
             will be set to ??? seconds.
@@ -130,6 +95,7 @@ class EventDetector:
 
         signal_step_sec: float, signal step in seconds after accounting for overlap.
     """
+
     def __init__(self,
                  event_name: str,
                  network: str,
@@ -142,10 +108,12 @@ class EventDetector:
                  root_path: Optional[str] = None,
                  config_path: Optional[str] = None,
                  real_time: bool = False,
+                 rt_buffer_s: int = 120,
                  nrt_stime: Optional[UTCDateTime] = None,
                  end_time: Optional[UTCDateTime] = None,
                  sig_len_secs: int = 600,
-                 overlap_perc: float = 0.2
+                 overlap_perc: float = 0.2,
+                 results_dir: Optional[str] = None
                  ):
         """
         intialize event detector
@@ -191,12 +159,13 @@ class EventDetector:
         self.user_config = configparser.ConfigParser()
         self.root_path = root_path if root_path else os.path.join(os.getcwd())
         if config_path is None:
-            config_path = os.path.join(self.root_path, 'config', 'example.ini')
+            config_path = os.path.join(self.root_path, 'config')
         if not os.path.exists(config_path):
             print(f"Config file not found, check for file at {config_path}")
             exit(1)
         self.user_config.read(config_path)
         self.real_time = real_time
+        self.rt_buffer_s = rt_buffer_s
         if not self.real_time and nrt_stime is None:
             print("nrt_stime must be provided if real_time is False")
             exit(1)
@@ -208,110 +177,151 @@ class EventDetector:
         self.sig_len_secs = sig_len_secs
         self.overlap_perc = overlap_perc
         self.signal_step_sec = self.sig_len_secs * (1 - self.overlap_perc)
+        if not self.real_time:
+            dur = self.end_time - self.nrt_stime - sig_len_secs
+            if dur <= 0:
+                print("WARNING: Selected time segment is shorter than signal length.  Results may not be reliable.")
+            else:
+                remainder = dur % self.signal_step_sec
+                if remainder != 0:
+                    print("NOTE: Selected time segment will have incomplete last window that will not be processed."
+                          f"Extra Time = {remainder} seconds.")
+        self.results_dir = results_dir if results_dir else os.path.join(self.root_path, 'results')
 
+    @staticmethod
+    def create_log(config_path: str, day_key: str) -> str:
+        """
+            Creates a log file for each day of processings for infromation and error logging.
+            Parameters:
+            ----------
+            root_path : str
+                Root path for the project.
+            day_key : str
+                Key for the day of processing.
+            Returns:
+            ----------
+            str
+                Path to the created log file.
+        """
+        day_path = os.path.join(config_path, day_key[:4], day_key[4:6], day_key[6:])
+        os.makedirs(day_path, exist_ok=True)
+        log_file = os.path.join(day_path, f"data_log_{day_key}.log")
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        for handler in logger.handlers[:]:
+            handler.close()
+            logger.removeHandler(handler)
+        fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+        fh = logging.FileHandler(log_file, mode="a")
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(fmt)
+        logger.addHandler(fh)
+        sh = logging.StreamHandler()
+        sh.setLevel(logging.INFO)
+        sh.setFormatter(fmt)
+        logger.addHandler(sh)
+        return day_path
 
+    @staticmethod
+    def load_config(rt_path: str, cfg_path: str) -> "EventDetector":
+        """
+        Loads the configuration file for the event detector.
 
+        :param rt_path: Root path for the project
+        :param cfg_path: Path to the configuration file
+        :return: EventDetector object
 
-# Load run configuration
-root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
-_cfg_path = os.path.join(root_path, 'config', 'example.ini')
-if not os.path.exists(_cfg_path):
-    print(f"Config not found at {_cfg_path}")
-    exit(1)
-_run_cfg = configparser.ConfigParser()
-_run_cfg.read(_cfg_path)
+        """
+        try:
+            if not os.path.exists(cfg_path):
+                print(f"Config not found at {cfg_path}")
+                exit(1)
+            run_cfg = configparser.ConfigParser()
+            run_cfg.read(cfg_path)
 
-_nrt_stime_str = infraconfig.get_param(_run_cfg, "RUN", "nrt_stime", None, "string")
-_end_time_str = infraconfig.get_param(_run_cfg, "RUN", "end_time", None, "string")
-nrt_stime = UTCDateTime(_nrt_stime_str) if _nrt_stime_str else None
-end_time = UTCDateTime(_end_time_str) if _end_time_str else None
-
-os.makedirs(os.path.join(root_path, 'results'), exist_ok=True)
-
-evd = EventDetector(
-    event_name=infraconfig.get_param(_run_cfg, "RUN", "event_name", None, "string"),
-    network=infraconfig.get_param(_run_cfg, "RUN", "network", None, "string"),
-    station=infraconfig.get_param(_run_cfg, "RUN", "station", None, "string"),
-    location=infraconfig.get_param(_run_cfg, "RUN", "location", "", "string") or "",
-    channel=infraconfig.get_param(_run_cfg, "RUN", "channel", None, "string"),
-    root_path=root_path,
-    config_path=_cfg_path,
-    num_elements=infraconfig.get_param(_run_cfg, "RUN", "num_elements", 4, "int"),
-    wf_client=infraconfig.get_param(_run_cfg, "RUN", "wf_client", 0, "int"),
-    real_time=infraconfig.get_param(_run_cfg, "RUN", "real_time", False, "bool"),
-    nrt_stime=nrt_stime,
-    end_time=end_time,
-    sig_len_secs=infraconfig.get_param(_run_cfg, "RUN", "sig_len_secs", 600, "int"),
-    overlap_perc=infraconfig.get_param(_run_cfg, "RUN", "overlap_perc", 0.2, "float"),
-    seedlink_ip=infraconfig.get_param(_run_cfg, "RUN", "seedlink_ip", None, "string"),
-)
-
-"""
-Testing automated classifiers for event detection. If there is a detection, it should be classified as either
-Surf or Sonic Boom. More classes will be added, this is just a starting point for testing. NOTE: just gettin started
-"""
-wait_time = 180
-model_path = os.path.join(root_path, 'results', 'bin', 'surfboom.h5')
-window = 12.8
-stack_size = 1
-overlap = 0
-
-# Load model once at startup to avoid repeated loading
-classification_model = None
-
-
+            evd = EventDetector(
+                event_name=infraconfig.get_param(run_cfg, "RUN", "event_name", None, "string"),
+                network=infraconfig.get_param(run_cfg, "RUN", "network", None, "string"),
+                station=infraconfig.get_param(run_cfg, "RUN", "station", None, "string"),
+                location=infraconfig.get_param(run_cfg, "RUN", "location", None, "string") or "",
+                channel=infraconfig.get_param(run_cfg, "RUN", "channel", None, "string"),
+                root_path=rt_path,
+                config_path=cfg_path,
+                num_elements=infraconfig.get_param(run_cfg, "RUN", "num_elements", None, "int"),
+                wf_client=infraconfig.get_param(run_cfg, "RUN", "wf_client", None, "int"),
+                real_time=infraconfig.get_param(run_cfg, "RUN", "real_time", None, "bool"),
+                rt_buffer_s=infraconfig.get_param(run_cfg, "RUN", "rt_buffer_s", None, "int"),
+                nrt_stime=UTCDateTime(infraconfig.get_param(run_cfg, "RUN", "nrt_stime", None, "string")),
+                end_time=UTCDateTime(infraconfig.get_param(run_cfg, "RUN", "end_time", None, "string")),
+                sig_len_secs=infraconfig.get_param(run_cfg, "RUN", "sig_len_secs", None, "int"),
+                overlap_perc=infraconfig.get_param(run_cfg, "RUN", "overlap_perc", None, "float"),
+                seedlink_ip=infraconfig.get_param(run_cfg, "RUN", "seedlink_ip", None, "string"),
+                results_dir=infraconfig.get_param(run_cfg, "RUN", "results_dir", None, "string")
+            )
+        except Exception as e:
+            print(f"Error loading configuration: {e}")
+            exit(1)
+        return evd
 
 if __name__ == "__main__":
     """
     Main entry point for automated infrasonic detection using InfraPy
     """
+    # Load model once at startup to avoid repeated loading
+    classification_model = None 
+
+    # Set up paths from CLI or use defaults
+    if len(sys.argv) > 1:
+        root_path = sys.argv[1]
+    else:
+        root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
+    if len(sys.argv) > 2:
+        cfg_path = sys.argv[2]
+    else:
+        cfg_path = os.path.join(root_path, 'config')
+    # Setup Event Detector and paths
+    evd = EventDetector.load_config(root_path, os.path.join(cfg_path, 'example.ini'))
+
     # Beamforming Parameters
-    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")          # type: ignore
-    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")          # type: ignore
-    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")    # type: ignore
-    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")    # type: ignore
-    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")  # type: ignore
-    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None,         # type: ignore
-                                                 "float")
-    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None,         # type: ignore
-                                                 "float")
-    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None,       # type: ignore
-                                                  "float")
-    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")               # type: ignore
+    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")
+    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")
+    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")
+    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")
+    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")
+    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None, "float")
+    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None, "float")
+    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None, "float")
+    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")               
     signal_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")                   # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")                   
     if t is not None:
         signal_start = UTCDateTime(t)
     signal_end: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "signal_end", None, "string")                     # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "signal_end", None, "string")                     
     if t is not None:
         signal_end = UTCDateTime(t)
     noise_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")                    # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")                    
     if t is not None:
         noise_start = UTCDateTime(t)
     noise_end: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "noise_end", None, "string")                      # type: ignore
+    t = infraconfig.get_param(evd.user_config, "FK", "noise_end", None, "string")                      
     if t is not None:
         noise_end = UTCDateTime(t)
-    window_len: float = infraconfig.get_param(evd.user_config, "FK", "window_len", None, "float")      # type: ignore
-    sub_window_len: float = infraconfig.get_param(evd.user_config, "FK", "sub_window_len", None,       # type: ignore
-                                                  "float")
-    window_step: float = infraconfig.get_param(evd.user_config, "FK", "window_step", None, "float")    # type: ignore
-    cpu_cnt: int = infraconfig.get_param(evd.user_config, "FK", "cpu_cnt", None, "int")                # type: ignore
+    window_len: float = infraconfig.get_param(evd.user_config, "FK", "window_len", None, "float")      
+    sub_window_len: float = infraconfig.get_param(evd.user_config, "FK", "sub_window_len", None, "float")
+    window_step: float = infraconfig.get_param(evd.user_config, "FK", "window_step", None, "float")
+    cpu_cnt: int = infraconfig.get_param(evd.user_config, "FK", "cpu_cnt", None, "int")
 
     # Detection parameters
-    fd_window_len: float = infraconfig.get_param(evd.user_config, "FD", "window_len", None, "float")   # type: ignore
-    p_value: float = infraconfig.get_param(evd.user_config, "FD", "p_value", None, "float")            # type: ignore
-    min_duration: float = infraconfig.get_param(evd.user_config, "FD", "min_duration", None, "float")  # type: ignore
-    back_az_width: float = infraconfig.get_param(evd.user_config, "FD", "back_az_width", None,         # type: ignore
-                                                 "float")
-    fixed_thresh: float = infraconfig.get_param(evd.user_config, "FD", "fixed_thresh", None, "float")  # type: ignore
-    thresh_ceil: float = infraconfig.get_param(evd.user_config, "FD", "thresh_ceil", None, "float")    # type: ignore
-    return_thresh: bool = infraconfig.get_param(evd.user_config, "FD", "return_thresh", None, "bool")  # type: ignore
-    # NOTE: Merge detections currently needs to be improved. Should investigate how they associate nearby detections
-    # (time window, etc).
-    merge_dets: bool = infraconfig.get_param(evd.user_config, "FD", "merge_dets", None, "bool")        # type: ignore
+    fd_window_len: float = infraconfig.get_param(evd.user_config, "FD", "window_len", None, "float")
+    p_value: float = infraconfig.get_param(evd.user_config, "FD", "p_value", None, "float")
+    min_duration: float = infraconfig.get_param(evd.user_config, "FD", "min_duration", None, "float")
+    back_az_width: float = infraconfig.get_param(evd.user_config, "FD", "back_az_width", None, "float")
+    fixed_thresh: float = infraconfig.get_param(evd.user_config, "FD", "fixed_thresh", None, "float")
+    thresh_ceil: float = infraconfig.get_param(evd.user_config, "FD", "thresh_ceil", None, "float")
+    return_thresh: bool = infraconfig.get_param(evd.user_config, "FD", "return_thresh", None, "bool")
+    merge_dets: bool = infraconfig.get_param(evd.user_config, "FD", "merge_dets", None, "bool")
 
     """
     This section runs an automated infrasonic detection using InfraPy's beamforming and detection modules.
@@ -319,15 +329,16 @@ if __name__ == "__main__":
     and save detections and raw data to specified directories. Please update them to match the intended directories.
     """
     # set initial time window
-    t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + wait_time) if evd.real_time else evd.nrt_stime - evd.signal_step_sec
-    t2 = UTCDateTime() - (evd.sig_len_secs + wait_time) if evd.real_time else evd.nrt_stime
+    t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
+        if evd.real_time else evd.nrt_stime - evd.signal_step_sec
+    t2 = UTCDateTime() - (evd.sig_len_secs + evd.rt_buffer_s) if evd.real_time else evd.nrt_stime
     current_day = t1.strftime("%Y%m%d")
-    det_fpath = create_log(root_path, current_day)
+    det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
     # Generate Noise and Get Inventory
     inventory = None
     # Try to load inventory from XML file first
     try:
-        inv_file = os.path.join(root_path, 'config', 'I59US_station.xml')
+        inv_file = os.path.join(cfg_path, 'I59US_station.xml')
         inventory = obspy.read_inventory(inv_file)
         logging.info(f"Loaded inventory from {inv_file}")
     except Exception as e:
@@ -406,28 +417,31 @@ if __name__ == "__main__":
         )
     else:
         thresh = fixed_thresh
-    prev_thresh = thresh
-    new_thresh = thresh
+    prev_thresh = 0
+    new_thresh = 0
     dets_found = False
     i = 0
-    stop_time = t1
 
     # Initialize loop for processing time windows
     logging.info("Beginning automated detection processing")
-    while stop_time < end_time or evd.real_time:
+    while True:
         t_now = UTCDateTime()
         try:
             stop_watch = time.time()
             if (not dets_found):
                 noise_start = t1
                 noise_end = t1 + evd.signal_step_sec
-            t1 = t_now - (evd.sig_len_secs + wait_time) if (evd.real_time) else nrt_stime + (i * evd.signal_step_sec)
-            t2 = t_now - wait_time if (evd.real_time) else nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
-            stop_time = t2
+            t1 = t_now - (evd.sig_len_secs + evd.rt_buffer_s) if (evd.real_time) \
+                else evd.nrt_stime + (i * evd.signal_step_sec)
+            t2 = t_now - evd.rt_buffer_s if (evd.real_time) \
+                else evd.nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
             new_day = t1.strftime("%Y%m%d")
             if new_day != current_day:
                 current_day = new_day
-                det_fpath = create_log(root_path, current_day)
+                det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
+            if not evd.real_time and t2 > evd.end_time:
+                logging.info("End of non-real-time processing reached.  Exiting.")
+                exit(0)
 
             # Get waveforms from IRIS or seedlink
             try:
@@ -444,7 +458,6 @@ if __name__ == "__main__":
                     logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {evd.num_elements}.")
                     i += 1
                     continue
-
                 str_name = f"{evd.event_name}_{t1.strftime('%Y%m%d_%H%M%S')}"
                 logging.info(f"Iteration {i}")
 
@@ -510,7 +523,6 @@ if __name__ == "__main__":
 
                 # Save detections
                 if len(det_list) > 0:
-                    vote = []
                     det_out = os.path.join(det_fpath, f"{str_name}_detections.json")
                     dets_found = True
                     prev_thresh = thresh
@@ -532,10 +544,7 @@ if __name__ == "__main__":
                         det["Signal"] = f"{t1} to {t2}"
                         det["Noise"] = f"{noise_start} to {noise_end}"
                         det["F-Stat Threshold"] = thresh
-                        det_time = det["Time (UTC)"]
-                        back_az = det["Back Azimuth"]
-                        trace_vel = det["Trace Vel. (m/s)"]
-                        
+
                         # Load model once if not already loaded
                         if classification_model is None:
                             logging.info(f"Loading classification model from {model_path}")
@@ -557,6 +566,7 @@ if __name__ == "__main__":
                             det["Classification"] = "Uncertain"
                         else:
                             det["Classification"] = max(set(vote), key=vote.count)
+
 
                     with open(det_out, "w") as f:
                         json.dump(dets_data, f, indent=4)
@@ -629,13 +639,19 @@ if __name__ == "__main__":
                     time.sleep(remaining_sleep)
             except URLError as e:
                 logging.error(f"Network error fetching data (URLError): {e.reason}")
-                continue
+                if evd.real_time:
+                    logging.info(f"Retrying after {evd.signal_step_sec} seconds...")
+                    time.sleep(evd.signal_step_sec)
             except Exception as e:
                 logging.error(f"Error fetching data. Exception: {e}")
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+                if evd.real_time:
+                    logging.info(f"Retrying after {evd.signal_step_sec} seconds...")
+                    time.sleep(evd.signal_step_sec)
         except Exception as e:
+            # Print to output any errors and continue to next time window
             logging.error(f"{t_now}: Error in detection processing: {e}")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-        i += 1 
+        i += 1  # increment iteration
 logging.shutdown()
 sys.exit(0)

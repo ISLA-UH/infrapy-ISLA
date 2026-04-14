@@ -157,7 +157,7 @@ class EventDetector:
         self.user_config = configparser.ConfigParser()
         self.root_path = root_path if root_path else os.path.join(os.getcwd())
         if config_path is None:
-            config_path = os.path.join(self.root_path, 'config', 'example.ini')
+            config_path = os.path.join(self.root_path, 'config')
         if not os.path.exists(config_path):
             print(f"Config file not found, check for file at {config_path}")
             exit(1)
@@ -266,31 +266,32 @@ if __name__ == "__main__":
     """
     # Set up paths from CLI or use defaults
     root_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
-    cfg_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(root_path, 'config', 'example.ini')
+    cfg_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(root_path, 'config')
     # Setup Event Detector and paths
-    evd = EventDetector.load_config(root_path, cfg_path)
+    evd = EventDetector.load_config(root_path, os.path.join(cfg_path, 'example.ini'))
 
     # Beamforming Parameters
-    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")            # type: ignore
-    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")            # type: ignore
-    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")      # type: ignore
-    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")      # type: ignore
-    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")    # type: ignore
-    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None, "float")  # type: ignore
-    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None, "float")  # type: ignore
-    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None,
-                                                  "float")  # type: ignore
-    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")                 # type: ignore
+    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")
+    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")
+    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")
+    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")
+    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")
+    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None, "float")
+    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None, "float")
+    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None, "float")
+    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")
     signal_start: UTCDateTime = UTCDateTime(0)
+    t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")
     t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")
     if t is not None:
         signal_start = UTCDateTime(t)
     signal_end: UTCDateTime = UTCDateTime(0)
     t = infraconfig.get_param(evd.user_config, "FK", "signal_end", None, "string")
+    t = infraconfig.get_param(evd.user_config, "FK", "signal_end", None, "string")
     if t is not None:
         signal_end = UTCDateTime(t)
     noise_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")
+    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")                   
     if t is not None:
         noise_start = UTCDateTime(t)
     noise_end: UTCDateTime = UTCDateTime(0)
@@ -328,7 +329,7 @@ if __name__ == "__main__":
     inventory = None
     # Try to load inventory from XML file first
     try:
-        inv_file = os.path.join(root_path, 'config', 'I59US_station.xml')
+        inv_file = os.path.join(cfg_path, 'I59US_example.xml')
         inventory = obspy.read_inventory(inv_file)
         logging.info(f"Loaded inventory from {inv_file}")
     except Exception as e:
@@ -429,7 +430,7 @@ if __name__ == "__main__":
             new_day = t1.strftime("%Y%m%d")
             if new_day != current_day:
                 current_day = new_day
-                det_fpath = evd.create_log(os.path.join(root_path, evd.results_dir), current_day)
+                det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
             if not evd.real_time and t2 > evd.end_time:
                 logging.info("End of non-real-time processing reached.  Exiting.")
                 exit(0)

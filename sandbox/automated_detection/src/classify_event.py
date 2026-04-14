@@ -1,22 +1,14 @@
 import numpy as np
 import sys
-sys.path.append('c:/Users/ISLA-ENG-01/Documents/Projects/infrapy-ISLA/sandbox/gaf_classification/src')
-from ResNET import SEBlock
-from scipy import signal
-from pyts.image import GramianAngularField, MarkovTransitionField
-import matplotlib.pyplot as plt
+sys.path.append('..\\..\\identification\\src')
 import obspy
 from obspy.signal.tf_misfit import cwt
-import cv2
-import pywt
-from scipy.fftpack import hilbert
 import ssqueezepy
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from scipy.ndimage import zoom
 from obspy.geodetics.base import gps2dist_azimuth
 import random
-from scipy.signal import welch
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from EfficientNetB0 import build_efficientnet_b0, unfreeze_and_finetune, EfficientNetPreprocessing
