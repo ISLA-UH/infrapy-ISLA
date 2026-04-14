@@ -3,7 +3,7 @@ Automatic Detection Function using InfraPy
 Create class EventDetector to handle configuration for automated detection runs.
 
 Author: Riley Johnson, ISLA 2025/12/18
-Modified: Tyler Yoshiyama, ISLA 2026/04/08
+Modified: Tyler Yoshiyama, ISLA 2026/04/14
 
 Example config classes:
 
@@ -271,15 +271,18 @@ if __name__ == "__main__":
     evd = EventDetector.load_config(root_path, os.path.join(cfg_path, 'example.ini'))
 
     # Beamforming Parameters
-    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")
-    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")
-    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")
-    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")
-    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")
-    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None, "float")
-    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None, "float")
-    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None, "float")
-    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")
+    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")          # type: ignore
+    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")          # type: ignore
+    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")    # type: ignore
+    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")    # type: ignore
+    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")  # type: ignore
+    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None,
+                                                 "float")    # type: ignore
+    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None,
+                                                 "float")    # type: ignore
+    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None,
+                                                  "float")  # type: ignore
+    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")               # type: ignore
     signal_start: UTCDateTime = UTCDateTime(0)
     t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")
     t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")
@@ -291,7 +294,7 @@ if __name__ == "__main__":
     if t is not None:
         signal_end = UTCDateTime(t)
     noise_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")                   
+    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")
     if t is not None:
         noise_start = UTCDateTime(t)
     noise_end: UTCDateTime = UTCDateTime(0)
@@ -320,8 +323,8 @@ if __name__ == "__main__":
     and save detections and raw data to specified directories. Please update them to match the intended directories.
     """
     # set initial time window
-    t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
-        if evd.real_time else evd.nrt_stime - evd.signal_step_sec
+    t1: UTCDateTime = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
+        if evd.real_time else evd.nrt_stime - evd.signal_step_sec  # type: ignore
     t2 = UTCDateTime() - (evd.sig_len_secs + evd.rt_buffer_s) if evd.real_time else evd.nrt_stime
     current_day = t1.strftime("%Y%m%d")
     det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
@@ -346,6 +349,10 @@ if __name__ == "__main__":
                 endtime=t2,
                 level="response",
             )
+            if inventory is None:
+                logging.error("Error fetching inventory: no data returned from client.")
+                logging.shutdown()
+                sys.exit(1)
         except Exception as e:
             # no inventory means we need to exit
             logging.error(f"Error {e} fetching data from FDSN client. Please check network/station codes and time "
@@ -365,6 +372,10 @@ if __name__ == "__main__":
             starttime=t1,
             endtime=t2,
         )
+        if n_stream is None:
+            logging.error("Error fetching baseline noise data: no data returned from client.")
+            logging.shutdown()
+            sys.exit(1)
     except Exception as e:
         logging.error(f"Error fetching base waveforms. Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
@@ -386,7 +397,7 @@ if __name__ == "__main__":
     TB_prod = (freq_max - freq_min) * window_len
     back_az_vals = np.arange(back_az_min, back_az_max, back_az_step)
     trc_vel_vals = np.arange(trace_vel_min, trace_vel_max, trace_vel_step)
-    n_x, n_t, n_t0, geom = fkd.stream_to_array_data(n_stream, latlon=latlon)
+    n_x, n_t, n_t0, geom = fkd.stream_to_array_data(n_stream, latlon=latlon)  # type: ignore
     slowness = fkd.build_slowness(back_az_vals, trc_vel_vals)
     delays = fkd.compute_delays(geom, slowness)
 
@@ -424,14 +435,14 @@ if __name__ == "__main__":
                 noise_start = t1
                 noise_end = t1 + evd.signal_step_sec
             t1 = t_now - (evd.sig_len_secs + evd.rt_buffer_s) if (evd.real_time) \
-                else evd.nrt_stime + (i * evd.signal_step_sec)
+                else evd.nrt_stime + (i * evd.signal_step_sec)                     # type: ignore
             t2 = t_now - evd.rt_buffer_s if (evd.real_time) \
-                else evd.nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs
+                else evd.nrt_stime + (i * evd.signal_step_sec) + evd.sig_len_secs  # type: ignore
             new_day = t1.strftime("%Y%m%d")
             if new_day != current_day:
                 current_day = new_day
                 det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
-            if not evd.real_time and t2 > evd.end_time:
+            if not evd.real_time and t2 > evd.end_time:                            # type: ignore
                 logging.info("End of non-real-time processing reached.  Exiting.")
                 exit(0)
 
@@ -445,9 +456,11 @@ if __name__ == "__main__":
                     starttime=t1,
                     endtime=t2,
                 )
-                logging.info(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")
-                if (len(g_stream) < evd.num_elements):
-                    logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, "
+                if g_stream is None:
+                    raise Exception("No waveforms returned from client.")
+                logging.info(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")   # type: ignore
+                if (len(g_stream) < evd.num_elements):                                              # type: ignore
+                    logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, "  # type: ignore
                                     f"expected {evd.num_elements}.")
                     i += 1
                     continue
@@ -461,7 +474,7 @@ if __name__ == "__main__":
                 logging.info(f"Running {method} beamforming from {t1} to {t2}")
                 beam_times, beam_peaks, beam_power = fkd.auto_run_bf(
                     0,
-                    t2 - t1,
+                    t2 - t1,  # type: ignore
                     freq_band=(freq_min, freq_max),
                     window_len=window_len,
                     sub_window_len=sub_window_len,
@@ -523,9 +536,9 @@ if __name__ == "__main__":
                         f"Found {len(det_list)} detections, writing to {det_out} ; New Threshold: {prev_thresh}"
                     )
                     str_info = [
-                        strm[0].stats.network,
-                        f"{strm[0].stats.station}-{strm[-1].stats.station}",
-                        strm[0].stats.channel,
+                        strm[0].stats.network,                                # type: ignore
+                        f"{strm[0].stats.station}-{strm[-1].stats.station}",  # type: ignore
+                        strm[0].stats.channel,                                # type: ignore
                     ]
                     data_io.detection_list_to_json(det_out, det_list, str_info)
                     with open(det_out, "r") as f:
@@ -543,7 +556,7 @@ if __name__ == "__main__":
                     # If there is a detection save off all raw data
                     dt = np.array(
                         [
-                            (tn - np.datetime64(strm[0].stats.starttime))
+                            (tn - np.datetime64(strm[0].stats.starttime))  # type: ignore
                             .astype("m8[ms]")
                             .astype(float)
                             * 1.0e-3
