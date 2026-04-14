@@ -55,6 +55,7 @@ class EventDetector:
     This class handles event detection using InfraPy
 
     Properties:
+
         event_name: str, name of the event
 
         network: str, network code for data request
@@ -68,29 +69,28 @@ class EventDetector:
         num_elements: int, number of array elements expected.  Default 4.
 
         wf_client: int, flag to pull data from IRIS (0) or seedlink (1).  Ensure proper network connection
-            if using seedlink.  Default 0.  More options may be added in the future.
-
-        seedlink_ip: str, IP address of local seedlink server if using seedlink as data source.  Default None
-            NOTE: default value will cause program to quit with error message if using seedlink as source.
+        if using seedlink.  Default 0.  More options may be added in the future.
+        NOTE: You must specify a seedlink_ip parameter if using seedlink option.
 
         user_config: configparser.ConfigParser object containing user configuration parameters
 
         root_path: str, root path for the project.  Defaults to current working directory if not given
 
+        results_dir: str, if not given, defaults to "{root_path}/results"
+
         real_time: bool, flag for static time frame (False) or real-time processing (True).  Defaults to False
 
         rt_buffer_s: int, buffer time in seconds to account for data source latency during real-time processing.
-            Defaults to 120 seconds.  Not required if not using real-time processing.
+        Defaults to 120 seconds.  Not required if not using real-time processing.
 
         nrt_stime: UTCDateTime, start time for non-real-time processing.  Required if real_time is False.
 
         end_time: UTCDateTime, end time for non-real-time processing.  Required if real_time is False.
 
-        sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.  If less than ???
-            will be set to ??? seconds.
+        sig_len_secs: int, length of signal window in seconds.  Defaults to 600 seconds.
 
-        overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap).  Any value
-            less than 0 or greater than 1.0 will be set to 0.2.
+        overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap).
+        Any value less than 0 or greater than 1.0 will be set to 0.2.
 
         signal_step_sec: float, signal step in seconds after accounting for overlap.
     """
