@@ -25,6 +25,7 @@ docs/build/
 *.log
 *.json
 *.ini
+*.keras
 *.vscode
 *.conda
 *.venv

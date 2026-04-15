@@ -123,7 +123,7 @@ if __name__ == "__main__":
     Code Starts Here
     """
     img_size = 1200
-    path = 'sandbox\\classification\\training\\numpy\\'
+    path = 'sandbox\\identification\\training\\numpy\\'
 
     training_set = np.load(os.path.join(path, 'X_train.npy'))  # Data is X
     training_labels = np.load(os.path.join(path, 'Y_train.npy'))  # Labels are Y
@@ -170,7 +170,7 @@ if __name__ == "__main__":
         monitor='val_loss', factor=0.5, patience=3, min_lr=1e-7
     )
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        'best_efficientnet.keras',
+        '3Ceffnet.keras',
         monitor='val_accuracy',
         save_best_only=True,
         mode='max'
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     for key in history.history:
         history.history[key].extend(history_ft.history[key])
 
-    model.load_weights('best_efficientnet.keras') 
+    model.load_weights('3Ceffnet.keras') 
     results = model.evaluate(X_test, Y_test)
 
     print(f"Final Test Accuracy: {results[1]}")

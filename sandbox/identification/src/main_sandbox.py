@@ -43,11 +43,13 @@ import obspy
 from obspy import UTCDateTime
 from obspy.clients.fdsn import Client
 from obspy.clients.seedlink import Client as Client_seedlink
-
+from EfficientNetB0 import EfficientNetB0, preprocess_input
 # InfraPy imports
 from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
+from classify_event import mvida_stack, single_stack, predict_entry
+from tensorflow.keras.models import load_model
 
 
 class EventDetector:
@@ -280,7 +282,7 @@ if __name__ == "__main__":
     else:
         cfg_path = os.path.join(root_path, 'config')
     # Setup Event Detector and paths
-    evd = EventDetector.load_config(root_path, os.path.join(cfg_path, 'example.ini'))
+    evd = EventDetector.load_config(root_path, os.path.join(cfg_path, 'example_wmodel.ini'))
 
     # Beamforming Parameters
     freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")
@@ -323,6 +325,22 @@ if __name__ == "__main__":
     return_thresh: bool = infraconfig.get_param(evd.user_config, "FD", "return_thresh", None, "bool")
     merge_dets: bool = infraconfig.get_param(evd.user_config, "FD", "merge_dets", None, "bool")
 
+    # Load CNN Model parameter
+    classification_model = None
+    model_path: float = infraconfig.get_param(evd.user_config, "AI", "model_path", None, "string")
+    if model_path is None or not os.path.exists(model_path):
+        model_path = os.path.join(cfg_path, '3Ceffnet.keras')
+    window: float = infraconfig.get_param(evd.user_config, "AI", "window", None, "float")
+    size: int = infraconfig.get_param(evd.user_config, "AI", "size", None, "int")
+
+
+
+    stack_size = 1
+    overlap = 0
+
+    # Load model once at startup to avoid repeated loading
+    classification_model = None
+
     """
     This section runs an automated infrasonic detection using InfraPy's beamforming and detection modules.
     It will pull data from either IRIS or a local seedlink server, process it in overlapping time windows,
@@ -338,7 +356,7 @@ if __name__ == "__main__":
     inventory = None
     # Try to load inventory from XML file first
     try:
-        inv_file = os.path.join(cfg_path, 'I59US_station.xml')
+        inv_file = os.path.join(cfg_path, 'I59US_example.xml')
         inventory = obspy.read_inventory(inv_file)
         logging.info(f"Loaded inventory from {inv_file}")
     except Exception as e:
@@ -544,18 +562,20 @@ if __name__ == "__main__":
                         det["Signal"] = f"{t1} to {t2}"
                         det["Noise"] = f"{noise_start} to {noise_end}"
                         det["F-Stat Threshold"] = thresh
-
+                        det_time = det["Time (UTC)"]
+                        back_az = det["Back Azimuth"]
+                        trace_vel = det["Trace Vel. (m/s)"]
                         # Load model once if not already loaded
                         if classification_model is None:
                             logging.info(f"Loading classification model from {model_path}")
                             classification_model = load_model(model_path)
                         
                         det_strm = g_stream.copy()
-                        det_stack = single_stack(det_strm, inventory, UTCDateTime(det_time), window, stack_size, overlap, back_az, trace_vel)
+                        det_stack = single_stack(det_strm, inventory, [freq_min, freq_max], UTCDateTime(det_time), window, stack_size, overlap, back_az, trace_vel, size)
                         det_stack_t = det_stack
-                        j=0
+                        j = 0
                         vote = [predict_entry(det_stack_t, model_path, model=classification_model)]
-                        while j < 5:
+                        """while j < 5:
                             detm_strm = g_stream.copy()
                             detm_stack = mvida_stack(detm_strm, inventory, UTCDateTime(det_time), window, stack_size, overlap, back_az, trace_vel)
                             detm_stack_t = detm_stack
@@ -566,7 +586,8 @@ if __name__ == "__main__":
                             det["Classification"] = "Uncertain"
                         else:
                             det["Classification"] = max(set(vote), key=vote.count)
-
+                        """
+                        det["Classification"] = vote[0]
 
                     with open(det_out, "w") as f:
                         json.dump(dets_data, f, indent=4)

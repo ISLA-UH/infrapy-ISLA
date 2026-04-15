@@ -770,7 +770,7 @@ def create_multichannel_features(raw_data, fs, freq_range, target_size,
 Code Starts Here
 """
 
-def create_train_stack(all_entries, fname, pname, inv, window=12.8, stack_size=1, overlap=0, do_mvida=True):
+def create_train_stack(all_entries, fname, pname, inv, window=12.8, target_size=64, stack_size=1, overlap=0, do_mvida=True):
     cl = Client("IRIS")
     X_data = []
     Y_labels = []
@@ -798,8 +798,8 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, stack_size=1
                 strm.detrend()
                 strm.taper(max_percentage=0.05, type="blackmanharris")
                 strm.filter("bandpass", freqmin=0.8, freqmax=8.0, corners=4, zerophase=True)
-                for tr in strm:
-                    tr.data = wavelet_denoise(tr.data, wavelet='db4', level=2, threshold_mode='soft')
+                #for tr in strm:
+                #    tr.data = wavelet_denoise(tr.data, wavelet='db4', level=2, threshold_mode='soft')
                 if do_mvida:
                     if entry['Class'] == 'transient':
                         num_versions = 20
@@ -841,14 +841,13 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, stack_size=1
                     final_end = peak_time + (window / 2)
 
                     current_strm.trim(starttime=final_start, endtime=final_end, pad=False)
-
-                    gaf_sequence = []
+                    
                     for i in range(stack_size):
                         # Because we are using this data for ConvLTSM we split the window into multiple frames to see how it changes over time/space
                         t_start = final_start + (i * frame_step)
                         t_end = t_start + frame_length
                         strm_window = current_strm.copy()
-                        strm_window.trim(starttime=t_start, endtime=t_end, pad=False)
+                        strm_window.trim(starttime=t_start, endtime=t_end, pad=True)
                         if len(strm_window) == 0:
                             raise ValueError("Windowing produced an empty stream")
 
@@ -906,6 +905,11 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, stack_size=1
                                 pad_ch = expected_channels - sample.shape[-1]
                                 sample = np.pad(sample, ((0, 0), (0, 0), (0, pad_ch)), mode='constant')
 
+                        if target_size is not None and (sample.shape[0] != target_size or sample.shape[1] != target_size):
+                            sample = cv2.resize(sample, (target_size, target_size), interpolation=cv2.INTER_LINEAR)
+                            if sample.ndim == 2:
+                                sample = np.expand_dims(sample, axis=-1)
+
                     X_data.append(sample)  # Shape: (target_size, target_size, channels)
                     Y_labels.append(entry['Class'])
                     v += 1
@@ -957,8 +961,6 @@ if __name__ == "__main__":
         stratify=labels_testval
     )
     
-    create_train_stack(train_entries, 'train', rel_path, inv, window=57.6, stack_size=1, overlap=0, do_mvida=True)
-    create_train_stack(test_entries, 'test', rel_path, inv, window=57.6, stack_size=1, overlap=0, do_mvida=True)
-    create_train_stack(val_entries, 'val', rel_path, inv, window=57.6, stack_size=1, overlap=0, do_mvida=False)
-    
-    #create_train_stack(all_entries, 'all', rel_path, inv, window=25.6, stack_size=1, overlap=0)
+    create_train_stack(train_entries, 'train', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=True)
+    create_train_stack(test_entries, 'test', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=False)
+    create_train_stack(val_entries, 'val', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=True)
