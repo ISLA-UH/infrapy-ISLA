@@ -320,7 +320,7 @@ if __name__ == "__main__":
     """
     This section runs an automated infrasonic detection using InfraPy's beamforming and detection modules.
     It will pull data from either IRIS or a local seedlink server, process it in overlapping time windows,
-    and save detections and raw data to specified directories. Please update them to match the intended directories.
+    and save detections and raw data to specified directories.
     """
     # set initial time window
     t1: UTCDateTime = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
@@ -492,10 +492,7 @@ if __name__ == "__main__":
                 else:
                     # If detections were found thresh will be the same as previous valid fstat thresh. If not recompute
                     logging.info("Adjusting threshold based on noise")
-                    if dets_found:
-                        thresh = prev_thresh
-                    else:
-                        thresh = new_thresh
+                    thresh = prev_thresh if dets_found else new_thresh
 
                 # Run detection
                 logging.info(f"Running FD detection from {t1} to {t2}\nNoise Window: {noise_start} to {noise_end}")
@@ -553,7 +550,7 @@ if __name__ == "__main__":
                     with open(det_out, "w") as f:
                         json.dump(dets_data, f, indent=4)
 
-                    # If there is a detection save off all raw data
+                    # If there is a detection save all raw data
                     dt = np.array(
                         [
                             (tn - np.datetime64(strm[0].stats.starttime))  # type: ignore
