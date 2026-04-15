@@ -841,14 +841,13 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, target_size=
                     final_end = peak_time + (window / 2)
 
                     current_strm.trim(starttime=final_start, endtime=final_end, pad=False)
-
-                    gaf_sequence = []
+                    
                     for i in range(stack_size):
                         # Because we are using this data for ConvLTSM we split the window into multiple frames to see how it changes over time/space
                         t_start = final_start + (i * frame_step)
                         t_end = t_start + frame_length
                         strm_window = current_strm.copy()
-                        strm_window.trim(starttime=t_start, endtime=t_end, pad=False)
+                        strm_window.trim(starttime=t_start, endtime=t_end, pad=True)
                         if len(strm_window) == 0:
                             raise ValueError("Windowing produced an empty stream")
 
@@ -962,6 +961,6 @@ if __name__ == "__main__":
         stratify=labels_testval
     )
     
-    create_train_stack(train_entries, 'train', rel_path, inv, window=57.6, target_size=384, stack_size=1, overlap=0, do_mvida=True)
-    create_train_stack(test_entries, 'test', rel_path, inv, window=57.6, target_size=384, stack_size=1, overlap=0, do_mvida=True)
-    create_train_stack(val_entries, 'val', rel_path, inv, window=57.6, target_size=384, stack_size=1, overlap=0, do_mvida=False)
+    create_train_stack(train_entries, 'train', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=True)
+    create_train_stack(test_entries, 'test', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=False)
+    create_train_stack(val_entries, 'val', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=True)

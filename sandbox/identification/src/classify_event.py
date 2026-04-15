@@ -209,11 +209,22 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
     strm.taper(max_percentage=0.05, type="blackmanharris")
     strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
     t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
-    strm = t_strm.copy()
+
+    # Center around peak of the aligned stream to ensure we capture the most relevant part of the signal
+    peak_strm = t_strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
+    pasc_max = np.abs(peak_strm[0].data)
+    peak_index = peak_strm[0].times("utcdatetime")[np.argmax(pasc_max)]
+    peak_time = obspy.UTCDateTime(round(peak_index.timestamp))
+    final_start = peak_time - (window / 2)
+    final_end = peak_time + (window / 2)
+    peak_strm.trim(starttime=final_start, endtime=final_end, pad=False)
+
+    """
     final_start = center_time - (window / 2)
     final_end = center_time + (window / 2)
     strm.trim(starttime=final_start, endtime=final_end, pad=True)
-    single_strm = stack_weighted_traces(strm)
+    """
+    single_strm = stack_weighted_traces(peak_strm)
     current_strm = obspy.Stream(traces=single_strm)
 
     frame_length = window / (stack_size-(stack_size-1)*overlap)
