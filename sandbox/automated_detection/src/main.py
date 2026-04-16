@@ -72,7 +72,6 @@ class EventDetector:
         if using seedlink.  Default 0.  More options may be added in the future.
         NOTE: You must specify a seedlink_ip parameter if using seedlink option.
 
-
         root_path: str, root path for the project.  Defaults to current working directory if not given
 
         results_dir: str, if not given, defaults to "{root_path}/results"
@@ -222,7 +221,7 @@ class EventDetector:
 
         :param rt_path: Root path for the project
         :param cfg_path: Path to the configuration file
-        :param user_config: User-provided configuration parser  
+        :param user_config: User-provided configuration parser
         :return: EventDetector object
         """
         try:
@@ -247,9 +246,9 @@ class EventDetector:
                 sig_len_secs=infraconfig.get_param(run_cfg, "RUN", "sig_len_secs", None, "int"),    # type: ignore
                 overlap_perc=infraconfig.get_param(run_cfg, "RUN", "overlap_perc", None, "float"),  # type: ignore
                 seedlink_ip=infraconfig.get_param(run_cfg, "RUN", "seedlink_ip", None, "string"),   # type: ignore
-                results_dir=infraconfig.get_param(run_cfg, "RUN", "results_dir", None, "string"),    # type: ignore
+                results_dir=infraconfig.get_param(run_cfg, "RUN", "results_dir", None, "string"),   # type: ignore
                 inventory_dir=infraconfig.get_param(run_cfg, "RUN", "inventory_dir", None, "string"),    # type: ignore
-                inventory_name=infraconfig.get_param(run_cfg, "RUN", "inventory_name", None, "string")    # type: ignore
+                inventory_name=infraconfig.get_param(run_cfg, "RUN", "inventory_name", None, "string")   # type: ignore
             )
         except Exception as e:
             print(f"Error loading configuration: {e}")
