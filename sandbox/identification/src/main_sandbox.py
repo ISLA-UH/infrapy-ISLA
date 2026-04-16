@@ -158,14 +158,12 @@ class EventDetector:
             except Exception as e:
                 print(f"Error connecting to seedlink server at {seedlink_ip}: {e}")
                 exit(1)
-        self.user_config = configparser.ConfigParser()
         self.root_path = root_path if root_path else os.path.join(os.getcwd())
         if config_path is None:
             config_path = os.path.join(self.root_path, 'config')
         if not os.path.exists(config_path):
             print(f"Config file not found, check for file at {config_path}")
             exit(1)
-        self.user_config.read(config_path)
         self.real_time = real_time
         self.rt_buffer_s = rt_buffer_s
         if not self.real_time and nrt_stime is None:
@@ -180,15 +178,17 @@ class EventDetector:
         self.overlap_perc = overlap_perc
         self.signal_step_sec = self.sig_len_secs * (1 - self.overlap_perc)
         if not self.real_time:
-            dur = self.end_time - self.nrt_stime - sig_len_secs
+            dur = self.end_time - self.nrt_stime - sig_len_secs  # type: ignore
             if dur <= 0:
                 print("WARNING: Selected time segment is shorter than signal length.  Results may not be reliable.")
             else:
-                remainder = dur % self.signal_step_sec
+                remainder = dur % self.signal_step_sec  # type: ignore
                 if remainder != 0:
                     print("NOTE: Selected time segment will have incomplete last window that will not be processed."
                           f"Extra Time = {remainder} seconds.")
         self.results_dir = results_dir if results_dir else os.path.join(self.root_path, 'results')
+        self.inventory_dir = inventory_dir if inventory_dir else config_path
+        self.inventory_name = inventory_name if inventory_name else f"{self.station}_inventory.xml"
 
     @staticmethod
     def create_log(config_path: str, day_key: str) -> str:
@@ -225,12 +225,13 @@ class EventDetector:
         return day_path
 
     @staticmethod
-    def load_config(rt_path: str, cfg_path: str) -> "EventDetector":
+    def load_config(rt_path: str, cfg_path: str, cfg_file: str, run_cfg: configparser.ConfigParser) -> "EventDetector":
         """
         Loads the configuration file for the event detector.
 
         :param rt_path: Root path for the project
         :param cfg_path: Path to the configuration file
+        :param user_config: User-provided configuration parser  
         :return: EventDetector object
 
         """
@@ -238,27 +239,27 @@ class EventDetector:
             if not os.path.exists(cfg_path):
                 print(f"Config not found at {cfg_path}")
                 exit(1)
-            run_cfg = configparser.ConfigParser()
-            run_cfg.read(cfg_path)
 
             evd = EventDetector(
-                event_name=infraconfig.get_param(run_cfg, "RUN", "event_name", None, "string"),
-                network=infraconfig.get_param(run_cfg, "RUN", "network", None, "string"),
-                station=infraconfig.get_param(run_cfg, "RUN", "station", None, "string"),
-                location=infraconfig.get_param(run_cfg, "RUN", "location", None, "string") or "",
-                channel=infraconfig.get_param(run_cfg, "RUN", "channel", None, "string"),
+                event_name=infraconfig.get_param(run_cfg, "RUN", "event_name", None, "string"),     # type: ignore
+                network=infraconfig.get_param(run_cfg, "RUN", "network", None, "string"),           # type: ignore
+                station=infraconfig.get_param(run_cfg, "RUN", "station", None, "string"),           # type: ignore
+                location=infraconfig.get_param(run_cfg, "RUN", "location", None, "string") or "",   # type: ignore
+                channel=infraconfig.get_param(run_cfg, "RUN", "channel", None, "string"),           # type: ignore
                 root_path=rt_path,
                 config_path=cfg_path,
-                num_elements=infraconfig.get_param(run_cfg, "RUN", "num_elements", None, "int"),
-                wf_client=infraconfig.get_param(run_cfg, "RUN", "wf_client", None, "int"),
-                real_time=infraconfig.get_param(run_cfg, "RUN", "real_time", None, "bool"),
-                rt_buffer_s=infraconfig.get_param(run_cfg, "RUN", "rt_buffer_s", None, "int"),
+                num_elements=infraconfig.get_param(run_cfg, "RUN", "num_elements", None, "int"),    # type: ignore
+                wf_client=infraconfig.get_param(run_cfg, "RUN", "wf_client", None, "int"),          # type: ignore
+                real_time=infraconfig.get_param(run_cfg, "RUN", "real_time", None, "bool"),         # type: ignore
+                rt_buffer_s=infraconfig.get_param(run_cfg, "RUN", "rt_buffer_s", None, "int"),      # type: ignore
                 nrt_stime=UTCDateTime(infraconfig.get_param(run_cfg, "RUN", "nrt_stime", None, "string")),
                 end_time=UTCDateTime(infraconfig.get_param(run_cfg, "RUN", "end_time", None, "string")),
-                sig_len_secs=infraconfig.get_param(run_cfg, "RUN", "sig_len_secs", None, "int"),
-                overlap_perc=infraconfig.get_param(run_cfg, "RUN", "overlap_perc", None, "float"),
-                seedlink_ip=infraconfig.get_param(run_cfg, "RUN", "seedlink_ip", None, "string"),
-                results_dir=infraconfig.get_param(run_cfg, "RUN", "results_dir", None, "string")
+                sig_len_secs=infraconfig.get_param(run_cfg, "RUN", "sig_len_secs", None, "int"),    # type: ignore
+                overlap_perc=infraconfig.get_param(run_cfg, "RUN", "overlap_perc", None, "float"),  # type: ignore
+                seedlink_ip=infraconfig.get_param(run_cfg, "RUN", "seedlink_ip", None, "string"),   # type: ignore
+                results_dir=infraconfig.get_param(run_cfg, "RUN", "results_dir", None, "string"),    # type: ignore
+                inventory_dir=infraconfig.get_param(run_cfg, "RUN", "inventory_dir", None, "string"),    # type: ignore
+                inventory_name=infraconfig.get_param(run_cfg, "RUN", "inventory_name", None, "string")    # type: ignore
             )
         except Exception as e:
             print(f"Error loading configuration: {e}")
@@ -268,21 +269,24 @@ class EventDetector:
 if __name__ == "__main__":
     """
     Main entry point for automated infrasonic detection using InfraPy
+
+    If adding command line parameters, the root path is always first and the config path is second.
+    If only one parameter is given, it is assumed to be the root path, and config path will be default.
+    Any parameters beyond the first two will be ignored.
+    Example: python main.py /path/to/root /path/to/config.ini
     """
     # Load model once at startup to avoid repeated loading
     classification_model = None 
 
     # Set up paths from CLI or use defaults
-    if len(sys.argv) > 1:
-        root_path = sys.argv[1]
-    else:
-        root_path = os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
-    if len(sys.argv) > 2:
-        cfg_path = sys.argv[2]
-    else:
-        cfg_path = os.path.join(root_path, 'config')
+    root_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
+    cfg_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(root_path, 'config')
+    cfg_ini = sys.argv[3] if len(sys.argv) > 3 else 'config.ini'
     # Setup Event Detector and paths
-    evd = EventDetector.load_config(root_path, os.path.join(cfg_path, 'example_wmodel.ini'))
+    user_config = configparser.ConfigParser()
+    user_config.read(os.path.join(cfg_path, cfg_ini))
+
+    evd = EventDetector.load_config(root_path, cfg_path, cfg_ini, user_config)
 
     # Beamforming Parameters
     freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")
@@ -347,8 +351,8 @@ if __name__ == "__main__":
     and save detections and raw data to specified directories. Please update them to match the intended directories.
     """
     # set initial time window
-    t1 = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
-        if evd.real_time else evd.nrt_stime - evd.signal_step_sec
+    t1: UTCDateTime = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
+        if evd.real_time else evd.nrt_stime - evd.signal_step_sec  # type: ignore
     t2 = UTCDateTime() - (evd.sig_len_secs + evd.rt_buffer_s) if evd.real_time else evd.nrt_stime
     current_day = t1.strftime("%Y%m%d")
     det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
@@ -356,7 +360,7 @@ if __name__ == "__main__":
     inventory = None
     # Try to load inventory from XML file first
     try:
-        inv_file = os.path.join(cfg_path, 'I59US_example.xml')
+        inv_file = os.path.join(evd.inventory_dir, evd.inventory_name)
         inventory = obspy.read_inventory(inv_file)
         logging.info(f"Loaded inventory from {inv_file}")
     except Exception as e:
@@ -373,9 +377,14 @@ if __name__ == "__main__":
                 endtime=t2,
                 level="response",
             )
+            if inventory is None:
+                logging.error("Error fetching inventory: no data returned from client.")
+                logging.shutdown()
+                sys.exit(1)
         except Exception as e:
             # no inventory means we need to exit
-            logging.error(f"Error {e} fetching data from FDSN client. Please check network/station codes and time range.")
+            logging.error(f"Error {e} fetching data from FDSN client. Please check network/station codes and time "
+                          "range.")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             logging.shutdown()
             sys.exit(1)
@@ -391,6 +400,10 @@ if __name__ == "__main__":
             starttime=t1,
             endtime=t2,
         )
+        if n_stream is None:
+            logging.error("Error fetching baseline noise data: no data returned from client.")
+            logging.shutdown()
+            sys.exit(1)
     except Exception as e:
         logging.error(f"Error fetching base waveforms. Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
@@ -471,9 +484,12 @@ if __name__ == "__main__":
                     starttime=t1,
                     endtime=t2,
                 )
-                logging.info(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")
-                if (len(g_stream) < evd.num_elements):
-                    logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, expected {evd.num_elements}.")
+                if g_stream is None:
+                    raise Exception("No waveforms returned from client.")
+                logging.info(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")   # type: ignore
+                if (len(g_stream) < evd.num_elements):                                              # type: ignore
+                    logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, "  # type: ignore
+                                    f"expected {evd.num_elements}.")
                     i += 1
                     continue
                 str_name = f"{evd.event_name}_{t1.strftime('%Y%m%d_%H%M%S')}"
@@ -504,10 +520,7 @@ if __name__ == "__main__":
                 else:
                     # If detections were found thresh will be the same as previous valid fstat thresh. If not recompute
                     logging.info("Adjusting threshold based on noise")
-                    if dets_found:
-                        thresh = prev_thresh
-                    else:
-                        thresh = new_thresh
+                    thresh = prev_thresh if dets_found else new_thresh
 
                 # Run detection
                 logging.info(f"Running FD detection from {t1} to {t2}\nNoise Window: {noise_start} to {noise_end}")
@@ -548,9 +561,9 @@ if __name__ == "__main__":
                         f"Found {len(det_list)} detections, writing to {det_out} ; New Threshold: {prev_thresh}"
                     )
                     str_info = [
-                        strm[0].stats.network,
-                        f"{strm[0].stats.station}-{strm[-1].stats.station}",
-                        strm[0].stats.channel,
+                        strm[0].stats.network,                                # type: ignore
+                        f"{strm[0].stats.station}-{strm[-1].stats.station}",  # type: ignore
+                        strm[0].stats.channel,                                # type: ignore
                     ]
                     data_io.detection_list_to_json(det_out, det_list, str_info)
                     with open(det_out, "r") as f:
@@ -595,7 +608,7 @@ if __name__ == "__main__":
                     # If there is a detection save off all raw data
                     dt = np.array(
                         [
-                            (tn - np.datetime64(strm[0].stats.starttime))
+                            (tn - np.datetime64(strm[0].stats.starttime))  # type: ignore
                             .astype("m8[ms]")
                             .astype(float)
                             * 1.0e-3
