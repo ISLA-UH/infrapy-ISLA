@@ -91,7 +91,12 @@ class EventDetector:
         overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap).
         Any value less than 0 or greater than 1.0 will be set to 0.2.
 
-        signal_step_sec: float, signal step in seconds after accounting for overlap.
+        results_dir: str, directory to save results of detector
+
+        inventory_dir: str, directory that contains inventory file
+
+        inventory_name: str, name of invetory file
+        
     """
     def __init__(self,
                  event_name: str,
@@ -135,6 +140,9 @@ class EventDetector:
         :param end_time: end time for processing.  Required if real_time is False.
         :param sig_len_secs: length of signal window in seconds.  Defaults to 600 seconds.
         :param overlap_perc: fractional overlap between time windows.  Defaults to 0.2 (20% overlap)
+        :param results_dir: path of intended results directory
+        :param inventory_dir path of directory that contains inventory file
+        :param inventory_name name of inventory file
         """
         self.event_name = event_name
         self.network = network
@@ -216,13 +224,13 @@ class EventDetector:
         return day_path
 
     @staticmethod
-    def load_config(rt_path: str, cfg_path: str, cfg_file: str, run_cfg: configparser.ConfigParser) -> "EventDetector":
+    def load_config(rt_path: str, cfg_path: str, run_cfg: configparser.ConfigParser) -> "EventDetector":
         """
         Loads the configuration file for the event detector.
 
         :param rt_path: Root path for the project
         :param cfg_path: Path to the configuration file
-        :param user_config: User-provided configuration parser
+        :param run_cfg: User-provided configuration parser
         :return: EventDetector object
         """
         try:
@@ -274,7 +282,7 @@ if __name__ == "__main__":
     user_config = configparser.ConfigParser()
     user_config.read(os.path.join(cfg_path, cfg_ini))
 
-    evd = EventDetector.load_config(root_path, cfg_path, cfg_ini, user_config)
+    evd = EventDetector.load_config(root_path, cfg_path, user_config)
 
     # Beamforming Parameters
     freq_min: float = infraconfig.get_param(user_config, "FK", "freq_min", None, "float")          # type: ignore

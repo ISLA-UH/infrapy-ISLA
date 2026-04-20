@@ -248,9 +248,9 @@ def create_sstcwt(raw_data: np.array, fs, freq_range: tuple, num_freq: int) -> n
     idx = np.where((ssq_freqs >= freq_range[0]) & (ssq_freqs <= freq_range[1]))[0]
     if len(idx) > 0:
         sst_mag = sst_mag[idx, :]
-    #h_factor = num_freq / sst_mag.shape[0]
-    #w_factor = num_freq / sst_mag.shape[1]
-    #sstcwt_data = zoom(sst_mag, (h_factor, w_factor))
+    # h_factor = num_freq / sst_mag.shape[0]
+    # w_factor = num_freq / sst_mag.shape[1]
+    # sstcwt_data = zoom(sst_mag, (h_factor, w_factor))
     return sst_mag
 
 
@@ -790,8 +790,8 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, target_size=
                 strm_g = cl.get_waveforms(network="IM", station="I59*", location="", channel="BDF", starttime=s_time, endtime=e_time)
                 strm = strm_g.copy()
                 for tr in strm:
-                    #tr.attach_response(inv)
-                    #tr.remove_sensitivity()
+                    tr.attach_response(inv)
+                    tr.remove_sensitivity()
                     tr.data = tr.data[:int((window+(2*buffer))*20)]
                 t_strm = inv_align(strm, inv, entry['Back Azimuth'], entry['Trace Vel. (m/s)'])
                 strm = t_strm.copy()
@@ -841,7 +841,7 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, target_size=
                     final_end = peak_time + (window / 2)
 
                     current_strm.trim(starttime=final_start, endtime=final_end, pad=False)
-                    
+
                     for i in range(stack_size):
                         # Because we are using this data for ConvLTSM we split the window into multiple frames to see how it changes over time/space
                         t_start = final_start + (i * frame_step)
@@ -962,5 +962,5 @@ if __name__ == "__main__":
     )
     
     create_train_stack(train_entries, 'train', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=True)
-    create_train_stack(test_entries, 'test', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=False)
+    create_train_stack(test_entries, 'test', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=True)
     create_train_stack(val_entries, 'val', rel_path, inv, window=38.4, target_size=384, stack_size=1, overlap=0, do_mvida=True)

@@ -75,9 +75,9 @@ def create_cwt(raw_data: np.array, fs: float,freq_range: tuple, num_freq: int) -
 
     """
     cwt_data = cwt(raw_data, 1/fs, 8, freq_range[0], freq_range[1], nf=num_freq)
-    h_factor = num_freq / cwt_data.shape[0]
+    """h_factor = num_freq / cwt_data.shape[0]
     w_factor = num_freq / cwt_data.shape[1]
-    cwt_data = zoom(cwt_data, (h_factor, w_factor))
+    cwt_data = zoom(cwt_data, (h_factor, w_factor))"""
     return cwt_data
 
 
@@ -130,7 +130,7 @@ def stack_weighted_traces(aligned_strm, noise_window_sec=60):
     """
     data_matrix = np.stack([tr.data for tr in aligned_strm])
     fs = aligned_strm[0].stats.sampling_rate
-    try:
+    """try:
         noise_samples = int(noise_window_sec * fs)
         noise_section = data_matrix[:, :noise_samples]
         variances = np.var(noise_section, axis=1)
@@ -138,8 +138,8 @@ def stack_weighted_traces(aligned_strm, noise_window_sec=60):
         raw_weights = 1.0 / variances
         weights = raw_weights / np.sum(raw_weights)
     except Exception:
-        # If noise estimation fails, fallback to equal weights
-        weights = [.25, .25, .25, .25]
+        # If noise estimation fails, fallback to equal weights"""
+    weights = np.array([.25, .25, .25, .25])
     virtual_data = np.sum(data_matrix * weights[:, np.newaxis], axis=0)
     v_trace = obspy.Trace(data=virtual_data, header=aligned_strm[0].stats.copy())
     v_trace.stats.station = "I59V"
@@ -200,18 +200,25 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
     data_stack : np.ndarray
         A 3D numpy array of shape (num_freq, num_freq, stack_size) representing the CWT stack for classification.
     """
-    fft_size = int(20*window)
-    # Preprocess Stream
+    fft_size = int(20 * window)
+    buffer = 20.0
+
+    # Preprocess Stream - match training pipeline exactly
     for tr in strm:
         tr.attach_response(inventory)
         tr.remove_sensitivity()
+        # Truncate before alignment - matches create_data_stack.py training pipeline
+        tr.data = tr.data[:int((window + (2 * buffer)) * 20)]
+
+    # Align FIRST, then detrend/taper/filter - matches training order
+    t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
+    strm = t_strm.copy()
     strm.detrend()
     strm.taper(max_percentage=0.05, type="blackmanharris")
     strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
-    t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
 
     # Center around peak of the aligned stream to ensure we capture the most relevant part of the signal
-    peak_strm = t_strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
+    peak_strm = strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
     pasc_max = np.abs(peak_strm[0].data)
     peak_index = peak_strm[0].times("utcdatetime")[np.argmax(pasc_max)]
     peak_time = obspy.UTCDateTime(round(peak_index.timestamp))
@@ -219,11 +226,6 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
     final_end = peak_time + (window / 2)
     peak_strm.trim(starttime=final_start, endtime=final_end, pad=False)
 
-    """
-    final_start = center_time - (window / 2)
-    final_end = center_time + (window / 2)
-    strm.trim(starttime=final_start, endtime=final_end, pad=True)
-    """
     single_strm = stack_weighted_traces(peak_strm)
     current_strm = obspy.Stream(traces=single_strm)
 
@@ -252,7 +254,7 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
             raw_cwt.append(cwt_norm)
     data_stack = np.array(raw_cwt).transpose(1, 2, 0)
 
-    data_stack = cv2.resize(data_stack, (size, size), interpolation=cv2.INTER_AREA)
+    data_stack = cv2.resize(data_stack, (size, size), interpolation=cv2.INTER_LINEAR)
     if data_stack.ndim == 2:
         data_stack = np.expand_dims(data_stack, axis=-1)
 

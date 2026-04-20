@@ -94,8 +94,12 @@ class EventDetector:
 
         overlap_perc: float, fractional overlap between time windows.  Defaults to 0.2 (20% overlap).  Any value
             less than 0 or greater than 1.0 will be set to 0.2.
+        
+        results_dir: str, directory to save results of detector
 
-        signal_step_sec: float, signal step in seconds after accounting for overlap.
+        inventory_dir: str, directory that contains inventory file
+
+        inventory_name: str, name of invetory file
     """
 
     def __init__(self,
@@ -115,7 +119,9 @@ class EventDetector:
                  end_time: Optional[UTCDateTime] = None,
                  sig_len_secs: int = 600,
                  overlap_perc: float = 0.2,
-                 results_dir: Optional[str] = None
+                 results_dir: Optional[str] = None,
+                 inventory_dir: Optional[str] = None,
+                 inventory_name: Optional[str] = None
                  ):
         """
         intialize event detector
@@ -138,6 +144,9 @@ class EventDetector:
         :param end_time: end time for processing.  Required if real_time is False.
         :param sig_len_secs: length of signal window in seconds.  Defaults to 600 seconds.
         :param overlap_perc: fractional overlap between time windows.  Defaults to 0.2 (20% overlap)
+        :param results_dir: str, directory to save results of detector
+        :param inventory_dir: str, directory that contains inventory file
+        :param inventory_name: str, name of invetory file
         """
         self.event_name = event_name
         self.network = network
@@ -225,13 +234,13 @@ class EventDetector:
         return day_path
 
     @staticmethod
-    def load_config(rt_path: str, cfg_path: str, cfg_file: str, run_cfg: configparser.ConfigParser) -> "EventDetector":
+    def load_config(rt_path: str, cfg_path: str, run_cfg: configparser.ConfigParser) -> "EventDetector":
         """
         Loads the configuration file for the event detector.
 
         :param rt_path: Root path for the project
         :param cfg_path: Path to the configuration file
-        :param user_config: User-provided configuration parser  
+        :param run_cfg: User-provided configuration parser
         :return: EventDetector object
 
         """
@@ -281,63 +290,68 @@ if __name__ == "__main__":
     # Set up paths from CLI or use defaults
     root_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), 'sandbox', 'automated_detection')
     cfg_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(root_path, 'config')
-    cfg_ini = sys.argv[3] if len(sys.argv) > 3 else 'config.ini'
+    cfg_ini = sys.argv[3] if len(sys.argv) > 3 else 'config_sandbox.ini'
     # Setup Event Detector and paths
     user_config = configparser.ConfigParser()
     user_config.read(os.path.join(cfg_path, cfg_ini))
 
-    evd = EventDetector.load_config(root_path, cfg_path, cfg_ini, user_config)
+    evd = EventDetector.load_config(root_path, cfg_path, user_config)
 
     # Beamforming Parameters
-    freq_min: float = infraconfig.get_param(evd.user_config, "FK", "freq_min", None, "float")
-    freq_max: float = infraconfig.get_param(evd.user_config, "FK", "freq_max", None, "float")
-    back_az_min: float = infraconfig.get_param(evd.user_config, "FK", "back_az_min", None, "float")
-    back_az_max: float = infraconfig.get_param(evd.user_config, "FK", "back_az_max", None, "float")
-    back_az_step: float = infraconfig.get_param(evd.user_config, "FK", "back_az_step", None, "float")
-    trace_vel_min: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_min", None, "float")
-    trace_vel_max: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_max", None, "float")
-    trace_vel_step: float = infraconfig.get_param(evd.user_config, "FK", "trace_vel_step", None, "float")
-    method: str = infraconfig.get_param(evd.user_config, "FK", "method", None, "string")               
+    freq_min: float = infraconfig.get_param(user_config, "FK", "freq_min", None, "float")          # type: ignore
+    freq_max: float = infraconfig.get_param(user_config, "FK", "freq_max", None, "float")          # type: ignore
+    back_az_min: float = infraconfig.get_param(user_config, "FK", "back_az_min", None, "float")    # type: ignore
+    back_az_max: float = infraconfig.get_param(user_config, "FK", "back_az_max", None, "float")    # type: ignore
+    back_az_step: float = infraconfig.get_param(user_config, "FK", "back_az_step", None, "float")  # type: ignore
+    trace_vel_min: float = infraconfig.get_param(user_config, "FK", "trace_vel_min", None,
+                                                 "float")    # type: ignore
+    trace_vel_max: float = infraconfig.get_param(user_config, "FK", "trace_vel_max", None,
+                                                 "float")    # type: ignore
+    trace_vel_step: float = infraconfig.get_param(user_config, "FK", "trace_vel_step", None,
+                                                  "float")  # type: ignore
+    method: str = infraconfig.get_param(user_config, "FK", "method", None, "string")               # type: ignore
     signal_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "signal_start", None, "string")                   
+    t = infraconfig.get_param(user_config, "FK", "signal_start", None, "string")
+    t = infraconfig.get_param(user_config, "FK", "signal_start", None, "string")
     if t is not None:
         signal_start = UTCDateTime(t)
     signal_end: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "signal_end", None, "string")                     
+    t = infraconfig.get_param(user_config, "FK", "signal_end", None, "string")
+    t = infraconfig.get_param(user_config, "FK", "signal_end", None, "string")
     if t is not None:
         signal_end = UTCDateTime(t)
     noise_start: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "noise_start", None, "string")                    
+    t = infraconfig.get_param(user_config, "FK", "noise_start", None, "string")
     if t is not None:
         noise_start = UTCDateTime(t)
     noise_end: UTCDateTime = UTCDateTime(0)
-    t = infraconfig.get_param(evd.user_config, "FK", "noise_end", None, "string")                      
+    t = infraconfig.get_param(user_config, "FK", "noise_end", None, "string")
     if t is not None:
         noise_end = UTCDateTime(t)
-    window_len: float = infraconfig.get_param(evd.user_config, "FK", "window_len", None, "float")      
-    sub_window_len: float = infraconfig.get_param(evd.user_config, "FK", "sub_window_len", None, "float")
-    window_step: float = infraconfig.get_param(evd.user_config, "FK", "window_step", None, "float")
-    cpu_cnt: int = infraconfig.get_param(evd.user_config, "FK", "cpu_cnt", None, "int")
+    window_len: float = infraconfig.get_param(user_config, "FK", "window_len", None, "float")    # type: ignore
+    sub_window_len: float = infraconfig.get_param(user_config, "FK", "sub_window_len", None,
+                                                  "float")  # type: ignore
+    window_step: float = infraconfig.get_param(user_config, "FK", "window_step", None, "float")  # type: ignore
+    cpu_cnt: int = infraconfig.get_param(user_config, "FK", "cpu_cnt", None, "int")              # type: ignore
 
     # Detection parameters
-    fd_window_len: float = infraconfig.get_param(evd.user_config, "FD", "window_len", None, "float")
-    p_value: float = infraconfig.get_param(evd.user_config, "FD", "p_value", None, "float")
-    min_duration: float = infraconfig.get_param(evd.user_config, "FD", "min_duration", None, "float")
-    back_az_width: float = infraconfig.get_param(evd.user_config, "FD", "back_az_width", None, "float")
-    fixed_thresh: float = infraconfig.get_param(evd.user_config, "FD", "fixed_thresh", None, "float")
-    thresh_ceil: float = infraconfig.get_param(evd.user_config, "FD", "thresh_ceil", None, "float")
-    return_thresh: bool = infraconfig.get_param(evd.user_config, "FD", "return_thresh", None, "bool")
-    merge_dets: bool = infraconfig.get_param(evd.user_config, "FD", "merge_dets", None, "bool")
+    fd_window_len: float = infraconfig.get_param(user_config, "FD", "window_len", None, "float")     # type: ignore
+    p_value: float = infraconfig.get_param(user_config, "FD", "p_value", None, "float")              # type: ignore
+    min_duration: float = infraconfig.get_param(user_config, "FD", "min_duration", None, "float")    # type: ignore
+    back_az_width: float = infraconfig.get_param(user_config, "FD", "back_az_width", None, "float")  # type: ignore
+    fixed_thresh: float = infraconfig.get_param(user_config, "FD", "fixed_thresh", None, "float")    # type: ignore
+    thresh_ceil: float = infraconfig.get_param(user_config, "FD", "thresh_ceil", None, "float")      # type: ignore
+    return_thresh: bool = infraconfig.get_param(user_config, "FD", "return_thresh", None, "bool")    # type: ignore
+    merge_dets: bool = infraconfig.get_param(user_config, "FD", "merge_dets", None, "bool")          # type: ignore
 
+    
     # Load CNN Model parameter
     classification_model = None
-    model_path: float = infraconfig.get_param(evd.user_config, "AI", "model_path", None, "string")
+    model_path: float = infraconfig.get_param(user_config, "AI", "model_path", None, "string")
     if model_path is None or not os.path.exists(model_path):
         model_path = os.path.join(cfg_path, '3Ceffnet.keras')
-    window: float = infraconfig.get_param(evd.user_config, "AI", "window", None, "float")
-    size: int = infraconfig.get_param(evd.user_config, "AI", "size", None, "int")
-
-
+    window: float = infraconfig.get_param(user_config, "AI", "window", None, "float")
+    size: int = infraconfig.get_param(user_config, "AI", "size", None, "int")
 
     stack_size = 1
     overlap = 0
@@ -346,6 +360,7 @@ if __name__ == "__main__":
     classification_model = None
 
     """
+
     This section runs an automated infrasonic detection using InfraPy's beamforming and detection modules.
     It will pull data from either IRIS or a local seedlink server, process it in overlapping time windows,
     and save detections and raw data to specified directories. Please update them to match the intended directories.
@@ -368,22 +383,13 @@ if __name__ == "__main__":
         logging.warning(f"could not load from .xml file Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         try:
-            inventory = Client("IRIS").get_stations(
-                network=evd.network,
-                station=evd.station,
-                location=evd.location,
-                channel=evd.channel,
-                starttime=t1,
-                endtime=t2,
-                level="response",
-            )
             if inventory is None:
                 logging.error("Error fetching inventory: no data returned from client.")
                 logging.shutdown()
                 sys.exit(1)
         except Exception as e:
             # no inventory means we need to exit
-            logging.error(f"Error {e} fetching data from FDSN client. Please check network/station codes and time "
+            logging.error(f"Error {e} fetching inventory. XML file is needed for CNN Identifier "
                           "range.")
             logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             logging.shutdown()
