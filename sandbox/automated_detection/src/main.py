@@ -96,7 +96,7 @@ class EventDetector:
         inventory_dir: str, directory that contains inventory file
 
         inventory_name: str, name of invetory file
-        
+
     """
     def __init__(self,
                  event_name: str,
