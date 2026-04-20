@@ -1,6 +1,7 @@
 """
 Automatic Detection Function using InfraPy
 Create class EventDetector to handle configuration for automated detection runs.
+Refer to config/config.ini for example configuration file.
 
 Author: Riley Johnson, ISLA 2025/12/18
 Modified: Tyler Yoshiyama, ISLA 2026/04/14
