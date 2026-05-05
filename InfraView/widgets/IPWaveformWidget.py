@@ -29,6 +29,7 @@ class IPWaveformWidget(QWidget):
     The IPFilterSettingsWidget holds the filter settings and tells the WaveformWidget when to update that
     data.  The IPStatsView displays the trace data, and the IPStationView displays the station data.
     """
+    _sts_raw = None         # un-decimated streams (ensure we can go back to OG strm)
     _sts = None             # streams
     _sts_filtered = None    # filtered streams
     # _inv = None           # inventory
@@ -99,6 +100,7 @@ class IPWaveformWidget(QWidget):
         """
         self.filterSettingsWidget.sig_filter_changed.connect(self.update_filtered_data)
         self.filterSettingsWidget.sig_filter_display_changed.connect(self.plotViewer.show_hide_lines)
+        self.decimateSettingsWidget.sig_decimate_changed.connect(self.update_decimated_data)
 
         self.statsViewer.removeTrace.connect(self.remove_trace)
 
@@ -124,6 +126,7 @@ class IPWaveformWidget(QWidget):
         :param widget: controlling widget
         """
         self.filterSettingsWidget = widget.filterSettingsWidget
+        self.decimateSettingsWidget = widget.decimateSettingsWidget
         self.psdSettingsWidget = widget.psdSettingsWidget
         self.psdWidget.set_controlling_widget(self.psdSettingsWidget)
         self.connect_signals_and_slots()
@@ -145,24 +148,24 @@ class IPWaveformWidget(QWidget):
         if newTraces is None:
             return
 
-        if self._sts is None:
-            self._sts = newTraces
+        if self._sts_raw is None:
+            self._sts_raw = newTraces
         else:
-            self._sts += newTraces
+            self._sts_raw += newTraces
 
-        for trace in self._sts:
+        for trace in self._sts_raw:
             trace.data = trace.data - np.mean(trace.data)
-            self._sts.merge(fill_value=0)
+            self._sts_raw.merge(fill_value=0)
 
         # it's possible, if the open failed, that self.waveformWidget._sts is still None, so if it is, bail out
         # if not populate the trace stats viewer and plot the traces
-        if self._sts is not None:
+        if self._sts_raw is not None:
             # TODO...is there a better way of doing this?
-            self.parent.beamformingWidget.setStreams(self._sts)
+            self.parent.beamformingWidget.setStreams(self._sts_raw)
 
-            self.statsViewer.setStats(self._sts)
+            self.statsViewer.setStats(self._sts_raw)
 
-            self.update_streams(self._sts)
+            self.update_streams(self._sts_raw)
 
             self.stationViewer.merge_new_inventory(newInventory, 'APPEND_KEEP_NEW')
 
@@ -194,15 +197,18 @@ class IPWaveformWidget(QWidget):
 
         :param trace_id: id of the trace to remove
         """
-        for trace in self._sts.select(id=trace_id):
-            self._sts.remove(trace)
+        source_stream = self._sts_raw if self._sts_raw is not None else self._sts
+        for trace in source_stream.select(id=trace_id):
+            source_stream.remove(trace)
             self.stationViewer.remove_station(station=trace.stats['station'], channel=trace.stats['channel'])
 
-        self.statsViewer.setStats(self._sts)
+        self.statsViewer.setStats(source_stream)
 
-        if len(self._sts) == 0:
+        if len(source_stream) == 0:
+            self._sts_raw = None
             self._sts = None
-        self.update_streams(self._sts)
+            self._sts_filtered = None
+        self.update_streams(self._sts_raw)
 
     @pyqtSlot(str)
     def remove_trace_by_id(self, trace_id: str):
@@ -211,15 +217,17 @@ class IPWaveformWidget(QWidget):
 
         :param trace_id: id of the trace to remove
         """
-        if self._sts is not None:
-            for tr in self._sts:
+        source_stream = self._sts_raw if self._sts_raw is not None else self._sts
+        if source_stream is not None:
+            for tr in source_stream:
                 if tr.id == trace_id:
-                    self._sts.remove(tr)
+                    source_stream.remove(tr)
                     self.remove_from_inventory(trace_id)
-                if len(self._sts) == 0:
+                if len(source_stream) == 0:
+                    self._sts_raw = None
                     self._sts = None
 
-            self.update_streams(self._sts)
+            self.update_streams(self._sts_raw)
 
     @pyqtSlot(Inventory, str)
     def update_inventory(self, new_inventory: Inventory, mode: str):
@@ -285,14 +293,38 @@ class IPWaveformWidget(QWidget):
 
         :param new_stream: new obspy Stream
         """
-        self._sts = new_stream
+        self._sts_raw = new_stream
+        self._sts = self.decimate_stream(self._sts_raw,
+                                         self.decimateSettingsWidget.get_decimate_settings())
         self._sts_filtered = self.filter_stream(self._sts,
                                                 self.filterSettingsWidget.get_filter_settings())
         self.plotViewer.set_streams(self._sts,
                                     self._sts_filtered,
                                     self.filterSettingsWidget.get_filter_display_settings())
+        self.psdWidget.updatePSDs()
 
-        self.statsViewer.setStats(new_stream)
+        self.statsViewer.setStats(self._sts)
+
+    @pyqtSlot(dict)
+    def update_decimated_data(self, decimate_settings: dict):
+        """
+        called when settings in the decimate widget are changed
+        NOTE: this mirrors how infrapy updates filter settings
+        :param decimate_settings: current decimate settings
+        """
+        if self._sts_raw is None:
+            self._sts = None
+            self._sts_filtered = None
+            return
+
+        self._sts = self.decimate_stream(self._sts_raw, decimate_settings)
+        self._sts_filtered = self.filter_stream(self._sts,
+                                                self.filterSettingsWidget.get_filter_settings())
+        self.plotViewer.set_streams(self._sts,
+                                    self._sts_filtered,
+                                    self.filterSettingsWidget.get_filter_display_settings())
+        self.statsViewer.setStats(self._sts)
+        self.psdWidget.updatePSDs()
 
     def debug_trace(self):  # for debugging, you have to call pyqtRemoveInputHook before set_trace()
         """
@@ -306,7 +338,7 @@ class IPWaveformWidget(QWidget):
     @pyqtSlot(dict)
     def update_filtered_data(self, filter_settings: dict):
         """
-        this should be called when settings in the filter widget are changed
+        called when settings in the filter widget are changed
 
         :param filter_settings: current filter settings
         """
@@ -376,6 +408,50 @@ class IPWaveformWidget(QWidget):
             filtered_stream += filtered_trace
 
         return filtered_stream
+
+    def decimate_stream(self, stream: Stream, cds: dict) -> Stream:
+        """
+        decimate the given stream according to current decimate settings (cds)
+        :param stream: obspy Stream to decimate
+        :param cds: current decimate settings
+            NOTE: cds currently supports detrending, tapering, and decimation
+        :return: decimated obspy Stream
+        """
+        if stream is None:
+            return None
+
+        if not cds.get('apply', False):
+            return stream.copy()
+
+        decimated_stream = stream.copy()
+
+        for p in cds.get('passes', []):
+            factor = p.get('factor', 2)
+            detrend_type = p.get('detrend_type', 'linear')
+            taper_type = p.get('taper_type', 'hann')
+            taper_percentage = p.get('taper_percentage', 0.05)
+
+            if detrend_type != 'none':
+                try:
+                    decimated_stream.detrend(type=detrend_type)
+                except Exception as e:
+                    IPUtils.errorPopup(f"Detrend error ({detrend_type}): {e}")
+                    return stream.copy()
+
+            if taper_type != 'none':
+                try:
+                    decimated_stream.taper(max_percentage=float(taper_percentage), type=taper_type)
+                except Exception as e:
+                    IPUtils.errorPopup(f"Taper error ({taper_type}, {taper_percentage}): {e}")
+                    return stream.copy()
+
+            try:
+                decimated_stream.decimate(int(factor), strict_length=False)
+            except Exception as e:
+                IPUtils.errorPopup(f"Decimation error (factor {factor}): {e}")
+                return stream.copy()
+
+        return decimated_stream
 
     def saveWindowGeometrySettings(self):
         """
@@ -479,6 +555,7 @@ class IPWaveformWidget(QWidget):
         """
         empty out the streams
         """
+        self._sts_raw = None
         self._sts = None
         self._sts_filtered = None
 

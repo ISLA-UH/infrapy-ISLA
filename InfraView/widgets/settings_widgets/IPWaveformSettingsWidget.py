@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import (QCheckBox, QComboBox, QLabel, QDoubleSpinBox, QHBoxLayout,
-                             QSpinBox, QPushButton, QFormLayout, 
-                             QVBoxLayout, QAbstractSpinBox)
+                             QSpinBox, QPushButton, QFormLayout, QGridLayout, QListWidget,
+                             QListWidgetItem, QVBoxLayout, QAbstractSpinBox)
 
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QSettings, Qt
 
@@ -17,9 +17,11 @@ class IPWaveformSettingsWidget(IPBaseWidgets.IPSettingsWidget):
     def buildUI(self):
         self.filterSettingsWidget = IPFilterSettingsWidget(parent=self, title='Filter')
         self.psdSettingsWidget = IPPSDSettingsWidget(title="PSD")
+        self.decimateSettingsWidget = IPDecimateSettingsWidget(parent=self, title='Decimate')
 
         layout = QHBoxLayout()
         layout.addWidget(self.filterSettingsWidget)
+        layout.addWidget(self.decimateSettingsWidget)
         layout.addWidget(self.psdSettingsWidget)
         layout.addStretch()
 
@@ -37,13 +39,16 @@ class IPWaveformSettingsWidget(IPBaseWidgets.IPSettingsWidget):
         # used when saving to config settings
         psd_dict = self.psdSettingsWidget.to_dict()
         filter_dict = self.filterSettingsWidget.to_dict()
-        return {'psd_dict': psd_dict, 'filter_dict': filter_dict}
+        decimate_dict = self.decimateSettingsWidget.to_dict()
+        return {'psd_dict': psd_dict, 'filter_dict': filter_dict, 'decimate_dict': decimate_dict}
 
     def from_dict(self, s_dict):
         sd = s_dict['waveforms_widget']
         # used when loading new config settings
         self.psdSettingsWidget.from_dict(sd)
         self.filterSettingsWidget.from_dict(sd)
+        if 'decimate_dict' in sd:
+            self.decimateSettingsWidget.from_dict(sd)
 
 class IPPSDSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
 
@@ -379,3 +384,238 @@ class IPFilterSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         self.highpassSpin.setValue(self.filter_settings['F_high'])
         self.orderSpin.setValue(self.filter_settings['order'])
         self.zeroPhase_checkbox.setChecked(self.filter_settings['zphase'])
+
+
+class IPDecimateSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
+    """
+    Decimation settings widget.
+
+    Emits sig_decimate_changed(dict) with keys:
+        'apply'  : bool
+        'passes' : list of dicts, each with keys:
+                     'factor'           : int
+                     'detrend_type'     : str
+                     'taper_type'       : str
+                     'taper_percentage' : float
+    """
+
+    sig_decimate_changed = pyqtSignal(dict)
+
+    decimate_settings_default = {
+        'apply': False,
+        'passes': [],
+    }
+
+    def __init__(self, parent=None, title=''):
+        super().__init__()
+        self.parent = parent
+        self.setTitle(title)
+        self.decimate_settings = self.decimate_settings_default.copy()
+        self.decimate_settings['passes'] = []
+        self.__buildUI__()
+        self.show()
+
+    def __buildUI__(self):
+        self.applyDecimate_checkbox = QCheckBox('Apply Decimate?')
+        self.applyDecimate_checkbox.setChecked(self.decimate_settings['apply'])
+        self.applyDecimate_checkbox.stateChanged.connect(self._on_apply_changed)
+
+        label_factor = QLabel(self.tr('Factor:'))
+        self.factorSpin = QSpinBox()
+        self.factorSpin.setMinimum(2)
+        self.factorSpin.setMaximum(100)
+        self.factorSpin.setValue(2)
+
+        self.detrendType_cb = QComboBox()
+        self.detrendType_cb.addItems(['none', 'linear', 'demean', 'simple'])
+        self.detrendType_cb.setCurrentText('linear')
+
+        self.taperType_cb = QComboBox()
+        self.taperType_cb.addItems(['none', 'cosine', 'hann', 'hamming', 'boxcar', 'bartlett', 'blackman'])
+        self.taperType_cb.setCurrentText('hann')
+        self.taperType_cb.currentTextChanged.connect(self._on_taper_type_changed)
+
+        self.taperPercentage_spin = QDoubleSpinBox()
+        self.taperPercentage_spin.setDecimals(3)
+        self.taperPercentage_spin.setMinimum(0.0)
+        self.taperPercentage_spin.setMaximum(0.5)
+        self.taperPercentage_spin.setSingleStep(0.01)
+        self.taperPercentage_spin.setValue(0.05)
+
+        self.addFactor_button = QPushButton('Add Iteration')
+        self.addFactor_button.clicked.connect(self._on_add_factor)
+
+        self.removeLast_button = QPushButton('Remove Last')
+        self.removeLast_button.clicked.connect(self._on_remove_last)
+
+        self.clearAll_button = QPushButton('Clear All')
+        self.clearAll_button.clicked.connect(self._on_clear_all)
+
+        self.passesList = QListWidget()
+        self.passesList.setMaximumHeight(100)
+
+        self.update_button = QPushButton('Update')
+        self.update_button.setMaximumWidth(200)
+        self.update_button.clicked.connect(self._on_update_clicked)
+
+        col1 = QFormLayout()
+        cm = col1.contentsMargins()
+        cm.setRight(40)
+        col1.setContentsMargins(cm)
+        col1.addRow(QLabel('Detrend:'), self.detrendType_cb)
+        col1.addRow(QLabel('Taper:'), self.taperType_cb)
+        self.taperPercentage_label = QLabel('Taper %:')
+        col1.addRow(self.taperPercentage_label, self.taperPercentage_spin)
+        col1.addRow(label_factor, self.factorSpin)
+        col1.addRow(QLabel('Iterations:'), self.passesList)
+
+        col2 = QVBoxLayout()
+        col2.addWidget(self.applyDecimate_checkbox)
+        col2.addWidget(self.addFactor_button)
+        col2.addWidget(self.removeLast_button)
+        col2.addWidget(self.clearAll_button)
+        col2.addWidget(self.update_button)
+        col2.addStretch()
+
+        layout = QHBoxLayout()
+        layout.addLayout(col1)
+        layout.addLayout(col2)
+        self.setLayout(layout)
+
+        self.disableAll()
+
+    # --- internal helpers ---
+
+    def _refresh_passes_list(self):
+        self.passesList.clear()
+        for i, p in enumerate(self.decimate_settings['passes']):
+            taper = p.get('taper_type', 'none')
+            taper_pct = p.get('taper_percentage', 0.05)
+            taper_str = f'{taper}({taper_pct * 100:.1f}%)' if taper != 'none' else 'none'
+            detrend = p.get('detrend_type', 'none')
+            factor = p.get('factor', 2)
+            self.passesList.addItem(QListWidgetItem(f'I{i + 1}: ×{factor} | {detrend} | {taper_str}'))
+
+    # --- slots ---
+
+    def _on_apply_changed(self, state: int):
+        if state == 2:
+            self.decimate_settings['apply'] = True
+            self.enableAll()
+        else:
+            self.decimate_settings['apply'] = False
+            self.disableAll()
+        self.sig_decimate_changed.emit(self.decimate_settings)
+
+    def _on_add_factor(self):
+        self.decimate_settings['passes'].append({
+            'factor': self.factorSpin.value(),
+            'detrend_type': self.detrendType_cb.currentText(),
+            'taper_type': self.taperType_cb.currentText(),
+            'taper_percentage': self.taperPercentage_spin.value(),
+        })
+        self._refresh_passes_list()
+        self.update_button.setEnabled(True)
+
+    def _on_remove_last(self):
+        if self.decimate_settings['passes']:
+            self.decimate_settings['passes'].pop()
+            self._refresh_passes_list()
+
+    def _on_clear_all(self):
+        self.decimate_settings['passes'] = []
+        self._refresh_passes_list()
+
+    def _on_update_clicked(self):
+        self.sig_decimate_changed.emit(self.decimate_settings)
+
+    def _on_taper_type_changed(self, taper_type: str):
+        self._update_taper_percentage_enabled()
+
+    def _update_taper_percentage_enabled(self):
+        taper_enabled = self.applyDecimate_checkbox.isChecked() and self.taperType_cb.currentText() != 'none'
+        self.taperPercentage_spin.setEnabled(taper_enabled)
+        self.taperPercentage_label.setEnabled(taper_enabled)
+
+    # --- enable / disable ---
+
+    def enableAll(self):
+        self.detrendType_cb.setEnabled(True)
+        self.taperType_cb.setEnabled(True)
+        self.factorSpin.setEnabled(True)
+        self.addFactor_button.setEnabled(True)
+        self.removeLast_button.setEnabled(True)
+        self.clearAll_button.setEnabled(True)
+        self.passesList.setEnabled(True)
+        self.update_button.setEnabled(True)
+        self._update_taper_percentage_enabled()
+
+    def disableAll(self):
+        self.detrendType_cb.setEnabled(False)
+        self.taperType_cb.setEnabled(False)
+        self.taperPercentage_spin.setEnabled(False)
+        self.taperPercentage_label.setEnabled(False)
+        self.factorSpin.setEnabled(False)
+        self.addFactor_button.setEnabled(False)
+        self.removeLast_button.setEnabled(False)
+        self.clearAll_button.setEnabled(False)
+        self.passesList.setEnabled(False)
+        self.update_button.setEnabled(False)
+
+    # --- public API ---
+
+    def get_decimate_settings(self) -> dict:
+        return self.decimate_settings
+
+    def update_widget(self):
+        self.applyDecimate_checkbox.setChecked(self.decimate_settings['apply'])
+        self._refresh_passes_list()
+        if self.decimate_settings['apply']:
+            self.enableAll()
+        else:
+            self.disableAll()
+        self._update_taper_percentage_enabled()
+
+    def reset_decimate_settings(self):
+        self.decimate_settings = self.decimate_settings_default.copy()
+        self.decimate_settings['passes'] = []
+        self.update_widget()
+        self.disableAll()
+
+    def to_dict(self) -> dict:
+        return {
+            'apply': self.applyDecimate_checkbox.isChecked(),
+            'passes': [dict(p) for p in self.decimate_settings['passes']],
+        }
+
+    def from_dict(self, s_dict: dict):
+        bool_map = {'True': True, 'False': False}
+        sd = s_dict.get('decimate_dict', {})
+        if not sd:
+            return
+        apply_val = sd.get('apply', False)
+        if isinstance(apply_val, str):
+            apply_val = bool_map.get(apply_val, False)
+        self.decimate_settings['apply'] = apply_val
+        # Support old format where 'factors' was a flat list of ints
+        if 'passes' in sd:
+            passes = []
+            for p in sd['passes']:
+                try:
+                    taper_pct = float(p.get('taper_percentage', 0.05))
+                except (TypeError, ValueError):
+                    taper_pct = 0.05
+                passes.append({
+                    'factor': int(p.get('factor', 2)),
+                    'detrend_type': p.get('detrend_type', 'linear'),
+                    'taper_type': p.get('taper_type', 'hann'),
+                    'taper_percentage': taper_pct,
+                })
+            self.decimate_settings['passes'] = passes
+        elif 'factors' in sd:
+            # Backward-compat: promote old flat factors to passes with defaults
+            self.decimate_settings['passes'] = [
+                {'factor': int(f), 'detrend_type': 'linear', 'taper_type': 'hann', 'taper_percentage': 0.05}
+                for f in sd.get('factors', [])
+            ]
+        self.update_widget()
