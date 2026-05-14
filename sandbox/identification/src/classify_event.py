@@ -203,11 +203,9 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
     fft_size = int(20 * window)
     buffer = 20.0
 
-    # Preprocess Stream - match training pipeline exactly
+    # Preprocess stream exactly like create_data_stack.py training path.
     for tr in strm:
-        tr.attach_response(inventory)
-        tr.remove_sensitivity()
-        # Truncate before alignment - matches create_data_stack.py training pipeline
+        tr.normalize()
         tr.data = tr.data[:int((window + (2 * buffer)) * 20)]
 
     # Align FIRST, then detrend/taper/filter - matches training order
@@ -217,17 +215,25 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
     strm.taper(max_percentage=0.05, type="blackmanharris")
     strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
 
-    # Center around peak of the aligned stream to ensure we capture the most relevant part of the signal
-    peak_strm = strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
-    pasc_max = np.abs(peak_strm[0].data)
-    peak_index = peak_strm[0].times("utcdatetime")[np.argmax(pasc_max)]
-    peak_time = obspy.UTCDateTime(round(peak_index.timestamp))
+    # Training stacks sensors first, then finds peak on the virtual trace.
+    single_strm = stack_weighted_traces(strm)
+    current_strm = single_strm.copy()
+    if len(current_strm) == 0 or len(current_strm[0].data) == 0:
+        raise ValueError("No trace data available after stacking in single_stack")
+
+    peak_strm = current_strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
+    if len(peak_strm) == 0 or len(peak_strm[0].data) == 0:
+        # Fallback: derive peak from the full virtual trace when the center-time slice misses data.
+        trace = current_strm[0]
+        peak_idx = int(np.argmax(np.abs(trace.data)))
+        peak_time = trace.stats.starttime + (peak_idx / trace.stats.sampling_rate)
+    else:
+        pasc_max = np.abs(peak_strm[0].data)
+        peak_index = peak_strm[0].times("utcdatetime")[np.argmax(pasc_max)]
+        peak_time = obspy.UTCDateTime(round(peak_index.timestamp))
     final_start = peak_time - (window / 2)
     final_end = peak_time + (window / 2)
-    peak_strm.trim(starttime=final_start, endtime=final_end, pad=False)
-
-    single_strm = stack_weighted_traces(peak_strm)
-    current_strm = obspy.Stream(traces=single_strm)
+    current_strm.trim(starttime=final_start, endtime=final_end, pad=False)
 
     frame_length = window / (stack_size-(stack_size-1)*overlap)
     frame_step = frame_length / (stack_size * (1 - overlap))
@@ -294,20 +300,37 @@ def mvida_stack(strm, inventory, freq_range, center_time, window: float, stack_s
         A 3D numpy array of shape (num_freq, num_freq, stack_size) representing the CWT stack for classification.
     """
     fft_size = int(20*window)
-    # Preprocess Stream
+    buffer = 20.0
+
+    # Match training preprocessing and ordering.
     for tr in strm:
-        tr.attach_response(inventory)
-        tr.remove_sensitivity()
+        tr.normalize()
+        tr.data = tr.data[:int((window + (2 * buffer)) * 20)]
+
+    t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
+    strm = t_strm.copy()
     strm.detrend()
     strm.taper(max_percentage=0.05, type="blackmanharris")
     strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
-    t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
-    strm = t_strm.copy()
-    final_start = center_time - (window / 2)
-    final_end = center_time + (window / 2)
-    strm.trim(starttime=final_start, endtime=final_end, pad=False)
+
     single_strm = apply_mvida_to_stream(strm)
-    current_strm = obspy.Stream(traces=single_strm)
+    current_strm = single_strm.copy()
+    if len(current_strm) == 0 or len(current_strm[0].data) == 0:
+        raise ValueError("No trace data available after MVIDA in mvida_stack")
+
+    peak_strm = current_strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
+    if len(peak_strm) == 0 or len(peak_strm[0].data) == 0:
+        # Fallback: derive peak from the full virtual trace when the center-time slice misses data.
+        trace = current_strm[0]
+        peak_idx = int(np.argmax(np.abs(trace.data)))
+        peak_time = trace.stats.starttime + (peak_idx / trace.stats.sampling_rate)
+    else:
+        pasc_max = np.abs(peak_strm[0].data)
+        peak_index = peak_strm[0].times("utcdatetime")[np.argmax(pasc_max)]
+        peak_time = obspy.UTCDateTime(round(peak_index.timestamp))
+    final_start = peak_time - (window / 2)
+    final_end = peak_time + (window / 2)
+    current_strm.trim(starttime=final_start, endtime=final_end, pad=False)
 
     frame_length = window / (stack_size-(stack_size-1)*overlap)
     frame_step = frame_length / (stack_size * (1 - overlap))
@@ -371,20 +394,9 @@ def predict_entry(single_stack, model_path, model=None, class_names=None):
 
     pred = model.predict(single_stack, verbose=0)
 
-    if pred.ndim == 1 or pred.shape[-1] == 1:
-        prob = float(pred[0] if pred.ndim == 1 else pred[0, 0])
-        class_idx = 1 if prob > 0.5 else 0
-        default_names = ["Sonic Boom", "Surf"]
-        class_names = class_names or default_names
-        confidence = prob if class_idx == 1 else 1.0 - prob
-    else:
-        class_idx = int(np.argmax(pred[0]))
-        confidence = float(pred[0, class_idx])
-        if class_names is None:
-            if pred.shape[-1] == 3:
-                class_names = ["surf", "transient", "thunder"]
-            else:
-                class_names = [f"class_{i}" for i in range(pred.shape[-1])]
+    class_idx = int(np.argmax(pred[0]))
+    confidence = float(pred[0, class_idx])
+    class_names = ["surf", "transient", "thunder", "artillery"]
 
     class_name = class_names[class_idx]
     print(f"Predicted Class: {class_name} with confidence {confidence:.4f} (raw scores: {pred[0]})")

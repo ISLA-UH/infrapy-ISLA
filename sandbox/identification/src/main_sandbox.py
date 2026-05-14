@@ -594,6 +594,7 @@ if __name__ == "__main__":
                         det_stack_t = det_stack
                         j = 0
                         vote = [predict_entry(det_stack_t, model_path, model=classification_model)]
+                        print(f"Classification vote: {vote[0]}")
                         """while j < 5:
                             detm_strm = g_stream.copy()
                             detm_stack = mvida_stack(detm_strm, inventory, UTCDateTime(det_time), window, stack_size, overlap, back_az, trace_vel)
@@ -683,7 +684,7 @@ if __name__ == "__main__":
                     logging.info(f"Retrying after {evd.signal_step_sec} seconds...")
                     time.sleep(evd.signal_step_sec)
             except Exception as e:
-                logging.error(f"Error fetching data. Exception: {e}")
+                logging.error(f"Error during processing/classification. Exception: {e}")
                 logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
                 if evd.real_time:
                     logging.info(f"Retrying after {evd.signal_step_sec} seconds...")

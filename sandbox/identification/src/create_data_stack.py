@@ -790,8 +790,9 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, target_size=
                 strm_g = cl.get_waveforms(network="IM", station="I59*", location="", channel="BDF", starttime=s_time, endtime=e_time)
                 strm = strm_g.copy()
                 for tr in strm:
-                    tr.attach_response(inv)
-                    tr.remove_sensitivity()
+                    #tr.attach_response(inv)
+                    #tr.remove_sensitivity()
+                    tr.normalize()
                     tr.data = tr.data[:int((window+(2*buffer))*20)]
                 t_strm = inv_align(strm, inv, entry['Back Azimuth'], entry['Trace Vel. (m/s)'])
                 strm = t_strm.copy()
@@ -802,11 +803,13 @@ def create_train_stack(all_entries, fname, pname, inv, window=12.8, target_size=
                 #    tr.data = wavelet_denoise(tr.data, wavelet='db4', level=2, threshold_mode='soft')
                 if do_mvida:
                     if entry['Class'] == 'transient':
-                        num_versions = 20
+                        num_versions = 15
                     elif entry['Class'] == 'thunder':
+                        num_versions = 15  # Data is limited so we augment using MVIDA
+                    elif entry['Class'] == 'artillery':
                         num_versions = 20  # Data is limited so we augment using MVIDA
                     else:  # surf
-                        num_versions = 12  # Data is limited so we augment using MVIDA
+                        num_versions = 10  # Data is limited so we augment using MVIDA
                 else:
                     num_versions = 1
                 v = 0

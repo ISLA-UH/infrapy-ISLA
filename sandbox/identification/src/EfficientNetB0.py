@@ -32,7 +32,7 @@ def build_efficientnetb0(input_shape=(256, 256, 1), num_classes=2):
         Shape of the input data (height, width, channels)
     num_classes : int
         Number of output classes (2 for binary classification)
-    
+ 
     Returns:
     ---------
     model : tf.keras.Model
@@ -44,11 +44,18 @@ def build_efficientnetb0(input_shape=(256, 256, 1), num_classes=2):
 
     inputs = layers.Input(shape=input_shape)
 
-    # First stem takes 1 channel and transforms it to match format of efficientnet pretrained weights
-    x = layers.Conv2D(16, 3, padding='same', use_bias=False)(inputs)
-    x = layers.BatchNormalization()(x)
-    x = layers.ReLU()(x)
-    x = layers.Conv2D(3, 1, padding='same', use_bias=False)(x)
+    # For 3-channel handcrafted inputs (CWT/STFT/Envelope), avoid unnecessary mixing
+    # before the pretrained backbone. For non-3-channel inputs, adapt to RGB.
+    if input_shape[-1] == 3:
+        x = inputs
+    else:
+        x = layers.Conv2D(16, 3, padding='same', use_bias=False)(inputs)
+        x = layers.BatchNormalization()(x)
+        x = layers.ReLU()(x)
+        x = layers.Conv2D(3, 1, padding='same', use_bias=False)(x)
+
+    # Light fusion block: lets model learn per-pixel channel mixtures while preserving input geometry.
+    x = layers.Conv2D(3, 1, padding='same', use_bias=False, name='feature_fusion')(x)
     x = EfficientNetPreprocessing()(x)
     # Load pre-trained EfficientNet-B0 backbone
     base_model = EfficientNetB0(
@@ -122,26 +129,25 @@ if __name__ == "__main__":
     """
     Code Starts Here
     """
-    img_size = 1200
     path = 'sandbox\\identification\\training\\numpy\\'
 
     training_set = np.load(os.path.join(path, 'X_train.npy'))  # Data is X
     training_labels = np.load(os.path.join(path, 'Y_train.npy'))  # Labels are Y
 
-    # Model needs int labels, convert from string: surf=0, transient=1, thunder=2
-    label_map = {'surf': 0, 'transient': 1, 'thunder': 2}
-    Y_train = np.array([label_map[l] for l in training_labels], dtype=np.int32)
+    # Model needs int labels, convert from string: surf=0, transient=1, thunder=2, artillery=3
+    label_map = {'surf': 0, 'transient': 1, 'thunder': 2, 'artillery': 3}
+    Y_train = np.array([label_map[t_label] for t_label in training_labels], dtype=np.int32)
     X_train = training_set.astype(np.float32)
 
     test_set = np.load(os.path.join(path, 'X_test.npy'))
     test_label = np.load(os.path.join(path, 'Y_test.npy'))
     X_test = test_set.astype(np.float32)
-    Y_test = np.array([label_map[l] for l in test_label], dtype=np.int32)
+    Y_test = np.array([label_map[t_label] for t_label in test_label], dtype=np.int32)
 
     val_set = np.load(os.path.join(path, 'X_val.npy'))
     val_label = np.load(os.path.join(path, 'Y_val.npy'))
     X_val = val_set.astype(np.float32)
-    Y_val = np.array([label_map[l] for l in val_label], dtype=np.int32)
+    Y_val = np.array([label_map[t_label] for t_label in val_label], dtype=np.int32)
     # Resize all splits to a manageable EfficientNet input size.
     target_size = (384, 384)
     X_train = resize_dataset(X_train, target_size=target_size)
@@ -152,7 +158,7 @@ if __name__ == "__main__":
     print(f"Resized input shape: {X_train.shape[1:]}")
 
     # Build and compile the model 
-    model, base_model = build_efficientnetb0(input_shape=X_train.shape[1:], num_classes=3)
+    model, base_model = build_efficientnetb0(input_shape=X_train.shape[1:], num_classes=4)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
         loss='sparse_categorical_crossentropy',
@@ -170,13 +176,13 @@ if __name__ == "__main__":
         monitor='val_loss', factor=0.5, patience=3, min_lr=1e-7
     )
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        '3Ceffnet.keras',
+        'best_efficientnet.keras',
         monitor='val_accuracy',
         save_best_only=True,
         mode='max'
     )
     # Balance initial class weights based on distribution in training set
-    CLASS_NAMES = ['Surf(0)', 'Transient(1)', 'Thunder(2)']
+    CLASS_NAMES = ['Surf(0)', 'Transient(1)', 'Thunder(2)', 'Artillery(3)']
     unique, counts = np.unique(Y_train, return_counts=True)
     print("\n=== CLASS BALANCE ===")
     print(f"Training set: {dict(zip([CLASS_NAMES[i] for i in unique], counts))}")
@@ -193,14 +199,17 @@ if __name__ == "__main__":
     n_class_0 = np.sum(Y_train == 0)  # Surf count
     n_class_1 = np.sum(Y_train == 1)  # Transient count
     n_class_2 = np.sum(Y_train == 2)  # Thunder count
-    weight_0 = total_samples / (3.0 * n_class_0) if n_class_0 > 0 else 1.0
-    weight_1 = total_samples / (3.0 * n_class_1) if n_class_1 > 0 else 1.0
-    weight_2 = total_samples / (3.0 * n_class_2) if n_class_2 > 0 else 1.0
+    n_class_3 = np.sum(Y_train == 3)  # Artillery count
+    weight_0 = total_samples / (4.0 * n_class_0) if n_class_0 > 0 else 1.0
+    weight_1 = total_samples / (5.0 * n_class_1) if n_class_1 > 0 else 1.0
+    weight_2 = total_samples / (3.5 * n_class_2) if n_class_2 > 0 else 1.0
+    weight_3 = total_samples / (3.5 * n_class_3) if n_class_3 > 0 else 1.0
 
     weights_dict = {
         0: weight_0,  # Weight for Surf
         1: weight_1,  # Weight for Transient
-        2: weight_2   # Weight for Thunder
+        2: weight_2,  # Weight for Thunder
+        3: weight_3   # Weight for Artillery
     }
     print(f"Calculated class weights: {weights_dict}")
 
@@ -255,7 +264,7 @@ if __name__ == "__main__":
     for key in history.history:
         history.history[key].extend(history_ft.history[key])
 
-    model.load_weights('3Ceffnet.keras') 
+    model.load_weights('best_efficientnet.keras') 
     results = model.evaluate(X_test, Y_test)
 
     print(f"Final Test Accuracy: {results[1]}")
@@ -269,7 +278,7 @@ if __name__ == "__main__":
     pred_unique, pred_counts = np.unique(y_pred_class, return_counts=True)
     print(f"Prediction distribution: {dict(zip([CLASS_NAMES[i] for i in pred_unique], pred_counts))}")
     print(confusion_matrix(y_true_class, y_pred_class))
-    print(classification_report(y_true_class, y_pred_class, target_names=['surf', 'transient', 'thunder']))
+    print(classification_report(y_true_class, y_pred_class, target_names=['surf', 'transient', 'thunder', 'artillery']))
     plt.figure(figsize=(12, 5))
 
     # Plot model metrics
