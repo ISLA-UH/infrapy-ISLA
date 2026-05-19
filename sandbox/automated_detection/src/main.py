@@ -237,7 +237,7 @@ class EventDetector:
             if not os.path.exists(cfg_path):
                 print(f"Config not found at {cfg_path}")
                 exit(1)
-
+            
             evd = EventDetector(
                 event_name=infraconfig.get_param(run_cfg, "RUN", "event_name", None, "string"),     # type: ignore
                 network=infraconfig.get_param(run_cfg, "RUN", "network", None, "string"),           # type: ignore
@@ -269,10 +269,11 @@ if __name__ == "__main__":
     """
     Main entry point for automated infrasonic detection using InfraPy
 
-    If adding command line parameters, the root path is always first and the config path is second.
+    If adding command line parameters, the root path is always first, the config path is second, and the
+    config file name is third.
     If only one parameter is given, it is assumed to be the root path, and config path will be default.
-    Any parameters beyond the first two will be ignored.
-    Example: python main.py /path/to/root /path/to/config.ini
+    Any parameters beyond the first three will be ignored.
+    Example: python main.py /path/to/root /path/to/config config_file.ini
     """
     # Set up paths from CLI or use defaults
     root_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), 'sandbox', 'automated_detection')

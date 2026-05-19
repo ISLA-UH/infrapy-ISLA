@@ -423,7 +423,7 @@ class IPDecimateSettingsWidget(IPBaseWidgets.IPSettingsGroupBox):
         label_factor = QLabel(self.tr('Factor:'))
         self.factorSpin = QSpinBox()
         self.factorSpin.setMinimum(2)
-        self.factorSpin.setMaximum(100)
+        self.factorSpin.setMaximum(16)
         self.factorSpin.setValue(2)
 
         self.detrendType_cb = QComboBox()

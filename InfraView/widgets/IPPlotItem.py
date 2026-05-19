@@ -18,7 +18,7 @@ class NonScientific(pg.AxisItem):
     # def __init__(self, *args, **kwargs):
     #    super(NonScientific, self).__init__(*args, **kwargs)
 
-    def tickStrings(self, values: list):
+    def tickStrings(self, values: list, scale, spacing):
         """
         :param values: list of values
 
@@ -49,7 +49,7 @@ class IPWaveformTimeAxis(pg.AxisItem):
         # font.setPointSize(12)
         # self.setTickFont(font)
 
-    def tickStrings(self, values: list):
+    def tickStrings(self, values: list, scale, spacing):
         """
         :param values: list of values
         :return: list of strings for axis labels
@@ -87,7 +87,7 @@ class IPSpectrogramTimeAxis(pg.AxisItem):
         # time of the waveforms plus the offset seconds of the signal/noise window
         self.set_start_time(UTCDateTime(0))
 
-    def tickStrings(self, values: list):
+    def tickStrings(self, values: list, scale, spacing):
         """
         :param values: list of values
         :return: list of strings for axis labels
