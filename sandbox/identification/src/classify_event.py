@@ -75,41 +75,7 @@ def create_cwt(raw_data: np.array, fs: float,freq_range: tuple, num_freq: int) -
 
     """
     cwt_data = cwt(raw_data, 1/fs, 8, freq_range[0], freq_range[1], nf=num_freq)
-    """h_factor = num_freq / cwt_data.shape[0]
-    w_factor = num_freq / cwt_data.shape[1]
-    cwt_data = zoom(cwt_data, (h_factor, w_factor))"""
     return cwt_data
-
-
-def create_sstcwt(raw_data: np.array, fs, freq_range: tuple, num_freq: int) -> np.ndarray:
-    """Converts a signal into its Synchrosqueeze Continuous Wavelet Transform representation.
-
-    Parameters
-    ----------
-    raw_data : np.array
-        2D array raw signal values. Can be time series or frequency series.
-    fs : float
-        Sampling frequency of the raw data.
-    freq_range : tuple
-        Frequency range for the CWT.
-    num_freq : int
-        Number of frequency bins for the CWT (Must match GAF image size).
-    Returns:
-    ----------
-    cwt_data : 2darray
-        2d np.array of corresponding continuous wavelet transform representation of the signal.
-
-    """
-    wavelet = 'morlet'
-    Tx, _, ssq_freqs, _ = ssqueezepy.ssq_cwt(raw_data, wavelet=wavelet, fs=fs)
-    sst_mag = np.abs(Tx)
-    idx = np.where((ssq_freqs >= freq_range[0]) & (ssq_freqs <= freq_range[1]))[0]
-    if len(idx) > 0:
-        sst_mag = sst_mag[idx, :]
-    h_factor = num_freq / sst_mag.shape[0]
-    w_factor = num_freq / sst_mag.shape[1]
-    sstcwt_data = zoom(sst_mag, (h_factor, w_factor))
-    return sstcwt_data
 
 
 def stack_weighted_traces(aligned_strm, noise_window_sec=60):
@@ -174,7 +140,7 @@ def apply_mvida_to_stream(aligned_strm):
     virtual_strm.append(v_trace)
     return virtual_strm
 
-def single_stack(strm, inventory, freq_range, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity, size) -> np.ndarray:
+def single_stack(strm, inventory, freq_range, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity, size, do_mvida: bool = False) -> np.ndarray:
     """
     Takes a detection stream and generates a single CWT stack for classification.
     Parameters
@@ -195,6 +161,10 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
         Back-azimuth in degrees for geometric alignment.
     trace_velocity : float
         Wave velocity in m/s for geometric alignment.
+    size : int
+            Desired size (in pixels) of the output CWT image (size x size).
+    do_mvida : bool
+        Whether to apply MVIDA augmentation for additional training samples. Default is False.
     Returns
     -------
     data_stack : np.ndarray
@@ -203,11 +173,9 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
     fft_size = int(20 * window)
     buffer = 20.0
 
-    # Preprocess Stream - match training pipeline exactly
+    # Preprocess stream exactly like create_data_stack.py training path.
     for tr in strm:
-        tr.attach_response(inventory)
-        tr.remove_sensitivity()
-        # Truncate before alignment - matches create_data_stack.py training pipeline
+        tr.normalize()
         tr.data = tr.data[:int((window + (2 * buffer)) * 20)]
 
     # Align FIRST, then detrend/taper/filter - matches training order
@@ -217,22 +185,33 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
     strm.taper(max_percentage=0.05, type="blackmanharris")
     strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
 
-    # Center around peak of the aligned stream to ensure we capture the most relevant part of the signal
-    peak_strm = strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
-    pasc_max = np.abs(peak_strm[0].data)
-    peak_index = peak_strm[0].times("utcdatetime")[np.argmax(pasc_max)]
-    peak_time = obspy.UTCDateTime(round(peak_index.timestamp))
+    # Stack sensors into a single virtual trace.
+    if do_mvida:
+        single_strm = apply_mvida_to_stream(strm)
+    else:
+        single_strm = stack_weighted_traces(strm)
+    current_strm = single_strm.copy()
+    if len(current_strm) == 0 or len(current_strm[0].data) == 0:
+        raise ValueError("No trace data available after stacking in single_stack")
+
+    peak_strm = current_strm.slice(starttime=center_time - (window/2), endtime=center_time + ((window/2)))
+    if len(peak_strm) == 0 or len(peak_strm[0].data) == 0:
+        # Fallback: derive peak from the full virtual trace when the center-time slice misses data.
+        trace = current_strm[0]
+        peak_idx = int(np.argmax(np.abs(trace.data)))
+        peak_time = trace.stats.starttime + (peak_idx / trace.stats.sampling_rate)
+    else:
+        pasc_max = np.abs(peak_strm[0].data)
+        peak_index = peak_strm[0].times("utcdatetime")[np.argmax(pasc_max)]
+        peak_time = obspy.UTCDateTime(round(peak_index.timestamp))
     final_start = peak_time - (window / 2)
     final_end = peak_time + (window / 2)
-    peak_strm.trim(starttime=final_start, endtime=final_end, pad=False)
-
-    single_strm = stack_weighted_traces(peak_strm)
-    current_strm = obspy.Stream(traces=single_strm)
+    current_strm.trim(starttime=final_start, endtime=final_end, pad=False)
 
     frame_length = window / (stack_size-(stack_size-1)*overlap)
     frame_step = frame_length / (stack_size * (1 - overlap))
     for i in range(stack_size):
-        # Split data stack into multiple frames to capture temporal evolution
+        # Split data stack into multiple frames to capture temporal evolution (currently unused)
         t_start = final_start + (i * frame_step)
         t_end = t_start + frame_length
         strm_window = current_strm.copy()
@@ -267,82 +246,6 @@ def single_stack(strm, inventory, freq_range, center_time, window: float, stack_
         data_stack = np.nan_to_num(data_stack, posinf=1.0, neginf=-1.0)
     return data_stack
 
-def mvida_stack(strm, inventory, freq_range, center_time, window: float, stack_size: int, overlap: float, back_azimuth, trace_velocity) -> np.ndarray:
-    """
-    Takes a detection stream and generates a single CWT stack for classification.
-    Parameters
-    ----------
-    strm : obspy.Stream
-        Input stream containing traces for a single detection, already trimmed to the same time window.
-    inventory : obspy.Inventory
-        Station metadata for coordinate lookup and response removal.
-    center_time : obspy.UTCDateTime
-        Center time of the detection window.
-    window : float
-        Total window length in seconds for the stack.
-    stack_size : int
-        Number of frames in the stack (e.g., 6).
-    overlap : float
-        Fractional overlap between frames (e.g., 0.5 for 50% overlap).
-    back_azimuth : float
-        Back-azimuth in degrees for geometric alignment.
-    trace_velocity : float
-        Wave velocity in m/s for geometric alignment.
-    Returns
-    -------
-    data_stack : np.ndarray
-        A 3D numpy array of shape (num_freq, num_freq, stack_size) representing the CWT stack for classification.
-    """
-    fft_size = int(20*window)
-    # Preprocess Stream
-    for tr in strm:
-        tr.attach_response(inventory)
-        tr.remove_sensitivity()
-    strm.detrend()
-    strm.taper(max_percentage=0.05, type="blackmanharris")
-    strm.filter("bandpass", freqmin=freq_range[0], freqmax=freq_range[1], corners=4, zerophase=True)
-    t_strm = inv_align(strm, inventory, back_azimuth, trace_velocity)
-    strm = t_strm.copy()
-    final_start = center_time - (window / 2)
-    final_end = center_time + (window / 2)
-    strm.trim(starttime=final_start, endtime=final_end, pad=False)
-    single_strm = apply_mvida_to_stream(strm)
-    current_strm = obspy.Stream(traces=single_strm)
-
-    frame_length = window / (stack_size-(stack_size-1)*overlap)
-    frame_step = frame_length / (stack_size * (1 - overlap))
-    for i in range(stack_size):
-        # Split data stack into multiple frames to capture temporal evolution
-        t_start = final_start + (i * frame_step)
-        t_end = t_start + frame_length
-        strm_window = current_strm.copy()
-        strm_window.trim(starttime=t_start, endtime=t_end, pad=True, fill_value=0.0)
-        if len(strm_window[0].data) > fft_size:
-            data = strm_window[0].data
-            strm_window[0].data = data[:fft_size]
-        elif len(strm_window[0].data) < fft_size:
-            data = strm_window[0].data
-            pad_width = fft_size - len(data)
-            strm_window[0].data = np.pad(data, (0, pad_width), 'constant')
-        # Create CWT representation for the current frame
-        raw_cwt = []
-        for tr in strm_window:
-            cwt_complex = create_cwt(raw_data=tr.data, fs=20, freq_range=freq_range, num_freq=fft_size)
-            cwt_mag = np.abs(cwt_complex)
-            cwt_log = np.log1p(cwt_mag)
-            cwt_norm = (cwt_log - cwt_log.min()) / (cwt_log.max() - cwt_log.min() + 1e-10)
-            raw_cwt.append(cwt_norm)
-    data_stack = np.array(raw_cwt).transpose(1, 2, 0)
-    
-    # Validate the data stack
-    if np.isnan(data_stack).any():
-        print("WARNING: NaN values detected in mvida_stack!")
-        data_stack = np.nan_to_num(data_stack, nan=0.0)
-    if np.isinf(data_stack).any():
-        print("WARNING: Inf values detected in mvida_stack!")
-        data_stack = np.nan_to_num(data_stack, posinf=1.0, neginf=-1.0)
-    return data_stack
-
 def predict_entry(single_stack, model_path, model=None, class_names=None):
     """
     Predict class from a single CWT stack.
@@ -371,20 +274,9 @@ def predict_entry(single_stack, model_path, model=None, class_names=None):
 
     pred = model.predict(single_stack, verbose=0)
 
-    if pred.ndim == 1 or pred.shape[-1] == 1:
-        prob = float(pred[0] if pred.ndim == 1 else pred[0, 0])
-        class_idx = 1 if prob > 0.5 else 0
-        default_names = ["Sonic Boom", "Surf"]
-        class_names = class_names or default_names
-        confidence = prob if class_idx == 1 else 1.0 - prob
-    else:
-        class_idx = int(np.argmax(pred[0]))
-        confidence = float(pred[0, class_idx])
-        if class_names is None:
-            if pred.shape[-1] == 3:
-                class_names = ["surf", "transient", "thunder"]
-            else:
-                class_names = [f"class_{i}" for i in range(pred.shape[-1])]
+    class_idx = int(np.argmax(pred[0]))
+    confidence = float(pred[0, class_idx])
+    class_names = ["surf", "transient", "thunder", "artillery"]
 
     class_name = class_names[class_idx]
     print(f"Predicted Class: {class_name} with confidence {confidence:.4f} (raw scores: {pred[0]})")
