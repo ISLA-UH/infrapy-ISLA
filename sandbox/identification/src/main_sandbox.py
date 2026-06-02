@@ -48,7 +48,7 @@ from EfficientNetB0 import EfficientNetB0, preprocess_input
 from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
-from classify_event import mvida_stack, single_stack, predict_entry
+from classify_event import single_stack, predict_entry
 from tensorflow.keras.models import load_model
 
 
