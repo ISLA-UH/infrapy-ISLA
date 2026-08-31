@@ -34,11 +34,12 @@ import json
 import os
 import sys
 import time
+import certifi
 from typing import Optional
 import logging
 import traceback
 from urllib.error import URLError
-
+import ssl
 import numpy as np
 import obspy
 from obspy import UTCDateTime
@@ -50,6 +51,8 @@ from infrapy.detection import beamforming_new as fkd
 from infrapy.utils import config as infraconfig
 from infrapy.utils import data_io
 
+context = ssl.create_default_context(cafile=certifi.where())
+ssl._create_default_https_context = lambda: context
 
 class EventDetector:
     """
@@ -152,7 +155,7 @@ class EventDetector:
         self.num_elements = num_elements
         self.wf_client = wf_client
         if not self.wf_client:
-            self.client = Client("IRIS")
+            self.client = Client("https://service.earthscope.org/")
         elif seedlink_ip is None or not seedlink_ip:
             print("Local seedlink IP address must be provided when using seedlink as data source")
             exit(1)
@@ -337,6 +340,17 @@ if __name__ == "__main__":
     It will pull data from either IRIS or a local seedlink server, process it in overlapping time windows,
     and save detections and raw data to specified directories.
     """
+
+    # Load station info as arrays
+    net_array = evd.network.split(',')
+    sta_array = evd.station.split(',')
+    loc_array = evd.location.split(',')
+    cha_array = evd.channel.split(',')
+
+    for net, sta, loc, cha in zip(net_array, sta_array, loc_array, cha_array):
+        if '*' in net or '*' in sta or '*' in loc or '*' in cha:
+            print("WARNING: Wilcard characters may cause issues fetching data. If errors occur please try specifying sensor information.")
+    assert len(net_array) == len(sta_array) == len(loc_array) == len(cha_array), "Network, station, location, and channel arrays must have the same length."    
     # set initial time window
     t1: UTCDateTime = UTCDateTime() - ((2 * evd.sig_len_secs) + evd.rt_buffer_s) \
         if evd.real_time else evd.nrt_stime - evd.signal_step_sec  # type: ignore
@@ -344,7 +358,7 @@ if __name__ == "__main__":
     current_day = t1.strftime("%Y%m%d")
     det_fpath = evd.create_log(os.path.join(evd.results_dir), current_day)
     # Generate Noise and Get Inventory
-    inventory = None
+    inventory = obspy.Inventory()
     # Try to load inventory from XML file first
     try:
         inv_file = os.path.join(evd.inventory_dir, evd.inventory_name)
@@ -355,16 +369,18 @@ if __name__ == "__main__":
         logging.warning(f"could not load from .xml file Exception: {e}")
         logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
         try:
-            inventory = Client("IRIS").get_stations(
-                network=evd.network,
-                station=evd.station,
-                location=evd.location,
-                channel=evd.channel,
-                starttime=t1,
-                endtime=t2,
-                level="response",
-            )
-            if inventory is None:
+            for net, sta, loc, cha in zip(net_array, sta_array, loc_array, cha_array):
+                tmp_inv = Client("IRIS").get_stations(
+                    network=net,
+                    station=sta,
+                    location=loc,
+                    channel=cha,
+                    starttime=t1,
+                    endtime=t2,
+                    level="response",
+                )
+                inventory.extend(tmp_inv)
+            if len(inventory.networks) == 0:
                 logging.error("Error fetching inventory: no data returned from client.")
                 logging.shutdown()
                 sys.exit(1)
@@ -378,15 +394,18 @@ if __name__ == "__main__":
 
     # Get Baseline Noise Data
     logging.info("Fetching baseline noise data")
+    n_stream = obspy.Stream()
     try:
-        n_stream = evd.client.get_waveforms(
-            network=evd.network,
-            location=evd.location,
-            station=evd.station,
-            channel=evd.channel,
-            starttime=t1,
-            endtime=t2,
-        )
+        for net, sta, loc, cha in zip(net_array, sta_array, loc_array, cha_array):
+            print(net, sta, loc, cha)
+            n_stream += evd.client.get_waveforms(
+                network=net,
+                location=loc,
+                station=sta,
+                channel=cha,
+                starttime=t1,
+                endtime=t2,
+            )
         if n_stream is None:
             logging.error("Error fetching baseline noise data: no data returned from client.")
             logging.shutdown()
@@ -401,11 +420,11 @@ if __name__ == "__main__":
     latlon = []
     for tr in n_stream:
         coords = inventory.get_coordinates(
-            f"{evd.network}.{tr.stats.station}.{evd.location}.{evd.channel}", t1
+            f"{tr.stats.network}.{tr.stats.station}.{tr.stats.location}.{tr.stats.channel}", t1
         )
         latlon.append((coords["latitude"], coords["longitude"]))
         logging.info(f"{tr.stats.starttime} {tr.stats.station}")
-    logging.info(f"Fetched {len(n_stream)} traces from {evd.network}.{evd.station}.")
+    logging.info(f"Fetched {len(n_stream)} traces from {net_array}.{sta_array}.")
 
     centroid = np.mean([lat for lat, _ in latlon]), np.mean([lon for _, lon in latlon])
     array_lat, array_lon = centroid
@@ -462,23 +481,25 @@ if __name__ == "__main__":
                 exit(0)
 
             # Get waveforms from IRIS or seedlink
+            g_stream = obspy.Stream()
             try:
-                g_stream = evd.client.get_waveforms(
-                    network=evd.network,
-                    location=evd.location,
-                    station=evd.station,
-                    channel=evd.channel,
-                    starttime=t1,
-                    endtime=t2,
-                )
+                for net, sta, loc, cha in zip(net_array, sta_array, loc_array, cha_array):
+                    g_stream += evd.client.get_waveforms(
+                        network=net,
+                        location=loc,
+                        station=sta,
+                        channel=cha,
+                        starttime=t1,
+                        endtime=t2,
+                    )
                 if g_stream is None:
                     raise Exception("No waveforms returned from client.")
                 logging.info(f"Fetched {len(g_stream)} traces from {evd.network}.{evd.station}.")   # type: ignore
                 if (len(g_stream) < evd.num_elements):                                              # type: ignore
                     logging.warning(f"Error fetching waveforms. Received {len(g_stream)} traces, "  # type: ignore
                                     f"expected {evd.num_elements}.")
-                    i += 1
-                    continue
+                    '''i += 1
+                    continue'''
                 str_name = f"{evd.event_name}_{t1.strftime('%Y%m%d_%H%M%S')}"
                 logging.info(f"Iteration {i}")
 
